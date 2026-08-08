@@ -1,8 +1,10 @@
 # GEO-YIELD-AI
 
-**Geo-Yield-AI** es una plataforma SaaS de *Location Intelligence* diseñada para transformar la toma de decisiones en la expansión de cadenas de retail, negocios, franquicias y consultoras inmobiliarias. 
+**Geo-Yield-AI** es una plataforma SaaS de *Location Intelligence* diseñada para transformar la toma de decisiones en la expansión de cadenas de retail, negocios, franquicias y consultoras inmobiliarias.
 
 Utilizamos un enfoque de **Agente de IA Autónomo** que combina Big Data de movilidad, análisis sociodemográfico y validación normativa instantánea mediante arquitectura RAG.
+
+> **Estado del proyecto:** en construcción por fases. Ver [`docs/structure.md`](docs/structure.md) para la estructura vigente del repo y [`docs/adr/`](docs/adr/) para las decisiones de arquitectura tomadas.
 
 ## 📖 Tabla de Contenidos
 - [Propuesta de Valor](#-propuesta-de-valor)
@@ -41,11 +43,11 @@ Abrir un nuevo local comercial conlleva un alto riesgo financiero. Las decisione
 
 | Capa | Tecnología |
 | :--- | :--- |
-| **Lenguaje** | Python 3.10+ |
-| **IA / RAG** | LlamaIndex, OpenAI GPT-4o / Claude 3.5 |
+| **Lenguaje** | Python 3.12 |
+| **IA / RAG** | LlamaIndex, OpenAI GPT-4o / Claude 3.5 *(Fase 2, pendiente)* |
 | **Backend** | FastAPI |
 | **Frontend** | Vue.js (Mapas interactivos) |
-| **Base de Datos** | Supabase (PostgreSQL/PostGIS + pgvector) |
+| **Base de Datos** | Supabase (PostgreSQL/PostGIS + pgvector) — ver [ADR 0001](docs/adr/0001-pgvector-vs-qdrant.md) |
 | **Data Science** | Pandas, GeoPandas |
 | **DevOps** | Docker, GitHub Actions, CI/CD |
 
@@ -59,44 +61,69 @@ El flujo de datos sigue una estructura **Cloud-Native**:
 3. **Orquestación:** FastAPI coordina las peticiones del usuario con el motor RAG.
 4. **Veredicto:** El LLM genera un informe basado en el contexto recuperado de la base vectorial.
 
+Ver [`docs/diagram.md`](docs/diagram.md) para el diagrama completo.
+
 ---
 
 ## 🚀 Instalación y Uso
 
 ### Requisitos previos
-* Docker instalado
-* Python 3.10 o superior
-* Claves de API de OpenAI/Anthropic y Supabase
+* Docker y Docker Compose instalados
+* Python 3.12
+* Claves de API de OpenAI/Anthropic y Supabase (a partir de la Fase 2)
 
-### Pasos para ejecución local
+### Pasos para ejecución local con Docker (recomendado)
+
 1. **Clonar el repositorio:**
    ```bash
-   git clone [https://github.com/TU_USUARIO/pj-geo-yield-ai.git](https://github.com/TU_USUARIO/pj-geo-yield-ai.git)
+   git clone https://github.com/TU_USUARIO/pj-geo-yield-ai.git
    cd pj-geo-yield-ai
+   ```
 
 2. **Configurar el entorno:**
-Crea un archivo .env basado en .env.example con tus credenciales de API.
+   ```bash
+   cp .env.example .env
+   # Edita .env con tus credenciales
+   ```
 
-3. Instalar dependencias:
-    ```bash
-    pip install -r requirements.txt
+3. **Levantar la API y la base de datos:**
+   ```bash
+   docker compose -f deployment/docker-compose.yml up --build
+   ```
+   La API queda disponible en `http://localhost:8080`. Comprueba `GET /health` y `GET /ready`.
 
-4. Ejecutar la aplicación:
-    ```bash
-    XXXX
+### Ejecución local sin Docker (solo la API)
+
+1. **Instalar dependencias:**
+   ```bash
+   pip install -r backend/requirements.txt
+   ```
+
+2. **Configurar el entorno:**
+   ```bash
+   cp .env.example .env
+   # Cambia el host de DATABASE_URL de "postgis" a "localhost" si la base
+   # de datos corre en Docker con el puerto publicado, o apunta a tu propia
+   # instancia de Postgres/PostGIS local.
+   ```
+
+3. **Ejecutar la aplicación (desde la raíz del repo):**
+   ```bash
+   python -m backend.api.main
+   ```
+
+---
 
 ## 🔄 DevOps y Despliegue
 Este proyecto aplica los conocimientos de ingeniería adquiridos en el Máster:
 
-    - Contenedores: Imagen Docker para asegurar que el entorno de desarrollo sea idéntico al de producción.
-
-    - CI/CD: Pipelines en GitHub Actions para despliegue automático en Render o Railway.
-
-    - Observabilidad: Monitorización básica de latencias en las llamadas al LLM.
+- **Contenedores:** Imagen Docker para asegurar que el entorno de desarrollo sea idéntico al de producción.
+- **CI/CD:** Pipeline en GitHub Actions (`integrate.yml`) que ejecuta los tests en cada pull request, y despliegue manual (`deploy.yml`) a Render.
+- **Observabilidad:** Monitorización básica de latencias y peticiones vía `/metrics`; latencias del LLM se añadirán en la Fase 2-3.
 
 ## 👥 Equipo
 Proyecto desarrollado por 4 compañeros del Máster en IA, Cloud y DevOps (Pontia):
-    - Manuel Yerbes García
-    - Marvin Bernal
-    - Enmanuel De Oleo
-    - Claudi Berenguer Sabaté
+- Manuel Yerbes García
+- Marvin Bernal
+- Enmanuel De Oleo
+- Claudi Berenguer Sabaté

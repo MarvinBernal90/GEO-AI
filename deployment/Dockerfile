@@ -1,19 +1,18 @@
-#FROM python:3.10.20-slim
-# Inicialmente no se había instaldo el package mariadb, por lo que cuando el container no levantaba porqué sqlalchemhy
-# intentaba importarlo y no lo encontraba. Al hcerlo, enteonces fallaba la creación de la imágen porqué decía que faltaba
-# el 'MariaDB Connector/C'. Se ha buscado y se ha visto que ese conector debe estar presente en el sisntema operativo
-# Es por ello que se ha tenido que importar una imágen más completa de python - la estándar de dockerhub en lugar de la slim inicial
-# porqué enm esa faltaba el 'mariadb C connector'
-FROM python:3.11.15-trixie
+FROM python:3.12-slim
 
-ARG WORKDIR=/app
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
-WORKDIR ${WORKDIR}
+WORKDIR /app
 
-COPY ./ ./
+# Se copian primero solo las dependencias para aprovechar la cache de capas
+# de Docker: si el código cambia pero requirements.txt no, no se reinstalan
+# paquetes en cada build.
+COPY backend/requirements.txt ./backend/requirements.txt
+RUN pip install --no-cache-dir -r backend/requirements.txt
 
-RUN pip install -r ./requirements.txt
+COPY backend/ ./backend/
 
-CMD ["python", "-m", "main"]
+EXPOSE 8000
 
-
+CMD ["python", "-m", "backend.api.main"]
