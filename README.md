@@ -44,7 +44,7 @@ Abrir un nuevo local comercial conlleva un alto riesgo financiero. Las decisione
 | Capa | Tecnología |
 | :--- | :--- |
 | **Lenguaje** | Python 3.12 |
-| **IA / RAG** | LlamaIndex, OpenAI GPT-4o / Claude 3.5 *(Fase 2, pendiente)* |
+| **IA / RAG** | LlamaIndex, OpenAI GPT-4o / Claude 3.5 *(pendiente)* |
 | **Backend** | FastAPI |
 | **Frontend** | Vue.js (Mapas interactivos) |
 | **Base de Datos** | Supabase (PostgreSQL/PostGIS + pgvector) — ver [ADR 0001](docs/adr/0001-pgvector-vs-qdrant.md) |
@@ -70,7 +70,7 @@ Ver [`docs/diagram.md`](docs/diagram.md) para el diagrama completo.
 ### Requisitos previos
 * Docker y Docker Compose instalados
 * Python 3.12
-* Claves de API de OpenAI/Anthropic y Supabase (a partir de la Fase 2)
+* Claves de API de OpenAI/Anthropic y Supabase (pendiente validar)
 
 ### Pasos para ejecución local con Docker (recomendado)
 
@@ -91,6 +91,22 @@ Ver [`docs/diagram.md`](docs/diagram.md) para el diagrama completo.
    docker compose -f deployment/docker-compose.yml up --build
    ```
    La API queda disponible en `http://localhost:8080`. Comprueba `GET /health` y `GET /ready`.
+
+4. **Aplicar las migraciones de base de datos** (desde la raíz del repo, con la BD ya levantada):
+   ```bash
+   pip install -r backend/requirements.txt
+   ALEMBIC_DB_HOST=localhost alembic -c database/alembic.ini upgrade head
+   ```
+   `ALEMBIC_DB_HOST=localhost` sobrescribe el host de `DATABASE_URL` (que
+   por defecto apunta a `postgis`, el nombre del servicio dentro de la red
+   de Docker, no resoluble desde el host) para poder conectar desde fuera
+   del contenedor. El puerto de Postgres está publicado al host en
+   `deployment/docker-compose.yml` precisamente para esto.
+
+5. **Cargar los datos** (requiere los CSV de origen en `data/raw/`, ver `backend/etl/config.py` para los nombres esperados):
+   ```bash
+   PYTHONPATH=. python -m database.load_to_db
+   ```
 
 ### Ejecución local sin Docker (solo la API)
 

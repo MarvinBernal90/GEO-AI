@@ -3,32 +3,24 @@ services:
   postgis:
     # Imagen oficial de PostGIS: incluye PostgreSQL + extensión PostGIS, lista
     # para datos geoespaciales sin configuración adicional. pgvector (motor
-    # RAG, Fase 2) se instalará como extensión adicional sobre esta misma
+    # RAG) se instalará como extensión adicional sobre esta misma
     # base de datos — no hace falta un segundo servicio.
     image: postgis/postgis:18-master
     container_name: geoyield_db
     env_file:
-      - ../.env  # .env único en la raíz del repo (antes había ambigüedad entre uno en deployment/ y otro en la raíz)
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    # Solo expuesta a la red interna de Docker, no al host, de ahí 'expose'
-    # en lugar de 'ports'.
-    expose:
-      - "5432"
+      - ../.env  
+      # .env único en la raíz del repo (antes había ambigüedad entre uno en deployment/ y otro en la raíz)
+    ports:
+      - "5432:5432"
     volumes:
-      - geoyield_db:/var/lib/postgresql/data
+      - geoyield_db:/var/lib/postgresql
     networks:
       - geoyield_net
     # Da un periodo de gracia de 30s y hasta 5 reintentos (cada 10s) antes de
     # declarar la base de datos 'unhealthy', para que la api no intente
     # conectar antes de que Postgres esté listo para aceptar conexiones.
-    #
-    # CORRECCIÓN: el healthcheck original ("geoyield ping") no es un comando
-    # real. pg_isready sí lo es y viene incluido en la imagen de PostGIS.
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -36,9 +28,6 @@ services:
 
   api:
     build:
-      # CORRECCIÓN: el contexto debe ser la raíz del repo, no deployment/,
-      # porque el Dockerfile necesita copiar backend/. Con el contexto
-      # anterior (implícito, deployment/) esa carpeta quedaba fuera del build.
       context: ..
       dockerfile: deployment/Dockerfile
     container_name: geoyield_api
@@ -54,8 +43,6 @@ services:
       postgis:
         condition: service_healthy
 
-# Volúmenes gestionados por Docker (no mapeados a directorios del host) para
-# evitar problemas de permisos y dejar la persistencia en manos de Docker.
 volumes:
   geoyield_db:
   geoyield_logs:
