@@ -4,7 +4,7 @@ Modelos ORM de la capa de datos sociodemográficos y geoespaciales.
 Jerarquía geográfica reflejada en el censo comercial de Barcelona:
     District (10)  ->  Neighborhood (barrio)  ->  Competitor (local individual)
 
-Decisiones de diseño:
+Decisiones de diseño (Fase 1, validadas con el usuario):
     - Snapshot único para `district_income` y `district_mobility`: cada
       ejecución del pipeline de carga sobrescribe (upsert) los valores por
       distrito, en vez de acumular histórico con clave compuesta por fecha.
@@ -23,8 +23,11 @@ Decisiones de diseño:
 from datetime import date, datetime
 
 from geoalchemy2 import Geography
-from sqlalchemy import Date, ForeignKey, Numeric, SmallInteger, String, func
+from pgvector.sqlalchemy import Vector
+from sqlalchemy import Date, ForeignKey, Numeric, SmallInteger, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from backend.rag.embeddings import EMBEDDING_DIM as LEGAL_EMBEDDING_DIM
 
 from .base import Base
 
@@ -118,4 +121,28 @@ class DistrictMobility(Base):
     )
     daily_foot_traffic: Mapped[float] = mapped_column(Numeric(14, 2), nullable=False)
     fecha: Mapped[date | None] = mapped_column(Date)  # fecha del dato MITMA, informativo
+    loaded_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class LegalChunk(Base):
+    """
+    Un chunk de normativa legal (un artículo del PGM de Barcelona, portal
+    NUMAMB) con su embedding para búsqueda por similitud (Fase 2).
+
+    numero_articulo como PK: tras aplicar select_current_versions()
+    (backend/rag/chunking.py) solo debe quedar una versión vigente por
+    artículo, así que es una clave natural válida. Snapshot único (mismo
+    criterio que las tablas de la Fase 1): cada ejecución de la ingesta
+    reemplaza el contenido en vez de acumular histórico.
+    """
+
+    __tablename__ = "legal_chunks"
+
+    numero_articulo: Mapped[str] = mapped_column(String(20), primary_key=True)
+    titulo: Mapped[str] = mapped_column(String(500), nullable=False)
+    contenido: Mapped[str] = mapped_column(Text, nullable=False)
+    expedient: Mapped[str | None] = mapped_column(String(100))
+    versio: Mapped[str] = mapped_column(String(30), nullable=False)
+    documento_origen: Mapped[str | None] = mapped_column(String(255))
+    embedding: Mapped[list[float]] = mapped_column(Vector(LEGAL_EMBEDDING_DIM), nullable=False)
     loaded_at: Mapped[datetime] = mapped_column(server_default=func.now())

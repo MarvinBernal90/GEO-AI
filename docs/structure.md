@@ -1,6 +1,6 @@
 # Estructura del repositorio
 
-Esta es la estructura vigente del proyecto. Sustituye a
+Esta es la estructura vigente del proyecto (Fase 0 en adelante). Sustituye a
 `README_repo_desc.md`, que describía una estructura de un ejercicio anterior
 del máster (`src/model.py`, `unit_tests/`, `model tests/`) ya no aplicable a
 Geo-Yield-AI — ese fichero debe eliminarse del repo.
@@ -11,19 +11,26 @@ Geo-Yield-AI — ese fichero debe eliminarse del repo.
 │   ├── api/
 │   │   ├── main.py          # Punto de entrada (uvicorn), logging, carga de .env
 │   │   ├── api.py           # App FastAPI: lifespan, /health, /ready, /metrics
-│   │   ├── schemas/         # DTOs Pydantic del dominio 
+│   │   ├── schemas/         # DTOs Pydantic del dominio (Fase 3-4)
 │   │   └── metrics/         # Métricas in-memory básicas
 │   ├── db/
 │   │   ├── base.py           # Base declarativa de SQLAlchemy
-│   │   └── models.py         # District, Neighborhood, Competitor (geoespacial),
-│   │                          # DistrictIncome, DistrictMobility
+│   │   ├── models.py         # District, Neighborhood, Competitor (geoespacial),
+│   │   │                      # DistrictIncome, DistrictMobility
+│   │   └── connection.py     # resolve_database_url() -- override de host para
+│   │                          # herramientas ejecutadas fuera de Docker (Alembic, loader)
 │   ├── etl/
 │   │   ├── config.py          # Rutas portables (data/raw, data/processed)
 │   │   ├── income.py          # Renta media por distrito (fuente: INE)
 │   │   ├── mobility.py        # Afluencia peatonal por distrito (fuente: MITMA)
 │   │   └── competitors.py     # Competidores de hostelería + dimensiones geográficas
+│   ├── rag/
+│   │   ├── chunking.py         # Parser de artículos legales (web y PDF, NUMAMB)
+│   │   ├── pdf_extraction.py   # Extracción de texto de PDF (pdftotext)
+│   │   ├── embeddings.py       # Embeddings locales (sentence-transformers, coste cero)
+│   │   └── query_engine.py     # Recuperación (pgvector) + generación (Claude)
 │   ├── ia/
-│   │   └── agent.py         # Orquestador del agente RAG 
+│   │   └── agent.py         # Orquestador del agente RAG (Fase 3, pendiente)
 │   └── requirements.txt
 │
 ├── database/
@@ -31,8 +38,11 @@ Geo-Yield-AI — ese fichero debe eliminarse del repo.
 │   ├── alembic/
 │   │   ├── env.py             # Carga DATABASE_URL desde el .env de la raíz
 │   │   └── versions/
-│   │       └── 0001_initial_schema.py  # Tablas + vista district_scorecard
-│   └── load_to_db.py          # Orquestador: ETL -> Postgres (upsert/reemplazo)
+│   │       ├── 0001_initial_schema.py       # Tablas + vista district_scorecard
+│   │       ├── 0002_widen_competitor_id.py  # id_global VARCHAR(36) -> VARCHAR(64)
+│   │       └── 0003_legal_chunks.py         # Tabla legal_chunks (pgvector, embedding 384-dim)
+│   ├── load_to_db.py          # Orquestador: ETL sociodemográfico -> Postgres
+│   └── load_legal_corpus.py   # Orquestador: PDF normativa -> chunks -> embeddings -> Postgres
 │
 ├── data/                       # Datos crudos y procesados (gitignored)
 │   ├── raw/                    # Ficheros de origen (censo, INE, MITMA)
@@ -54,10 +64,13 @@ Geo-Yield-AI — ese fichero debe eliminarse del repo.
 │   └── adr/                    # Decisiones de arquitectura (Architecture Decision Records)
 │
 ├── tests/
+│   ├── conftest.py               # Fixture db_session (se salta con gracia sin BD real)
 │   ├── unit_tests/
-│   │   ├── test_api.py          # Tests de los endpoints de FastAPI
-│   │   └── test_etl.py          # Tests de las funciones puras de transformación
-│   └── model_tests/             # Se reutilizará para tests del agente/RAG en fases posteriores
+│   │   ├── test_api.py             # Tests de los endpoints de FastAPI
+│   │   ├── test_etl.py             # Tests de las funciones puras de transformación
+│   │   ├── test_chunking.py        # Tests del parser de artículos legales
+│   │   └── test_query_engine.py    # Tests del motor de consulta RAG (necesita BD real)
+│   └── model_tests/             # Se reutilizará para tests del agente en fases posteriores
 │
 ├── .github/workflows/
 │   ├── integrate.yml            # CI: tests en pull request
@@ -78,7 +91,7 @@ Geo-Yield-AI — ese fichero debe eliminarse del repo.
   la app se ejecuta como `python -m backend.api.main` desde la raíz del
   repo, tanto en local como dentro del contenedor Docker.
 - `backend/ia/agent.py` es el punto de entrada previsto para el orquestador
-  del agente. Hoy está vacío intencionadamente.
+  del agente (Fase 3). Hoy está vacío intencionadamente.
 - **Jerarquía geográfica** (Fase 1): `District` (10) → `Neighborhood`
   (barrio) → `Competitor` (local individual, con geometría punto real). Los
   10 distritos son una lista de referencia estática en
@@ -87,7 +100,9 @@ Geo-Yield-AI — ese fichero debe eliminarse del repo.
 - **`district_scorecard`** es una VISTA, no una tabla: el `Opportunity_Score`
   se calcula al vuelo a partir de `district_income`, `district_mobility` y
   `competitors`, para que nunca quede desincronizado.
-- Migraciones: `alembic -c database/alembic.ini upgrade head` (ejecutar
-  siempre desde la raíz del repo). Carga de datos:
-  `python -m database.load_to_db` (requiere los ficheros en `data/raw/`,
-  ver `backend/etl/config.py` para los nombres esperados).
+- Migraciones: `DB_HOST_OVERRIDE=localhost alembic -c database/alembic.ini upgrade head`
+  (ejecutar siempre desde la raíz del repo; `DB_HOST_OVERRIDE` solo hace
+  falta si se ejecuta fuera de Docker, ver `backend/db/connection.py`).
+  Carga de datos: `DB_HOST_OVERRIDE=localhost python -m database.load_to_db`
+  (requiere los ficheros en `data/raw/`, ver `backend/etl/config.py` para
+  los nombres esperados).

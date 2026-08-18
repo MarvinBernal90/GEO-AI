@@ -1,0 +1,19 @@
+# Se parte de la imagen oficial de Postgres (no de postgis/postgis) porque
+# necesitamos DOS extensiones -- PostGIS y pgvector -- y ambas están
+# disponibles como paquetes del repositorio PGDG (apt.postgresql.org), que
+# la imagen oficial de postgres ya trae configurado internamente (así es
+# como se instala Postgres a sí misma). Partir de postgis/postgis y añadir
+# pgvector encima introducía una incógnita real: no hay garantía de que esa
+# imagen de terceros deje el repositorio PGDG accesible para instalar más
+# paquetes después. Empezando desde postgres:18 evitamos esa incógnita.
+FROM postgres:18
+
+# Nombres de paquete confirmados contra el propio repositorio PGDG (mismo
+# patrón "postgresql-<version>-<extension>" ya validado en este proyecto
+# con postgresql-16-postgis-3 y postgresql-16-pgvector en fases anteriores).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        postgresql-18-postgis-3 \
+        postgresql-18-pgvector \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
