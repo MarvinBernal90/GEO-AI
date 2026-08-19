@@ -45,21 +45,31 @@ def retrieve_relevant_chunks(
     query: str,
     embed_fn: EmbeddingFunction = embed_texts,
     top_k: int = 3,
+    zona_pgm: str | None = None,
 ) -> list[RetrievedChunk]:
-    """Recupera los top_k artículos más cercanos por similitud coseno a `query`."""
+    """
+    Recupera los top_k artículos más cercanos por similitud coseno a `query`.
+
+    Si se indica `zona_pgm`, filtra primero por esa zona exacta (columna
+    zona_pgm, migración 0004) y solo entre esos ordena por similitud —
+    combina el filtro estructurado con la búsqueda semántica en la misma
+    consulta, en vez de confiar únicamente en que la distancia vectorial
+    encuentre el artículo de la zona correcta (no siempre lo hace: en
+    pruebas reales, el artículo correcto para una pregunta sobre "Ciutat
+    Vella" llegó a salir el último de los tres recuperados).
+    """
     query_embedding = embed_fn([query])[0]
 
-    results = (
-        session.query(
-            LegalChunk.numero_articulo,
-            LegalChunk.titulo,
-            LegalChunk.contenido,
-            LegalChunk.embedding.cosine_distance(query_embedding).label("distancia"),
-        )
-        .order_by("distancia")
-        .limit(top_k)
-        .all()
+    stmt = session.query(
+        LegalChunk.numero_articulo,
+        LegalChunk.titulo,
+        LegalChunk.contenido,
+        LegalChunk.embedding.cosine_distance(query_embedding).label("distancia"),
     )
+    if zona_pgm is not None:
+        stmt = stmt.filter(LegalChunk.zona_pgm == zona_pgm)
+
+    results = stmt.order_by("distancia").limit(top_k).all()
     return [RetrievedChunk(r.numero_articulo, r.titulo, r.contenido, r.distancia) for r in results]
 
 
@@ -77,15 +87,21 @@ def generate_answer(
     model: str = DEFAULT_MODEL,
     top_k: int = 3,
     max_tokens: int = 2048,
+    zona_pgm: str | None = None,
 ) -> dict:
     """
     Pipeline completo: pregunta -> recuperación -> generación con Claude.
+
+    `zona_pgm`: si se indica, filtra la recuperación a artículos de esa
+    zona urbanística exacta (ver retrieve_relevant_chunks). Pensado para la
+    Fase 3, donde el usuario elige la zona explícitamente en vez de que el
+    sistema la infiera.
 
     `llm_client` es inyectable: por defecto crea un cliente real de
     anthropic (lee ANTHROPIC_API_KEY del entorno), pero los tests pueden
     pasar un doble que imite `.messages.create(...)` sin llamar a la API.
     """
-    chunks = retrieve_relevant_chunks(session, question, embed_fn=embed_fn, top_k=top_k)
+    chunks = retrieve_relevant_chunks(session, question, embed_fn=embed_fn, top_k=top_k, zona_pgm=zona_pgm)
     if not chunks:
         return {"respuesta": "No hi ha normativa carregada a la base de dades encara.", "chunks_recuperados": []}
 
