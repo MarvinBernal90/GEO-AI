@@ -11,13 +11,13 @@
 # api metrics
 # response time
 # user valoration of response (if se dispone de un endpoint para esto)
-# total number of predictions
+# total number of requests
 # query clustering and classification by type of query, to see if there are certain types of queries that are more common and optimize for those
-metrics = {"total_predictions": 0}
+metrics = {"total_requests": 0}
 
-# model metrics
-# classification: accuracy, recall, precision, F1, ROC
-# regression: MSE, MAE, R2
-# clustering: silhouette score, Davies-Bouldin index, Calinski-Harabasz index
-
-
+# métricas del agente / RAG 
+# - nº de informes de viabilidad generados
+# - latencia del retriever (búsqueda vectorial)
+# - latencia del LLM
+# - nº de chunks recuperados por consulta
+# - tasa de citas normativas devueltas vs. citas verificadas

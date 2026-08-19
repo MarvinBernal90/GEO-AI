@@ -45,6 +45,7 @@ ENV/
 *.key
 .envrc
 .env.*
+!.env.example
 
 # --- Misc ---
 README_devops_g5.md
