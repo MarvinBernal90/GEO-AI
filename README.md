@@ -1,8 +1,19 @@
 # GEO-YIELD-AI
 
-**Geo-Yield-AI** es una plataforma SaaS de *Location Intelligence* diseñada para transformar la toma de decisiones en la expansión de cadenas de retail, negocios, franquicias y consultoras inmobiliarias. 
+**Geo-Yield-AI** es una plataforma SaaS de *Location Intelligence* diseñada para transformar la toma de decisiones en la expansión de cadenas de retail, negocios, franquicias y consultoras inmobiliarias.
 
 Utilizamos un enfoque de **Agente de IA Autónomo** que combina Big Data de movilidad, análisis sociodemográfico y validación normativa instantánea mediante arquitectura RAG.
+
+> **Estado del proyecto:** en construcción por fases. Ver [`docs/structure.md`](docs/structure.md) para la estructura vigente del repo y [`docs/adr/`](docs/adr/) para las decisiones de arquitectura tomadas.
+
+### Estado por fases
+
+| Fase | Contenido | Estado |
+| :--- | :--- | :--- |
+| **0** | Auditoría, limpieza de arquitectura y corrección de infraestructura base | ✅ Cerrada |
+| **1** | Capa de datos sociodemográfica y geoespacial (Postgres/PostGIS, ETL, vista `district_scorecard`) | ✅ Cerrada |
+| **2** | Motor RAG legal (pgvector, embeddings locales, generación con LLM citando normativa) | ✅ Cerrada |
+| **3** | Agente orquestador (combina Fase 1 + Fase 2 en un informe de viabilidad único) | ✅ Cerrada |
 
 ## 📖 Tabla de Contenidos
 - [Propuesta de Valor](#-propuesta-de-valor)
@@ -18,7 +29,7 @@ Utilizamos un enfoque de **Agente de IA Autónomo** que combina Big Data de movi
 ## 💡 Propuesta de Valor
 
 ### El Problema
-Abrir un nuevo local comercial conlleva un alto riesgo financiero. Las decisiones suelen basarse en intuiciones o estudios de mercado lentos (semanas) y costosos, que a menudo ignoran las complejas normativas urbanísticas locales (PGOU).
+Abrir un nuevo local comercial conlleva un alto riesgo financiero. Las decisiones suelen basarse en intuiciones o estudios de mercado lentos (semanas) y costosos, que a menudo ignoran las complejas normativas urbanísticas locales (el PGOU o, en el caso de Barcelona, el **PGM — Pla General Metropolità**).
 
 ### La Solución
 **Geo-Yield-AI** actúa como un consultor inmobiliario 360° que reduce el tiempo de evaluación de semanas a segundos:
@@ -30,10 +41,10 @@ Abrir un nuevo local comercial conlleva un alto riesgo financiero. Las decisione
 
 ## ✨ Características Principales
 
-1. **Análisis de Movilidad Dinámica:** Procesamiento de Big Data del **MITMA** (Ministerio de Transportes) para identificar flujos de personas.
-2. **Motor RAG Legal:** Uso de **LlamaIndex** y **pgvector** para consultar normativas urbanísticas sin alucinaciones.
-3. **Perfilado Sociodemográfico:** Filtros por niveles de renta, edad y densidad de población.
-4. **Semáforo de Viabilidad:** Informe ejecutivo (Verde/Ámbar/Rojo) sobre la factibilidad técnica y legal.
+1. **Análisis de Movilidad Dinámica:** Procesamiento de Big Data del **MITMA** (Ministerio de Transportes) para identificar flujos de personas por distrito.
+2. **Motor RAG Legal:** Ingesta de normativa urbanística (PGM de Barcelona, portal NUMAMB del AMB) partida por artículo, con embeddings locales (**sentence-transformers**) indexados en **pgvector**, y generación de respuestas citando el artículo exacto vía LLM (**Claude**, con un adaptador de **Gemini** para pruebas sin coste — ver [`backend/rag/`](backend/rag/)).
+3. **Perfilado Sociodemográfico:** Filtros por niveles de renta, afluencia y densidad de competencia, agregados por distrito.
+4. **Agente de Viabilidad:** Orquestador con **LangGraph** (`backend/ia/agent.py`) que combina en paralelo los datos socioeconómicos del distrito (Fase 1) y la normativa legal de la zona PGM elegida (Fase 2), sintetizando ambos en un informe con semáforo (verde/ámbar/rojo) y citas normativas — el usuario elige la zona urbanística explícitamente, ya que un distrito puede abarcar varias zonas PGM distintas.
 
 ---
 
@@ -41,62 +52,152 @@ Abrir un nuevo local comercial conlleva un alto riesgo financiero. Las decisione
 
 | Capa | Tecnología |
 | :--- | :--- |
-| **Lenguaje** | Python 3.10+ |
-| **IA / RAG** | LlamaIndex, OpenAI GPT-4o / Claude 3.5 |
+| **Lenguaje** | Python 3.12 |
+| **IA / RAG** | sentence-transformers (embeddings locales, coste cero) + pgvector + Claude Sonnet 5 (generación). Adaptador de Gemini disponible para pruebas gratuitas — ver [`backend/rag/gemini_adapter.py`](backend/rag/gemini_adapter.py) |
+| **Agente** | LangGraph (`backend/ia/agent.py`) — orquesta Fase 1 + Fase 2 en paralelo, síntesis final con LLM |
 | **Backend** | FastAPI |
-| **Frontend** | Vue.js (Mapas interactivos) |
-| **Base de Datos** | Supabase (PostgreSQL/PostGIS + pgvector) |
-| **Data Science** | Pandas, GeoPandas |
-| **DevOps** | Docker, GitHub Actions, CI/CD |
+| **Frontend** | Vue.js (Mapas interactivos) *(pendiente de desarrollo)* |
+| **Base de Datos** | PostgreSQL + PostGIS + pgvector, en un único contenedor (`deployment/Dockerfile.postgis`) — ver [ADR 0001](docs/adr/0001-pgvector-vs-qdrant.md) |
+| **Data Science** | Pandas |
+| **DevOps** | Docker, GitHub Actions, CI/CD, Alembic (migraciones) |
 
 ---
 
 ## 🏗️ Arquitectura del Sistema
 
 El flujo de datos sigue una estructura **Cloud-Native**:
-1. **Ingesta:** Carga de datasets MITMA, del INE, del GenCAT y PDFs normativos.
-2. **Procesamiento:** Normalización con GeoPandas y creación de embeddings.
-3. **Orquestación:** FastAPI coordina las peticiones del usuario con el motor RAG.
-4. **Veredicto:** El LLM genera un informe basado en el contexto recuperado de la base vectorial.
+1. **Ingesta:** Carga de datasets MITMA, del INE, del censo comercial de Barcelona (Open Data BCN) y PDF normativos del PGM (portal NUMAMB).
+2. **Procesamiento:** Limpieza y agregación con Pandas (Fase 1); chunking por artículo y generación de embeddings locales (Fase 2).
+3. **Almacenamiento:** Postgres/PostGIS para datos geoespaciales y sociodemográficos, pgvector para los embeddings legales — todo en la misma base de datos.
+4. **Consulta:** `backend/rag/query_engine.py` recupera los artículos más relevantes por similitud semántica y genera una respuesta citando el artículo correspondiente.
+5. **Síntesis:** `backend/ia/agent.py` (LangGraph) combina en paralelo los datos del distrito (paso 3, Fase 1) y la normativa de la zona PGM elegida (paso 4, Fase 2) en un único informe de viabilidad con semáforo.
+
+> Nota: el agente hoy se invoca directamente como módulo Python (ver ejemplos de uso más abajo); exponerlo como endpoint de la API es el siguiente paso natural, no construido todavía.
+
+Ver [`docs/diagram.md`](docs/diagram.md) para el diagrama de alto nivel y [`docs/structure.md`](docs/structure.md) para la estructura de carpetas al detalle.
 
 ---
 
 ## 🚀 Instalación y Uso
 
 ### Requisitos previos
-* Docker instalado
-* Python 3.10 o superior
-* Claves de API de OpenAI/Anthropic y Supabase
+* Docker y Docker Compose instalados
+* Python 3.12
+* `poppler-utils` instalado en el sistema (paquete del SO, no de Python) — necesario para `pdftotext`, usado en la ingesta del corpus legal (Fase 2). En Ubuntu/Debian: `sudo apt install poppler-utils`
+* Una API key de pago de **Anthropic** (para la generación de respuestas del motor RAG) — o, mientras tanto, una API key **gratuita de Gemini** como alternativa de pruebas (ver [`backend/rag/gemini_adapter.py`](backend/rag/gemini_adapter.py))
 
-### Pasos para ejecución local
+### Pasos para ejecución local con Docker (recomendado)
+
 1. **Clonar el repositorio:**
    ```bash
-   git clone [https://github.com/TU_USUARIO/pj-geo-yield-ai.git](https://github.com/TU_USUARIO/pj-geo-yield-ai.git)
+   git clone https://github.com/TU_USUARIO/pj-geo-yield-ai.git
    cd pj-geo-yield-ai
+   ```
 
 2. **Configurar el entorno:**
-Crea un archivo .env basado en .env.example con tus credenciales de API.
+   ```bash
+   cp .env.example .env
+   # Edita .env con tus credenciales (POSTGRES_*, ANTHROPIC_API_KEY, y opcionalmente GEMINI_API_KEY)
+   ```
 
-3. Instalar dependencias:
-    ```bash
-    pip install -r requirements.txt
+3. **Levantar la API y la base de datos:**
+   ```bash
+   docker compose -f deployment/docker-compose.yml up -d --build
+   ```
+   La base de datos se construye desde [`deployment/Dockerfile.postgis`](deployment/Dockerfile.postgis) (Postgres 18 + PostGIS + pgvector, ambos vía el repositorio oficial PGDG) — la imagen oficial de `postgis/postgis` por sí sola **no** trae pgvector. La API queda disponible en `http://localhost:8080`. Comprueba `GET /health` y `GET /ready`.
 
-4. Ejecutar la aplicación:
-    ```bash
-    XXXX
+4. **Aplicar las migraciones de base de datos** (desde la raíz del repo, con la BD ya levantada):
+   ```bash
+   pip install -r backend/requirements.txt
+   DB_HOST_OVERRIDE=localhost alembic -c database/alembic.ini upgrade head
+   ```
+   `DB_HOST_OVERRIDE=localhost` sobrescribe el host de `DATABASE_URL` (que
+   por defecto apunta a `postgis`, el nombre del servicio dentro de la red
+   de Docker, no resoluble desde el host) para poder conectar desde fuera
+   del contenedor. El puerto de Postgres está publicado al host en
+   `deployment/docker-compose.yml` precisamente para esto.
+
+5. **Cargar los datos sociodemográficos** (requiere los CSV de origen en `data/raw/`, ver `backend/etl/config.py` para los nombres esperados):
+   ```bash
+   DB_HOST_OVERRIDE=localhost python -m database.load_to_db
+   ```
+
+6. **Cargar el corpus legal** (requiere los PDF de artículos normativos descargados del portal NUMAMB del AMB en un directorio, p. ej. `data/raw/legal/`):
+   ```bash
+   DB_HOST_OVERRIDE=localhost python -m database.load_legal_corpus data/raw/legal/
+   ```
+   La primera vez descarga el modelo de embeddings (`sentence-transformers/all-MiniLM-L6-v2`, ~90MB) desde Hugging Face — necesitas conexión a internet para ese paso puntual; luego corre en local sin red (puedes fijar `HF_HUB_OFFLINE=1` para evitar comprobaciones de red innecesarias una vez descargado).
+
+7. **Consultar el motor RAG** (requiere el paso 6 ya hecho, y `ANTHROPIC_API_KEY` en tu `.env`):
+   ```python
+   from sqlalchemy import create_engine
+   from sqlalchemy.orm import Session
+   from backend.db.connection import resolve_database_url
+   from backend.rag.query_engine import generate_answer
+
+   engine = create_engine(resolve_database_url())
+   with Session(engine) as session:
+       result = generate_answer(session, "¿Puedo abrir un bar en una zona industrial?")
+       print(result["respuesta"])
+   ```
+   Para probar sin coste con Gemini en vez de Claude, pasa `llm_client=GeminiAsAnthropicAdapter()` y `model="gemini-2.5-flash"` (ver [`backend/rag/gemini_adapter.py`](backend/rag/gemini_adapter.py); cuota gratuita limitada a 20 peticiones/día).
+
+8. **Generar un informe de viabilidad completo** (Fase 3, requiere los pasos 5-7 ya hechos):
+   ```python
+   from sqlalchemy import create_engine
+   from sqlalchemy.orm import Session
+   from backend.db.connection import resolve_database_url
+   from backend.ia.agent import generar_informe_viabilidad, zonas_pgm_disponibles
+
+   engine = create_engine(resolve_database_url())
+   with Session(engine) as session:
+       print(zonas_pgm_disponibles(session))  # zonas con normativa cargada
+       informe = generar_informe_viabilidad(session, codi_districte=1, zona_pgm="nucli_antic")
+       print(informe["semaforo"], informe["resumen"])
+   ```
+   La zona PGM se pide explícita a propósito (no se infiere del distrito): un distrito puede abarcar varias zonas PGM distintas, y sin datos geoespaciales reales del planeamiento no hay forma honesta de adivinarla automáticamente.
+
+### Ejecución local sin Docker (solo la API)
+
+1. **Instalar dependencias:**
+   ```bash
+   pip install -r backend/requirements.txt
+   ```
+
+2. **Configurar el entorno:**
+   ```bash
+   cp .env.example .env
+   # Cambia el host de DATABASE_URL de "postgis" a "localhost" si la base
+   # de datos corre en Docker con el puerto publicado, o apunta a tu propia
+   # instancia de Postgres/PostGIS local.
+   ```
+
+3. **Ejecutar la aplicación (desde la raíz del repo):**
+   ```bash
+   python -m backend.api.main
+   ```
+
+### Ejecutar los tests
+
+```bash
+DB_HOST_OVERRIDE=localhost pytest tests/ -v
+```
+
+Los tests que necesitan una base de datos real (recuperación por similitud, carga del corpus legal) se saltan automáticamente (no fallan) si no hay una BD accesible — ver [`tests/conftest.py`](tests/conftest.py).
+
+---
 
 ## 🔄 DevOps y Despliegue
 Este proyecto aplica los conocimientos de ingeniería adquiridos en el Máster:
 
-    - Contenedores: Imagen Docker para asegurar que el entorno de desarrollo sea idéntico al de producción.
-
-    - CI/CD: Pipelines en GitHub Actions para despliegue automático en Render o Railway.
-
-    - Observabilidad: Monitorización básica de latencias en las llamadas al LLM.
+- **Contenedores:** Imágenes Docker propias para la API (`deployment/Dockerfile`) y para la base de datos (`deployment/Dockerfile.postgis`, Postgres + PostGIS + pgvector), para que el entorno de desarrollo sea idéntico al de producción.
+- **Migraciones:** Alembic, versionadas en `database/alembic/versions/` — cada cambio de esquema es un fichero nuevo, nunca se edita uno ya aplicado.
+- **CI/CD:** Pipeline en GitHub Actions (`integrate.yml`) que ejecuta los tests en cada pull request, y despliegue manual (`deploy.yml`) a Render.
+- **Observabilidad:** Monitorización básica de latencias y peticiones vía `/metrics`; métricas específicas del agente/RAG (latencia del LLM, tasa de citas verificadas) se añadirán en la Fase 3.
 
 ## 👥 Equipo
 Proyecto desarrollado por 4 compañeros del Máster en IA, Cloud y DevOps (Pontia):
-    - Manuel Yerbes García
-    - Marvin Bernal
-    - Enmanuel De Oleo
-    - Claudi Berenguer Sabaté
+- Manuel Yerbes García
+- Marvin Bernal
+- Enmanuel De Oleo
+- Claudi Berenguer Sabaté

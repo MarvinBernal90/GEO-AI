@@ -1,19 +1,22 @@
-name: Deploy Model
+name: Deploy API
+
+# CORRECCIÓN (Fase 0): se retira el input "model_release" y la variable de
+# entorno MODEL_RELEASE. Pertenecían al flujo legacy que desplegaba un
+# modelo scikit-learn descargado como GitHub Release; ese flujo se ha
+# eliminado (ver backend/api/api.py). Además, el step de checkout
+# referenciaba una variable "model_version" que nunca se había definido
+# (bug real detectado en la auditoría).
 
 on:
   workflow_dispatch:
     inputs:
       api_version:
-        description: 'Version of the API to deploy'
-        required: true
-        default: 'latest'
-      model_release:
-        description: 'Version of the model to deploy'
+        description: 'Tag de la API a desplegar (usar "latest" para el más reciente)'
         required: true
         default: 'latest'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   deploy:
@@ -22,24 +25,33 @@ jobs:
       POSTGRES_DB: ${{ vars.POSTGRES_DB }}
       POSTGRES_USER: ${{ vars.POSTGRES_USER }}
       POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-      DATABASE_URL: ${{ vars.DATABASE_URL }} 
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
       LOG_LEVEL: ${{ vars.LOG_LEVEL }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4  # v3 no permite fetch de tags, lo que es necesario para poder hacer checkout a una versión específica del api si no se quiere desplegar la última, por eso se usa v4
+        uses: actions/checkout@v4  # v4+ permite fetch de tags, necesario para poder desplegar un tag específico
         with:
-          fetch-depth: 0  # Fetch all tags and history
-      
-      - name: Deploy to Render
-        env:
-          MODEL_RELEASE: ${{ inputs.model_release }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Resolve target tag
+        id: resolve_tag
         run: |
-          latest=$(git tag | sort -r | head -n1)
-          if [[ "${{ inputs.api_version }}" != "latest" ]]; then
-            git checkout ${{ inputs.api_version }}
+          if [[ "${{ inputs.api_version }}" == "latest" ]]; then
+            tag=$(git tag | sort -r | head -n1)
           else
-            git checkout $latest
+            tag="${{ inputs.api_version }}"
           fi
-          #echo "se estaría haciendo el curl con el modelo ${MODEL_RELEASE} y ls version ${GITHUB_REF}"
-          curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout target tag
+        run: git checkout ${{ steps.resolve_tag.outputs.tag }}
+
+      - name: Trigger Render deploy
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: curl -X POST "$RENDER_DEPLOY_HOOK"
+
+# NOTA DE SEGURIDAD (Fase 0): DATABASE_URL se ha movido de "vars" (variables
+# públicas del repo) a "secrets", ya que suele contener usuario y contraseña
+# de la base de datos embebidos en la cadena de conexión. Hay que crear el
+# secret "DATABASE_URL" en la configuración del repo/entorno de GitHub.

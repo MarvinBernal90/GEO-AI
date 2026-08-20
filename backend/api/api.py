@@ -1,148 +1,133 @@
-from fastapi import FastAPI, Request
-import os
-from contextlib import asynccontextmanager
-import time
 import logging
-from fastapi.responses import PlainTextResponse
-import joblib
-import requests
-import tempfile
-import pandas as pd
-from pathlib import Path
-from dotenv import load_dotenv
-from .metrics.metrics import metrics
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+import os
+import time
+from contextlib import asynccontextmanager
 
-# en la variable de entorno LOG_LEVEL se configura el nivel de logging, que se carga desde el archivo .env a través de load_dotenv() y se utiliza para configurar el logging.basicConfig() en main.py, lo que permite controlar la cantidad de información que se registra en los logs sin necesidad de modificar el código, simplemente cambiando el valor de LOG_LEVEL en el archivo .env
+from fastapi import FastAPI
+from fastapi.responses import PlainTextResponse
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import sessionmaker
+
+from .metrics.metrics import metrics
+
+# El logging global se configura en main.py (punto de entrada). Aquí solo se
+# obtiene el logger ya configurado, para mantener un único punto de control
+# del nivel de log (variable de entorno LOG_LEVEL).
 logger = logging.getLogger("geoyield_api")
 
-scaler = None
-model = None
-encoders = None
-db_engine = None
+# Estado de aplicación gestionado por el lifespan. Se evita usar variables
+# globales mutables fuera de este patrón para no acoplar el estado a nivel
+# de módulo con la lógica de negocio futura.
+db_engine: Engine | None = None
+SessionLocal: sessionmaker | None = None
 
-temp_files = []
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    
-    global scaler, model, encoders, db_engine   
+    """
+    Ciclo de vida de la aplicación.
+
+    Al arrancar: crea el engine de SQLAlchemy contra Postgres/PostGIS.
+    Se falla rápido (fail-fast) si la variable DATABASE_URL no está definida
+    o la base de datos no es accesible, para no servir tráfico con un estado
+    inconsistente.
+    """
+    global db_engine, SessionLocal
+
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        logger.error("DATABASE_URL no está definida en el entorno.")
+        raise RuntimeError("DATABASE_URL no está definida en el entorno.")
 
     try:
-        # Get GitHub repo info from environment or use defaults
-        github_repo = os.getenv("GITHUB_REPO")
-        
-        # Get model version from MODEL_VERSION environment variable, which is set at deploy time, in the input section of deply.yml
-        model_release = os.getenv("MODEL_RELEASE", "latest")
+        # pool_pre_ping evita servir conexiones muertas del pool (p. ej. tras
+        # un reinicio de la base de datos) haciendo un ping ligero antes de
+        # reutilizar cada conexión.
+        db_engine = create_engine(database_url, pool_pre_ping=True, future=True)
+        SessionLocal = sessionmaker(bind=db_engine, autocommit=False, autoflush=False)
 
-        # Download release from GitHub. latest is the default, but you can specify a tag if needed
-        logger.info(f"Fetching latest release from {github_repo}...")
-        if model_release != "latest":
-            response = requests.get(f"https://api.github.com/repos/{github_repo}/releases/tags/{model_version}")
-        else:
-            response = requests.get(f"https://api.github.com/repos/{github_repo}/releases/latest")
-        response.raise_for_status()
-        release = response.json()
-        
-        # Download model.pkl, scaler.pkl, and encoders.pkl
-        assets_to_download = {'model.pkl': None, 'scaler.pkl': None, 'encoders.pkl': None}
-        
-        for asset in release.get('assets', []):
-            if asset['name'] in assets_to_download:
-                assets_to_download[asset['name']] = asset['browser_download_url']
-        
-        for asset_name in assets_to_download:
-            if not assets_to_download[asset_name]:
-                raise ValueError(f"{asset_name} not found in latest release")
-        
-        # Download and load model  
-        logger.info(f"Downloading model, scaler, and encoders...")
-        
-        model_data = requests.get(assets_to_download['model.pkl']).content
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pkl') as f:
-            f.write(model_data)
-            model_path = f.name
-            temp_files.append(model_path)
-        model = joblib.load(model_path)
-        logger.info("Model loaded successfully")
-        
-        scaler_data = requests.get(assets_to_download['scaler.pkl']).content
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pkl') as f:
-            f.write(scaler_data)
-            scaler_path = f.name
-            temp_files.append(scaler_path)
-        scaler = joblib.load(scaler_path)
-        logger.info("Scaler loaded successfully")
-        
-        encoders_data = requests.get(assets_to_download['encoders.pkl']).content
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pkl') as f:
-            f.write(encoders_data)
-            encoders_path = f.name
-            temp_files.append(encoders_path)
-        encoders = joblib.load(encoders_path)
-        logger.info("Encoders loaded successfully")
+        # Verificación de conectividad real en el arranque, no solo de que
+        # el engine se haya podido instanciar (create_engine es perezoso y
+        # no abre conexión por sí solo).
+        with db_engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        logger.info("Conexión a la base de datos establecida correctamente.")
 
-        # Open databaase connection and ge
-        db_engine = create_engine(os.getenv("DATABASE_URL"), connect_args={"check_same_thread": False})
-        
-        
-    except Exception as e:
-        logger.error(f"Failed to load artifacts: {e}")
+    except Exception:
+        logger.exception("Fallo al inicializar la conexión a la base de datos.")
         raise
-    
-    yield
-    
-    # Cleanup
-    for temp_file in temp_files:
-        try:
-            if Path(temp_file).exists():
-                Path(temp_file).unlink()
-        except:
-            pass
 
-app = FastAPI(lifespan=lifespan)
+    yield
+
+    if db_engine is not None:
+        db_engine.dispose()
+        logger.info("Conexiones a la base de datos cerradas.")
+
+
+app = FastAPI(
+    title="Geo-Yield-AI API",
+    description="API del agente de viabilidad de locales de hostelería.",
+    lifespan=lifespan,
+)
+
 
 def get_session():
-    """Create a database session - called after db_engine is initialized in lifespan"""
-    if db_engine is None:
-        raise RuntimeError("Database engine not initialized yet")
-    return sessionmaker(bind=db_engine, autocommit=False, autoflush=False)()
+    """
+    Crea una sesión de base de datos.
+
+    Debe llamarse únicamente después de que el lifespan haya inicializado
+    SessionLocal. Pensada para usarse como dependencia de FastAPI
+    (`Depends(get_session)`) en los endpoints de dominio futuros.
+    """
+    if SessionLocal is None:
+        raise RuntimeError("La base de datos no se ha inicializado todavía.")
+    session = SessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
+
 
 @app.get("/health")
 def health():
+    """
+    Liveness probe: confirma que el proceso está arriba.
+    No depende de la base de datos a propósito, para que un contenedor
+    orquestado (Docker/K8s) no lo reinicie en bucle si la BD está caída.
+    """
     return {"status": "ok"}
 
-@app.post("/predict")
-async def predict(request: Request):
-    start = time.time()
-    
+
+@app.get("/ready")
+def ready():
+    """
+    Readiness probe: confirma que la aplicación puede atender tráfico real,
+    es decir, que la base de datos está accesible.
+    """
+    if db_engine is None:
+        return PlainTextResponse("database not initialized", status_code=503)
+
     try:
-        data = await request.json()
-        df = pd.DataFrame([data])
-        
-        # Apply label encoders to categorical features
-        for col, le in encoders.items():
-            if col in df.columns:
-                df[col] = le.transform(df[col])
-        
-        # Scale features
-        df_scaled = scaler.transform(df)
-        
-        # Predict
-        prediction = model.predict(df_scaled)
-        duration = time.time() - start
-        metrics["total_predictions"] += 1
-        logger.info(f"Prediction: input={data}, output={prediction.tolist()}, time={duration:.3f}s")
-        
-        return {"prediction": prediction.tolist(), "duration": duration}
-    
-    except Exception as e:
-        logger.error(f"Prediction failed: {e}")
-        return {"error": str(e)}, 500
+        with db_engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return {"status": "ready"}
+    except Exception as exc:
+        logger.error(f"Readiness check falló: {exc}")
+        return PlainTextResponse("database unreachable", status_code=503)
+
 
 @app.get("/metrics", response_class=PlainTextResponse)
 def metrics_endpoint():
-    return f'total_predictions {metrics["total_predictions"]}\n'
+    return f'total_requests {metrics["total_requests"]}\n'
 
 
+@app.middleware("http")
+async def track_request_count(request, call_next):
+    """Middleware mínimo de observabilidad: cuenta peticiones y su duración."""
+    start = time.time()
+    metrics["total_requests"] += 1
+    response = await call_next(request)
+    duration = time.time() - start
+    logger.debug(f"{request.method} {request.url.path} - {duration:.3f}s")
+    return response
