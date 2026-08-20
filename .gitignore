@@ -45,7 +45,15 @@ ENV/
 *.key
 .envrc
 .env.*
+!.env.example
 
 # --- Misc ---
 README_devops_g5.md
 tmp/
+
+# Archivos de prueba y mapas locales
+generar_mapa_dependencias.py
+mapa_dependencias_template.html
+mapa_dependencias.html
+prueba_agente.py
+prueba_rag.py
