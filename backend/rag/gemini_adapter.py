@@ -4,14 +4,14 @@ Adaptador de Gemini para usar con backend.rag.query_engine.generate_answer().
 Por qué existe: generate_answer() acepta un `llm_client` inyectable con la
 forma de anthropic.Anthropic() (`.messages.create(...)` devolviendo un
 objeto con `.content[0].text`). Este adaptador implementa esa misma forma
-por encima de la API de Gemini (google-genai), para poder probar el motor
-RAG con una clave gratuita mientras se financia la cuenta de Anthropic —
-sin tocar query_engine.py ni duplicar la lógica de recuperación/prompt.
+por encima de la API de Gemini (google-genai) -- **Gemini es el proveedor
+definitivo del LLM en este MVP** (se decidió no usar la API de pago de
+Anthropic). Se mantiene la forma de interfaz de anthropic.Anthropic() por
+compatibilidad con el resto del pipeline, no porque Gemini sea temporal.
 
-Es un medio temporal de prueba, no la decisión final de proveedor (que
-sigue siendo Claude, según lo ya acordado). Cuando haya presupuesto para
-Anthropic, basta con no pasar `llm_client` a generate_answer() y usará el
-cliente real de Claude por defecto.
+Si en el futuro se quisiera volver a Claude, bastaría con pasar
+`llm_client=anthropic.Anthropic()` explícitamente a generate_answer() o
+generar_informe_viabilidad() -- no hace falta tocar ningún otro módulo.
 """
 
 import logging
@@ -66,6 +66,19 @@ class GeminiAsAnthropicAdapter:
             config=types.GenerateContentConfig(
                 system_instruction=system,
                 max_output_tokens=max_tokens,
+                # NOTA (corrección tras pruebas reales): en un primer intento
+                # se desactivó el "thinking" del todo (thinking_budget=0)
+                # para evitar que se agotara max_output_tokens a media
+                # respuesta. Eso sí evitó el corte, pero causó una regresión
+                # real: el modelo dejó de conectar "Eixample" (nombre
+                # coloquial) con "zona de densificació urbana" (el término
+                # técnico del artículo correspondiente), justo el tipo de
+                # inferencia para la que sirve el razonamiento interno. El
+                # problema real no era que pensara, era que el presupuesto
+                # total (1024) no alcanzaba para pensar Y responder entero.
+                # Se deja el thinking en automático (sin thinking_config) y
+                # se sube max_tokens en su lugar -- ver DEFAULT_MAX_TOKENS
+                # en query_engine.py.
             ),
         )
 

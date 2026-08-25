@@ -42,7 +42,7 @@ Abrir un nuevo local comercial conlleva un alto riesgo financiero. Las decisione
 ## ✨ Características Principales
 
 1. **Análisis de Movilidad Dinámica:** Procesamiento de Big Data del **MITMA** (Ministerio de Transportes) para identificar flujos de personas por distrito.
-2. **Motor RAG Legal:** Ingesta de normativa urbanística (PGM de Barcelona, portal NUMAMB del AMB) partida por artículo, con embeddings locales (**sentence-transformers**) indexados en **pgvector**, y generación de respuestas citando el artículo exacto vía LLM (**Claude**, con un adaptador de **Gemini** para pruebas sin coste — ver [`backend/rag/`](backend/rag/)).
+2. **Motor RAG Legal:** Ingesta de normativa urbanística (PGM de Barcelona, portal NUMAMB del AMB) partida por artículo, con embeddings locales (**sentence-transformers**) indexados en **pgvector**, y generación de respuestas citando el artículo exacto vía LLM (**Gemini** — ver [`backend/rag/`](backend/rag/)).
 3. **Perfilado Sociodemográfico:** Filtros por niveles de renta, afluencia y densidad de competencia, agregados por distrito.
 4. **Agente de Viabilidad:** Orquestador con **LangGraph** (`backend/ia/agent.py`) que combina en paralelo los datos socioeconómicos del distrito (Fase 1) y la normativa legal de la zona PGM elegida (Fase 2), sintetizando ambos en un informe con semáforo (verde/ámbar/rojo) y citas normativas — el usuario elige la zona urbanística explícitamente, ya que un distrito puede abarcar varias zonas PGM distintas.
 
@@ -53,7 +53,7 @@ Abrir un nuevo local comercial conlleva un alto riesgo financiero. Las decisione
 | Capa | Tecnología |
 | :--- | :--- |
 | **Lenguaje** | Python 3.12 |
-| **IA / RAG** | sentence-transformers (embeddings locales, coste cero) + pgvector + Claude Sonnet 5 (generación). Adaptador de Gemini disponible para pruebas gratuitas — ver [`backend/rag/gemini_adapter.py`](backend/rag/gemini_adapter.py) |
+| **IA / RAG** | sentence-transformers (embeddings locales, coste cero) + pgvector + Gemini 2.5 Flash (generación) — ver [`backend/rag/gemini_adapter.py`](backend/rag/gemini_adapter.py) |
 | **Agente** | LangGraph (`backend/ia/agent.py`) — orquesta Fase 1 + Fase 2 en paralelo, síntesis final con LLM |
 | **Backend** | FastAPI |
 | **Frontend** | Vue.js (Mapas interactivos) *(pendiente de desarrollo)* |
@@ -84,7 +84,7 @@ Ver [`docs/diagram.md`](docs/diagram.md) para el diagrama de alto nivel y [`docs
 * Docker y Docker Compose instalados
 * Python 3.12
 * `poppler-utils` instalado en el sistema (paquete del SO, no de Python) — necesario para `pdftotext`, usado en la ingesta del corpus legal (Fase 2). En Ubuntu/Debian: `sudo apt install poppler-utils`
-* Una API key de pago de **Anthropic** (para la generación de respuestas del motor RAG) — o, mientras tanto, una API key **gratuita de Gemini** como alternativa de pruebas (ver [`backend/rag/gemini_adapter.py`](backend/rag/gemini_adapter.py))
+* Una API key de **Gemini** (para la generación de respuestas del motor RAG; consíguela en aistudio.google.com/app/apikey) — ver [`backend/rag/gemini_adapter.py`](backend/rag/gemini_adapter.py)
 
 ### Pasos para ejecución local con Docker (recomendado)
 
@@ -97,7 +97,7 @@ Ver [`docs/diagram.md`](docs/diagram.md) para el diagrama de alto nivel y [`docs
 2. **Configurar el entorno:**
    ```bash
    cp .env.example .env
-   # Edita .env con tus credenciales (POSTGRES_*, ANTHROPIC_API_KEY, y opcionalmente GEMINI_API_KEY)
+   # Edita .env con tus credenciales (POSTGRES_*, GEMINI_API_KEY, y opcionalmente ANTHROPIC_API_KEY si se retoma en el futuro)
    ```
 
 3. **Levantar la API y la base de datos:**
@@ -128,7 +128,7 @@ Ver [`docs/diagram.md`](docs/diagram.md) para el diagrama de alto nivel y [`docs
    ```
    La primera vez descarga el modelo de embeddings (`sentence-transformers/all-MiniLM-L6-v2`, ~90MB) desde Hugging Face — necesitas conexión a internet para ese paso puntual; luego corre en local sin red (puedes fijar `HF_HUB_OFFLINE=1` para evitar comprobaciones de red innecesarias una vez descargado).
 
-7. **Consultar el motor RAG** (requiere el paso 6 ya hecho, y `ANTHROPIC_API_KEY` en tu `.env`):
+7. **Consultar el motor RAG** (requiere el paso 6 ya hecho, y `GEMINI_API_KEY` en tu `.env`):
    ```python
    from sqlalchemy import create_engine
    from sqlalchemy.orm import Session
@@ -140,7 +140,7 @@ Ver [`docs/diagram.md`](docs/diagram.md) para el diagrama de alto nivel y [`docs
        result = generate_answer(session, "¿Puedo abrir un bar en una zona industrial?")
        print(result["respuesta"])
    ```
-   Para probar sin coste con Gemini en vez de Claude, pasa `llm_client=GeminiAsAnthropicAdapter()` y `model="gemini-2.5-flash"` (ver [`backend/rag/gemini_adapter.py`](backend/rag/gemini_adapter.py); cuota gratuita limitada a 20 peticiones/día).
+   Gemini es el proveedor por defecto (no hace falta pasar `llm_client` explícitamente). Cuota gratuita limitada a 20 peticiones/día — ver [`backend/rag/gemini_adapter.py`](backend/rag/gemini_adapter.py) si en el futuro se quisiera usar otro proveedor.
 
 8. **Generar un informe de viabilidad completo** (Fase 3, requiere los pasos 5-7 ya hechos):
    ```python

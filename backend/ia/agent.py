@@ -114,6 +114,7 @@ def build_agent_graph(
     embed_fn: EmbeddingFunction = embed_texts,
     llm_client=None,
     model: str = DEFAULT_MODEL,
+    max_tokens: int = 2048,
 ):
     """
     Construye y compila el grafo del agente.
@@ -121,6 +122,13 @@ def build_agent_graph(
     Las dependencias (sesión de BD, función de embedding, cliente LLM) se
     capturan por clausura en los nodos -- permite inyectar dobles de
     prueba sin tocar la lógica del grafo (ver tests/unit_tests/test_agent.py).
+
+    `max_tokens=2048` por defecto (no 1024): en pruebas reales contra
+    Gemini, 1024 tokens no alcanzaban para el razonamiento interno del
+    modelo MÁS la respuesta visible completa, y la síntesis final se cortó
+    a media frase sin avisar de otra forma que el log de finish_reason del
+    adaptador. Mismo ajuste ya aplicado en generate_answer() (Fase 2); aquí
+    se le había pasado por alto al construir el nodo de síntesis.
     """
 
     def datos_socioeconomicos(state: ViabilityState) -> dict:
@@ -160,9 +168,9 @@ def build_agent_graph(
         return {"respuesta_legal": resultado}
 
     def sintesis_final(state: ViabilityState) -> dict:
-        import anthropic
+        from backend.rag.gemini_adapter import GeminiAsAnthropicAdapter
 
-        client = llm_client if llm_client is not None else anthropic.Anthropic()
+        client = llm_client if llm_client is not None else GeminiAsAnthropicAdapter()
 
         datos = state["datos_distrito"]
         legal = state["respuesta_legal"]
@@ -185,7 +193,7 @@ def build_agent_graph(
 
         response = client.messages.create(
             model=model,
-            max_tokens=1024,
+            max_tokens=max_tokens,
             system=SYNTHESIS_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": mensaje}],
         )
@@ -233,8 +241,9 @@ def generar_informe_viabilidad(
     embed_fn: EmbeddingFunction = embed_texts,
     llm_client=None,
     model: str = DEFAULT_MODEL,
+    max_tokens: int = 2048,
 ) -> dict:
     """Punto de entrada de conveniencia: construye el grafo y lo invoca en un solo paso."""
-    app = build_agent_graph(session, embed_fn=embed_fn, llm_client=llm_client, model=model)
+    app = build_agent_graph(session, embed_fn=embed_fn, llm_client=llm_client, model=model, max_tokens=max_tokens)
     resultado = app.invoke({"codi_districte": codi_districte, "zona_pgm": zona_pgm})
     return resultado["informe"]

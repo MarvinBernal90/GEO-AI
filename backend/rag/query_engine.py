@@ -17,11 +17,10 @@ from sqlalchemy.orm import Session
 from backend.db.models import LegalChunk
 from backend.rag.embeddings import EmbeddingFunction, embed_texts
 
-# claude-sonnet-5: modelo confirmado en la documentación oficial de
-# Anthropic (docs.claude.com), no asumido de memoria. Configurable por
-# variable de entorno para poder cambiar a un modelo más económico
-# (p. ej. Haiku) sin tocar código.
-DEFAULT_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5")
+# gemini-2.5-flash: proveedor definitivo del MVP (ya no es la alternativa
+# de pruebas -- se decidió no usar la API de pago de Anthropic). Configurable
+# por variable de entorno para poder cambiar de modelo sin tocar código.
+DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 SYSTEM_PROMPT = """INSTRUCCIÓN DE IDIOMA (síguela siempre, sin excepción): responde en el MISMO idioma en el que esté escrita la pregunta del usuario. El contexto normativo que recibes está en catalán, pero eso NO determina el idioma de tu respuesta — solo el idioma de la pregunta del usuario lo determina. Si la pregunta está en castellano, responde en castellano, traduciendo o parafraseando el contenido normativo según haga falta.
 
@@ -97,9 +96,12 @@ def generate_answer(
     Fase 3, donde el usuario elige la zona explícitamente en vez de que el
     sistema la infiera.
 
-    `llm_client` es inyectable: por defecto crea un cliente real de
-    anthropic (lee ANTHROPIC_API_KEY del entorno), pero los tests pueden
-    pasar un doble que imite `.messages.create(...)` sin llamar a la API.
+    `llm_client` es inyectable: por defecto crea el adaptador de Gemini
+    (lee GEMINI_API_KEY del entorno), el proveedor definitivo de este MVP.
+    Los tests pueden pasar un doble que imite `.messages.create(...)` sin
+    llamar a la API. Para volver a usar Claude en el futuro, basta con
+    pasar `llm_client=anthropic.Anthropic()` explícitamente -- no hace
+    falta tocar este módulo.
     """
     chunks = retrieve_relevant_chunks(session, question, embed_fn=embed_fn, top_k=top_k, zona_pgm=zona_pgm)
     if not chunks:
@@ -109,9 +111,9 @@ def generate_answer(
     user_message = f"CONTEXT NORMATIU:\n{context}\n\nPREGUNTA: {question}"
 
     if llm_client is None:
-        import anthropic
+        from backend.rag.gemini_adapter import GeminiAsAnthropicAdapter
 
-        llm_client = anthropic.Anthropic()
+        llm_client = GeminiAsAnthropicAdapter()
 
     response = llm_client.messages.create(
         model=model,
