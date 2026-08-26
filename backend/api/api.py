@@ -1,92 +1,38 @@
 import logging
-import os
 import time
-from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
-from sqlalchemy import create_engine, text
-from sqlalchemy.engine import Engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import text
 
+from . import deps
 from .metrics.metrics import metrics
+from .routers import informes
 
 # El logging global se configura en main.py (punto de entrada). Aquí solo se
 # obtiene el logger ya configurado, para mantener un único punto de control
 # del nivel de log (variable de entorno LOG_LEVEL).
 logger = logging.getLogger("geoyield_api")
 
-# Estado de aplicación gestionado por el lifespan. Se evita usar variables
-# globales mutables fuera de este patrón para no acoplar el estado a nivel
-# de módulo con la lógica de negocio futura.
-db_engine: Engine | None = None
-SessionLocal: sessionmaker | None = None
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """
-    Ciclo de vida de la aplicación.
-
-    Al arrancar: crea el engine de SQLAlchemy contra Postgres/PostGIS.
-    Se falla rápido (fail-fast) si la variable DATABASE_URL no está definida
-    o la base de datos no es accesible, para no servir tráfico con un estado
-    inconsistente.
-    """
-    global db_engine, SessionLocal
-
-    database_url = os.getenv("DATABASE_URL")
-    if not database_url:
-        logger.error("DATABASE_URL no está definida en el entorno.")
-        raise RuntimeError("DATABASE_URL no está definida en el entorno.")
-
-    try:
-        # pool_pre_ping evita servir conexiones muertas del pool (p. ej. tras
-        # un reinicio de la base de datos) haciendo un ping ligero antes de
-        # reutilizar cada conexión.
-        db_engine = create_engine(database_url, pool_pre_ping=True, future=True)
-        SessionLocal = sessionmaker(bind=db_engine, autocommit=False, autoflush=False)
-
-        # Verificación de conectividad real en el arranque, no solo de que
-        # el engine se haya podido instanciar (create_engine es perezoso y
-        # no abre conexión por sí solo).
-        with db_engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
-        logger.info("Conexión a la base de datos establecida correctamente.")
-
-    except Exception:
-        logger.exception("Fallo al inicializar la conexión a la base de datos.")
-        raise
-
-    yield
-
-    if db_engine is not None:
-        db_engine.dispose()
-        logger.info("Conexiones a la base de datos cerradas.")
-
-
 app = FastAPI(
     title="Geo-Yield-AI API",
     description="API del agente de viabilidad de locales de hostelería.",
-    lifespan=lifespan,
+    lifespan=deps.lifespan,
 )
 
+# CORS para el servidor de desarrollo de Vite (puertos por defecto). En
+# producción, restringir a los dominios reales del frontend desplegado,
+# no dejar esta lista de orígenes permisivos.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-def get_session():
-    """
-    Crea una sesión de base de datos.
-
-    Debe llamarse únicamente después de que el lifespan haya inicializado
-    SessionLocal. Pensada para usarse como dependencia de FastAPI
-    (`Depends(get_session)`) en los endpoints de dominio futuros.
-    """
-    if SessionLocal is None:
-        raise RuntimeError("La base de datos no se ha inicializado todavía.")
-    session = SessionLocal()
-    try:
-        yield session
-    finally:
-        session.close()
+app.include_router(informes.router)
 
 
 @app.get("/health")
@@ -104,12 +50,18 @@ def ready():
     """
     Readiness probe: confirma que la aplicación puede atender tráfico real,
     es decir, que la base de datos está accesible.
+
+    Se accede a `deps.db_engine` (atributo del módulo), no a un valor
+    importado con `from .deps import db_engine`: el lifespan lo asigna en
+    tiempo de ejecución, después de que este módulo ya se haya importado
+    -- un `from ... import db_engine` capturaría el valor `None` que tenía
+    en el momento del import y nunca vería la actualización posterior.
     """
-    if db_engine is None:
+    if deps.db_engine is None:
         return PlainTextResponse("database not initialized", status_code=503)
 
     try:
-        with db_engine.connect() as conn:
+        with deps.db_engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         return {"status": "ready"}
     except Exception as exc:
