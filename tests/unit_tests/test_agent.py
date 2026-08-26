@@ -66,6 +66,12 @@ def distrito_ciutat_vella(db_session):
     db_session.add(District(codi_districte=codi, nom_districte="Ciutat Vella (dato de prueba)"))
     db_session.add(DistrictIncome(codi_districte=codi, renta_media=15000, periodo=2023))
     db_session.add(DistrictMobility(codi_districte=codi, daily_foot_traffic=400000))
+    # flush() explícito antes de añadir Competitor: sin él, en pruebas
+    # reales SQLAlchemy no garantizaba que el INSERT de districts se
+    # ejecutara antes que el de competitors, que lo referencia por FK --
+    # un solo commit() con todo junto podía fallar con
+    # "Key (codi_districte)=(999) is not present in table districts".
+    db_session.flush()
     db_session.add(
         Competitor(
             id_global="test-1",
@@ -77,6 +83,8 @@ def distrito_ciutat_vella(db_session):
     )
     db_session.commit()
     yield codi
+    # conftest.py solo trunca legal_chunks entre tests, no estas tablas de
+    # la Fase 1 -- se limpian aquí para no contaminar otros tests.
     db_session.execute(text("DELETE FROM competitors WHERE codi_districte = :codi"), {"codi": codi})
     db_session.execute(text("DELETE FROM district_income WHERE codi_districte = :codi"), {"codi": codi})
     db_session.execute(text("DELETE FROM district_mobility WHERE codi_districte = :codi"), {"codi": codi})
@@ -89,6 +97,7 @@ def articulo_302(db_session):
     contenido = "Comercial: se permite en edificios exclusivos."
     db_session.add(
         LegalChunk(
+            fuente_legal="PGM (Secció V)",  # obligatorio desde la migración 0005
             numero_articulo="302",
             titulo="Zona de nucli antic",
             contenido=contenido,

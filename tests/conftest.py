@@ -1,15 +1,3 @@
-"""
-Fixtures compartidas de pytest.
-
-`db_session` requiere una base de datos Postgres+pgvector real y accesible
-(la de `docker-compose up`, con DB_HOST_OVERRIDE=localhost si se corre
-fuera de Docker). La CI actual (integrate.yml) no levanta ningún servicio
-de base de datos, así que estos tests se SALTAN con gracia (pytest.skip)
-en vez de fallar cuando no hay conexión disponible — dan valor real cuando
-se ejecutan en local (o en una CI futura que sí levante Postgres), sin
-romper la CI actual.
-"""
-
 import pytest
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
@@ -27,6 +15,22 @@ def db_engine():
     except RuntimeError:
         pytest.skip("DATABASE_URL no definida: se omiten los tests que necesitan una base de datos real.")
 
+    # Salvaguarda real, añadida tras perder datos reales en pruebas: esta
+    # fixture TRUNCA legal_chunks entre tests. Si DATABASE_URL no deja
+    # claro que apunta a una base de datos de pruebas (por convención,
+    # que el nombre contenga "test"), los tests que la usan se SALTAN en
+    # vez de arriesgarse a borrar contenido real -- así pasó una vez: los
+    # 3 artículos del PGM cargados a mano desaparecieron sin aviso al
+    # correr la suite contra la base de datos "de verdad".
+    if "test" not in url.lower():
+        pytest.skip(
+            "DATABASE_URL no parece apuntar a una base de datos de pruebas "
+            "(su nombre no contiene 'test'). Los tests de este módulo "
+            "truncan legal_chunks entre ejecuciones -- para no arriesgar "
+            "datos reales, se saltan hasta que DATABASE_URL apunte a una "
+            "BD dedicada a tests (p. ej. 'geoyield_test')."
+        )
+
     engine = create_engine(url, future=True)
     try:
         with engine.connect() as conn:
@@ -39,15 +43,9 @@ def db_engine():
 @pytest.fixture
 def db_session(db_engine):
     session = Session(db_engine)
-    # Se trunca ANTES de cada test, no solo después: si algo fuera de la
-    # suite (una carga manual, una prueba anterior interrumpida a medias)
-    # dejó datos residuales, no deben chocar con las claves primarias que
-    # use el propio test.
     session.execute(text("TRUNCATE TABLE legal_chunks"))
     session.commit()
-
     yield session
-
     session.rollback()
     session.execute(text("TRUNCATE TABLE legal_chunks"))
     session.commit()

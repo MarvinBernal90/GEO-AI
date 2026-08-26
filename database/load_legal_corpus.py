@@ -1,16 +1,7 @@
 """
-Orquestador de carga del corpus legal (Fase 2): lee los PDF de artículos
-normativos, los parte por artículo (quedándose solo con la versión
-vigente), genera embeddings y los escribe en `legal_chunks`.
-
-Uso:
-    DB_HOST_OVERRIDE=localhost python -m database.load_legal_corpus data/raw/legal/
-
-Diseño testeable: `run()` acepta una función de embedding inyectable
-(`embed_fn`), igual que el resto del pipeline acepta un `engine` inyectable
-(ver database/load_to_db.py de la Fase 1). Por defecto usa el modelo local
-real (backend/rag/embeddings.embed_texts), pero los tests pueden inyectar
-una función falsa para no depender de tener el modelo descargado.
+Orquestador de carga del corpus del PGM (Fase 2). Reconstruido tras
+reinicio de sandbox, actualizado a la migración 0005 (upsert por
+(fuente_legal, numero_articulo) en vez de solo numero_articulo).
 """
 
 import logging
@@ -31,15 +22,12 @@ from backend.rag.pdf_extraction import extract_text_from_pdf
 logger = logging.getLogger("geoyield_rag")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
+PGM_FUENTE_LEGAL = "PGM (Secció V)"
+
 
 def load_corpus_from_directory(
     session: Session, pdf_dir: Path, embed_fn: EmbeddingFunction = embed_texts
 ) -> int:
-    """
-    Procesa todos los .pdf de `pdf_dir`, cada uno con potencialmente varias
-    versiones históricas de un artículo, y deja en `legal_chunks` solo la
-    vigente de cada uno. Devuelve el número de artículos cargados.
-    """
     pdf_paths = sorted(pdf_dir.glob("*.pdf"))
     if not pdf_paths:
         logger.warning(f"No se encontraron PDF en {pdf_dir}")
@@ -66,6 +54,7 @@ def load_corpus_from_directory(
 
     records = [
         {
+            "fuente_legal": PGM_FUENTE_LEGAL,
             "numero_articulo": chunk.numero_articulo,
             "titulo": chunk.titulo,
             "contenido": chunk.contenido,
@@ -83,7 +72,7 @@ def load_corpus_from_directory(
         col: getattr(stmt.excluded, col)
         for col in ("titulo", "contenido", "expedient", "versio", "zona_pgm", "documento_origen", "embedding")
     }
-    stmt = stmt.on_conflict_do_update(index_elements=["numero_articulo"], set_=update_columns)
+    stmt = stmt.on_conflict_do_update(index_elements=["fuente_legal", "numero_articulo"], set_=update_columns)
     session.execute(stmt)
 
     logger.info(f"legal_chunks: {len(records)} artículos upsert-eados.")
@@ -92,14 +81,11 @@ def load_corpus_from_directory(
 
 def run(pdf_dir: Path, engine=None, embed_fn: EmbeddingFunction = embed_texts) -> int:
     load_dotenv()
-
     if engine is None:
         engine = create_engine(resolve_database_url(), future=True)
-
     with Session(engine) as session:
         count = load_corpus_from_directory(session, pdf_dir, embed_fn=embed_fn)
         session.commit()
-
     logger.info("Carga del corpus legal completada.")
     return count
 
