@@ -24,7 +24,7 @@ from sqlalchemy.orm import Session
 
 from backend.db.connection import resolve_database_url
 from backend.db.models import LegalChunk
-from backend.rag.chunking import parse_legal_chunks, select_current_versions
+from backend.rag.chunking import ARTICLE_TO_ZONA_PGM, parse_legal_chunks, select_current_versions
 from backend.rag.embeddings import EmbeddingFunction, embed_texts
 from backend.rag.pdf_extraction import extract_text_from_pdf
 
@@ -71,6 +71,7 @@ def load_corpus_from_directory(
             "contenido": chunk.contenido,
             "expedient": chunk.expedient,
             "versio": chunk.versio.value,
+            "zona_pgm": ARTICLE_TO_ZONA_PGM.get(chunk.numero_articulo),
             "documento_origen": source_filename,
             "embedding": embedding,
         }
@@ -80,7 +81,7 @@ def load_corpus_from_directory(
     stmt = pg_insert(LegalChunk).values(records)
     update_columns = {
         col: getattr(stmt.excluded, col)
-        for col in ("titulo", "contenido", "expedient", "versio", "documento_origen", "embedding")
+        for col in ("titulo", "contenido", "expedient", "versio", "zona_pgm", "documento_origen", "embedding")
     }
     stmt = stmt.on_conflict_do_update(index_elements=["numero_articulo"], set_=update_columns)
     session.execute(stmt)

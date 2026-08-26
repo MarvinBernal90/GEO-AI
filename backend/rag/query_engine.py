@@ -17,11 +17,10 @@ from sqlalchemy.orm import Session
 from backend.db.models import LegalChunk
 from backend.rag.embeddings import EmbeddingFunction, embed_texts
 
-# claude-sonnet-5: modelo confirmado en la documentación oficial de
-# Anthropic (docs.claude.com), no asumido de memoria. Configurable por
-# variable de entorno para poder cambiar a un modelo más económico
-# (p. ej. Haiku) sin tocar código.
-DEFAULT_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5")
+# gemini-2.5-flash: proveedor definitivo del MVP (ya no es la alternativa
+# de pruebas -- se decidió no usar la API de pago de Anthropic). Configurable
+# por variable de entorno para poder cambiar de modelo sin tocar código.
+DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 SYSTEM_PROMPT = """INSTRUCCIÓN DE IDIOMA (síguela siempre, sin excepción): responde en el MISMO idioma en el que esté escrita la pregunta del usuario. El contexto normativo que recibes está en catalán, pero eso NO determina el idioma de tu respuesta — solo el idioma de la pregunta del usuario lo determina. Si la pregunta está en castellano, responde en castellano, traduciendo o parafraseando el contenido normativo según haga falta.
 
@@ -45,21 +44,31 @@ def retrieve_relevant_chunks(
     query: str,
     embed_fn: EmbeddingFunction = embed_texts,
     top_k: int = 3,
+    zona_pgm: str | None = None,
 ) -> list[RetrievedChunk]:
-    """Recupera los top_k artículos más cercanos por similitud coseno a `query`."""
+    """
+    Recupera los top_k artículos más cercanos por similitud coseno a `query`.
+
+    Si se indica `zona_pgm`, filtra primero por esa zona exacta (columna
+    zona_pgm, migración 0004) y solo entre esos ordena por similitud —
+    combina el filtro estructurado con la búsqueda semántica en la misma
+    consulta, en vez de confiar únicamente en que la distancia vectorial
+    encuentre el artículo de la zona correcta (no siempre lo hace: en
+    pruebas reales, el artículo correcto para una pregunta sobre "Ciutat
+    Vella" llegó a salir el último de los tres recuperados).
+    """
     query_embedding = embed_fn([query])[0]
 
-    results = (
-        session.query(
-            LegalChunk.numero_articulo,
-            LegalChunk.titulo,
-            LegalChunk.contenido,
-            LegalChunk.embedding.cosine_distance(query_embedding).label("distancia"),
-        )
-        .order_by("distancia")
-        .limit(top_k)
-        .all()
+    stmt = session.query(
+        LegalChunk.numero_articulo,
+        LegalChunk.titulo,
+        LegalChunk.contenido,
+        LegalChunk.embedding.cosine_distance(query_embedding).label("distancia"),
     )
+    if zona_pgm is not None:
+        stmt = stmt.filter(LegalChunk.zona_pgm == zona_pgm)
+
+    results = stmt.order_by("distancia").limit(top_k).all()
     return [RetrievedChunk(r.numero_articulo, r.titulo, r.contenido, r.distancia) for r in results]
 
 
@@ -77,15 +86,24 @@ def generate_answer(
     model: str = DEFAULT_MODEL,
     top_k: int = 3,
     max_tokens: int = 2048,
+    zona_pgm: str | None = None,
 ) -> dict:
     """
     Pipeline completo: pregunta -> recuperación -> generación con Claude.
 
-    `llm_client` es inyectable: por defecto crea un cliente real de
-    anthropic (lee ANTHROPIC_API_KEY del entorno), pero los tests pueden
-    pasar un doble que imite `.messages.create(...)` sin llamar a la API.
+    `zona_pgm`: si se indica, filtra la recuperación a artículos de esa
+    zona urbanística exacta (ver retrieve_relevant_chunks). Pensado para la
+    Fase 3, donde el usuario elige la zona explícitamente en vez de que el
+    sistema la infiera.
+
+    `llm_client` es inyectable: por defecto crea el adaptador de Gemini
+    (lee GEMINI_API_KEY del entorno), el proveedor definitivo de este MVP.
+    Los tests pueden pasar un doble que imite `.messages.create(...)` sin
+    llamar a la API. Para volver a usar Claude en el futuro, basta con
+    pasar `llm_client=anthropic.Anthropic()` explícitamente -- no hace
+    falta tocar este módulo.
     """
-    chunks = retrieve_relevant_chunks(session, question, embed_fn=embed_fn, top_k=top_k)
+    chunks = retrieve_relevant_chunks(session, question, embed_fn=embed_fn, top_k=top_k, zona_pgm=zona_pgm)
     if not chunks:
         return {"respuesta": "No hi ha normativa carregada a la base de dades encara.", "chunks_recuperados": []}
 
@@ -93,9 +111,9 @@ def generate_answer(
     user_message = f"CONTEXT NORMATIU:\n{context}\n\nPREGUNTA: {question}"
 
     if llm_client is None:
-        import anthropic
+        from backend.rag.gemini_adapter import GeminiAsAnthropicAdapter
 
-        llm_client = anthropic.Anthropic()
+        llm_client = GeminiAsAnthropicAdapter()
 
     response = llm_client.messages.create(
         model=model,

@@ -13,7 +13,7 @@ Utilizamos un enfoque de **Agente de IA Autónomo** que combina Big Data de movi
 | **0** | Auditoría, limpieza de arquitectura y corrección de infraestructura base | ✅ Cerrada |
 | **1** | Capa de datos sociodemográfica y geoespacial (Postgres/PostGIS, ETL, vista `district_scorecard`) | ✅ Cerrada |
 | **2** | Motor RAG legal (pgvector, embeddings locales, generación con LLM citando normativa) | ✅ Cerrada |
-| **3** | Agente orquestador (combina Fase 1 + Fase 2 en un informe de viabilidad único) | ⏳ Pendiente |
+| **3** | Agente orquestador (combina Fase 1 + Fase 2 en un informe de viabilidad único) | ✅ Cerrada |
 
 ## 📖 Tabla de Contenidos
 - [Propuesta de Valor](#-propuesta-de-valor)
@@ -42,9 +42,9 @@ Abrir un nuevo local comercial conlleva un alto riesgo financiero. Las decisione
 ## ✨ Características Principales
 
 1. **Análisis de Movilidad Dinámica:** Procesamiento de Big Data del **MITMA** (Ministerio de Transportes) para identificar flujos de personas por distrito.
-2. **Motor RAG Legal:** Ingesta de normativa urbanística (PGM de Barcelona, portal NUMAMB del AMB) partida por artículo, con embeddings locales (**sentence-transformers**) indexados en **pgvector**, y generación de respuestas citando el artículo exacto vía LLM (**Claude**, con un adaptador de **Gemini** para pruebas sin coste — ver [`backend/rag/`](backend/rag/)).
+2. **Motor RAG Legal:** Ingesta de normativa urbanística (PGM de Barcelona, portal NUMAMB del AMB) partida por artículo, con embeddings locales (**sentence-transformers**) indexados en **pgvector**, y generación de respuestas citando el artículo exacto vía LLM (**Gemini** — ver [`backend/rag/`](backend/rag/)).
 3. **Perfilado Sociodemográfico:** Filtros por niveles de renta, afluencia y densidad de competencia, agregados por distrito.
-4. **Score de Oportunidad:** Vista `district_scorecard` que calcula un índice ponderado (renta / afluencia / saturación de competencia) por distrito — base para el futuro semáforo de viabilidad de la Fase 3.
+4. **Agente de Viabilidad:** Orquestador con **LangGraph** (`backend/ia/agent.py`) que combina en paralelo los datos socioeconómicos del distrito (Fase 1) y la normativa legal de la zona PGM elegida (Fase 2), sintetizando ambos en un informe con semáforo (verde/ámbar/rojo) y citas normativas — el usuario elige la zona urbanística explícitamente, ya que un distrito puede abarcar varias zonas PGM distintas.
 
 ---
 
@@ -53,7 +53,8 @@ Abrir un nuevo local comercial conlleva un alto riesgo financiero. Las decisione
 | Capa | Tecnología |
 | :--- | :--- |
 | **Lenguaje** | Python 3.12 |
-| **IA / RAG** | sentence-transformers (embeddings locales, coste cero) + pgvector + Claude Sonnet 5 (generación). Adaptador de Gemini disponible para pruebas gratuitas — ver [`backend/rag/gemini_adapter.py`](backend/rag/gemini_adapter.py) |
+| **IA / RAG** | sentence-transformers (embeddings locales, coste cero) + pgvector + Gemini 2.5 Flash (generación) — ver [`backend/rag/gemini_adapter.py`](backend/rag/gemini_adapter.py) |
+| **Agente** | LangGraph (`backend/ia/agent.py`) — orquesta Fase 1 + Fase 2 en paralelo, síntesis final con LLM |
 | **Backend** | FastAPI |
 | **Frontend** | Vue.js (Mapas interactivos) *(pendiente de desarrollo)* |
 | **Base de Datos** | PostgreSQL + PostGIS + pgvector, en un único contenedor (`deployment/Dockerfile.postgis`) — ver [ADR 0001](docs/adr/0001-pgvector-vs-qdrant.md) |
@@ -69,8 +70,9 @@ El flujo de datos sigue una estructura **Cloud-Native**:
 2. **Procesamiento:** Limpieza y agregación con Pandas (Fase 1); chunking por artículo y generación de embeddings locales (Fase 2).
 3. **Almacenamiento:** Postgres/PostGIS para datos geoespaciales y sociodemográficos, pgvector para los embeddings legales — todo en la misma base de datos.
 4. **Consulta:** `backend/rag/query_engine.py` recupera los artículos más relevantes por similitud semántica y genera una respuesta citando el artículo correspondiente.
+5. **Síntesis:** `backend/ia/agent.py` (LangGraph) combina en paralelo los datos del distrito (paso 3, Fase 1) y la normativa de la zona PGM elegida (paso 4, Fase 2) en un único informe de viabilidad con semáforo.
 
-> Nota: el paso 4 hoy se invoca directamente como módulo Python (ver ejemplos de uso más abajo); la exposición como endpoint de la API y su combinación con los datos sociodemográficos de la Fase 1 en un único informe es el objetivo de la **Fase 3** (el agente orquestador), todavía no construida.
+> Nota: el agente hoy se invoca directamente como módulo Python (ver ejemplos de uso más abajo); exponerlo como endpoint de la API es el siguiente paso natural, no construido todavía.
 
 Ver [`docs/diagram.md`](docs/diagram.md) para el diagrama de alto nivel y [`docs/structure.md`](docs/structure.md) para la estructura de carpetas al detalle.
 
@@ -82,7 +84,7 @@ Ver [`docs/diagram.md`](docs/diagram.md) para el diagrama de alto nivel y [`docs
 * Docker y Docker Compose instalados
 * Python 3.12
 * `poppler-utils` instalado en el sistema (paquete del SO, no de Python) — necesario para `pdftotext`, usado en la ingesta del corpus legal (Fase 2). En Ubuntu/Debian: `sudo apt install poppler-utils`
-* Una API key de pago de **Anthropic** (para la generación de respuestas del motor RAG) — o, mientras tanto, una API key **gratuita de Gemini** como alternativa de pruebas (ver [`backend/rag/gemini_adapter.py`](backend/rag/gemini_adapter.py))
+* Una API key de **Gemini** (para la generación de respuestas del motor RAG; consíguela en aistudio.google.com/app/apikey) — ver [`backend/rag/gemini_adapter.py`](backend/rag/gemini_adapter.py)
 
 ### Pasos para ejecución local con Docker (recomendado)
 
@@ -95,7 +97,7 @@ Ver [`docs/diagram.md`](docs/diagram.md) para el diagrama de alto nivel y [`docs
 2. **Configurar el entorno:**
    ```bash
    cp .env.example .env
-   # Edita .env con tus credenciales (POSTGRES_*, ANTHROPIC_API_KEY, y opcionalmente GEMINI_API_KEY)
+   # Edita .env con tus credenciales (POSTGRES_*, GEMINI_API_KEY, y opcionalmente ANTHROPIC_API_KEY si se retoma en el futuro)
    ```
 
 3. **Levantar la API y la base de datos:**
@@ -126,7 +128,7 @@ Ver [`docs/diagram.md`](docs/diagram.md) para el diagrama de alto nivel y [`docs
    ```
    La primera vez descarga el modelo de embeddings (`sentence-transformers/all-MiniLM-L6-v2`, ~90MB) desde Hugging Face — necesitas conexión a internet para ese paso puntual; luego corre en local sin red (puedes fijar `HF_HUB_OFFLINE=1` para evitar comprobaciones de red innecesarias una vez descargado).
 
-7. **Consultar el motor RAG** (requiere el paso 6 ya hecho, y `ANTHROPIC_API_KEY` en tu `.env`):
+7. **Consultar el motor RAG** (requiere el paso 6 ya hecho, y `GEMINI_API_KEY` en tu `.env`):
    ```python
    from sqlalchemy import create_engine
    from sqlalchemy.orm import Session
@@ -138,7 +140,22 @@ Ver [`docs/diagram.md`](docs/diagram.md) para el diagrama de alto nivel y [`docs
        result = generate_answer(session, "¿Puedo abrir un bar en una zona industrial?")
        print(result["respuesta"])
    ```
-   Para probar sin coste con Gemini en vez de Claude, pasa `llm_client=GeminiAsAnthropicAdapter()` y `model="gemini-2.5-flash"` (ver [`backend/rag/gemini_adapter.py`](backend/rag/gemini_adapter.py); cuota gratuita limitada a 20 peticiones/día).
+   Gemini es el proveedor por defecto (no hace falta pasar `llm_client` explícitamente). Cuota gratuita limitada a 20 peticiones/día — ver [`backend/rag/gemini_adapter.py`](backend/rag/gemini_adapter.py) si en el futuro se quisiera usar otro proveedor.
+
+8. **Generar un informe de viabilidad completo** (Fase 3, requiere los pasos 5-7 ya hechos):
+   ```python
+   from sqlalchemy import create_engine
+   from sqlalchemy.orm import Session
+   from backend.db.connection import resolve_database_url
+   from backend.ia.agent import generar_informe_viabilidad, zonas_pgm_disponibles
+
+   engine = create_engine(resolve_database_url())
+   with Session(engine) as session:
+       print(zonas_pgm_disponibles(session))  # zonas con normativa cargada
+       informe = generar_informe_viabilidad(session, codi_districte=1, zona_pgm="nucli_antic")
+       print(informe["semaforo"], informe["resumen"])
+   ```
+   La zona PGM se pide explícita a propósito (no se infiere del distrito): un distrito puede abarcar varias zonas PGM distintas, y sin datos geoespaciales reales del planeamiento no hay forma honesta de adivinarla automáticamente.
 
 ### Ejecución local sin Docker (solo la API)
 

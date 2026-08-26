@@ -37,6 +37,18 @@ _ARTICLE_REFERENCE_LINE_RE = re.compile(
     r"^Article\s+\d+[a-z]*(?:\s*\([^)]*\)?)?\.\s*.+$"
 )
 
+# Mapeo artículo -> zona PGM (Article 314, Capítol 4: "Qualificacions
+# zonals"). Los artículos de la Secció V (302-313) son la lista canónica y
+# estable de zonas del PGM -- mismo patrón que BARCELONA_DISTRICTS en
+# backend/etl/competitors.py: un hecho del dominio que no cambia, no una
+# configuración. Se amplía según se ingieran más artículos de esa sección;
+# no hace falta anticipar aquí las zonas que todavía no están cargadas.
+ARTICLE_TO_ZONA_PGM = {
+    "302": "nucli_antic",
+    "303": "densificacio_urbana",
+    "311": "industrial",
+}
+
 _PDF_BOILERPLATE_LINE_RES = [
     re.compile(r"^\d{1,2}/\d{1,2}/\d{2,4},\s*\d{1,2}:\d{2}$"),
     re.compile(r"^Índex normes urbanístiques.*Àrea Metropolitana de Barcelona$"),

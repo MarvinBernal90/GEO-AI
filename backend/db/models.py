@@ -143,6 +143,7 @@ class LegalChunk(Base):
     contenido: Mapped[str] = mapped_column(Text, nullable=False)
     expedient: Mapped[str | None] = mapped_column(String(100))
     versio: Mapped[str] = mapped_column(String(30), nullable=False)
+    zona_pgm: Mapped[str | None] = mapped_column(String(50), index=True)
     documento_origen: Mapped[str | None] = mapped_column(String(255))
     embedding: Mapped[list[float]] = mapped_column(Vector(LEGAL_EMBEDDING_DIM), nullable=False)
     loaded_at: Mapped[datetime] = mapped_column(server_default=func.now())

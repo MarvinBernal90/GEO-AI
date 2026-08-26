@@ -124,7 +124,7 @@ class TestGenerateAnswer:
         assert len(result["chunks_recuperados"]) == 1
         # El contenido recuperado debe haber llegado de verdad al mensaje enviado al LLM
         assert "cafeteries" in fake_client.last_call["messages"][0]["content"]
-        assert fake_client.last_call["model"] == "claude-sonnet-5"
+        assert fake_client.last_call["model"] == "gemini-2.5-flash"
 
     def test_returns_early_message_when_no_chunks_in_db(self, db_session):
         result = generate_answer(

@@ -30,7 +30,8 @@ Geo-Yield-AI — ese fichero debe eliminarse del repo.
 │   │   ├── embeddings.py       # Embeddings locales (sentence-transformers, coste cero)
 │   │   └── query_engine.py     # Recuperación (pgvector) + generación (Claude)
 │   ├── ia/
-│   │   └── agent.py         # Orquestador del agente RAG (Fase 3, pendiente)
+│   │   └── agent.py         # Agente orquestador (Fase 3): LangGraph, combina
+│   │                          # Fase 1 (datos) + Fase 2 (RAG legal) en un informe
 │   └── requirements.txt
 │
 ├── database/
@@ -40,7 +41,8 @@ Geo-Yield-AI — ese fichero debe eliminarse del repo.
 │   │   └── versions/
 │   │       ├── 0001_initial_schema.py       # Tablas + vista district_scorecard
 │   │       ├── 0002_widen_competitor_id.py  # id_global VARCHAR(36) -> VARCHAR(64)
-│   │       └── 0003_legal_chunks.py         # Tabla legal_chunks (pgvector, embedding 384-dim)
+│   │       ├── 0003_legal_chunks.py         # Tabla legal_chunks (pgvector, embedding 384-dim)
+│   │       └── 0004_zona_pgm.py             # Columna zona_pgm para filtro exacto por zona urbanística
 │   ├── load_to_db.py          # Orquestador: ETL sociodemográfico -> Postgres
 │   └── load_legal_corpus.py   # Orquestador: PDF normativa -> chunks -> embeddings -> Postgres
 │
@@ -69,7 +71,9 @@ Geo-Yield-AI — ese fichero debe eliminarse del repo.
 │   │   ├── test_api.py             # Tests de los endpoints de FastAPI
 │   │   ├── test_etl.py             # Tests de las funciones puras de transformación
 │   │   ├── test_chunking.py        # Tests del parser de artículos legales
-│   │   └── test_query_engine.py    # Tests del motor de consulta RAG (necesita BD real)
+│   │   ├── test_query_engine.py    # Tests del motor de consulta RAG (necesita BD real)
+│   │   ├── test_gemini_adapter.py  # Tests del adaptador de Gemini
+│   │   └── test_agent.py           # Tests del agente orquestador (necesita BD real)
 │   └── model_tests/             # Se reutilizará para tests del agente en fases posteriores
 │
 ├── .github/workflows/
