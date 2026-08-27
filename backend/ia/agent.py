@@ -1,12 +1,16 @@
 """
-Agente orquestador de viabilidad (Fase 3). Reconstruido tras reinicio de
-sandbox -- ver conversación previa para el diseño completo (LangGraph,
-nodos en paralelo con sesiones propias, síntesis final con semáforo).
+Agente orquestador de viabilidad de locales de hostelería en Barcelona.
 
-Nota tras la migración 0005: normativa_legal ya se beneficia
-automáticamente de la recuperación combinada (zona + normativa general)
-sin ningún cambio aquí -- toda la lógica de combinación vive en
-retrieve_relevant_chunks(), este módulo solo la invoca.
+Combina en un grafo de LangGraph dos fuentes de información en paralelo
+-- datos socioeconómicos del distrito (renta, afluencia peatonal,
+competencia) y normativa legal aplicable (zona PGM más leyes generales)
+-- y las sintetiza en un informe final con un veredicto tipo semáforo
+(verde, ámbar, rojo).
+
+Funciones principales:
+- generar_informe_viabilidad: punto de entrada público; genera el informe completo para un distrito y una zona PGM dados.
+- build_agent_graph: construye el grafo de LangGraph (nodos en paralelo + síntesis final).
+- zonas_pgm_disponibles: lista las zonas PGM que tienen normativa cargada en la base de datos.
 """
 
 import logging
@@ -81,7 +85,7 @@ def build_agent_graph(
     embed_fn: EmbeddingFunction = embed_texts,
     llm_client=None,
     model: str = DEFAULT_MODEL,
-    max_tokens: int = 2048,
+    max_tokens: int = 4096,
 ):
     def datos_socioeconomicos(state: ViabilityState) -> dict:
         with Session(session.get_bind()) as node_session:
@@ -164,7 +168,7 @@ def generar_informe_viabilidad(
     embed_fn: EmbeddingFunction = embed_texts,
     llm_client=None,
     model: str = DEFAULT_MODEL,
-    max_tokens: int = 2048,
+    max_tokens: int = 4096,
 ) -> dict:
     app = build_agent_graph(session, embed_fn=embed_fn, llm_client=llm_client, model=model, max_tokens=max_tokens)
     resultado = app.invoke({"codi_districte": codi_districte, "zona_pgm": zona_pgm})

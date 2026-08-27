@@ -8,7 +8,7 @@ from sqlalchemy import text
 
 from . import deps
 from .metrics.metrics import metrics
-from .routers import informes
+from .routers import competidores, informes
 
 # El logging global se configura en main.py (punto de entrada). Aquí solo se
 # obtiene el logger ya configurado, para mantener un único punto de control
@@ -33,6 +33,7 @@ app.add_middleware(
 )
 
 app.include_router(informes.router)
+app.include_router(competidores.router)
 
 
 @app.get("/health")

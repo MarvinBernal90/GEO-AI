@@ -1,0 +1,56 @@
+"""
+Endpoint de competidores reales por distrito, para el mapa del frontend.
+
+No expone las 11.000+ filas de la tabla completa de golpe: se filtra por
+distrito y se limita el número de puntos devueltos (parámetro `limit`),
+tanto por rendimiento del mapa (Leaflet con miles de marcadores individuales
+se vuelve lento e ilegible) como por tamaño de la respuesta HTTP.
+"""
+
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
+from backend.api.deps import get_session
+from backend.api.schemas.competidores import CentroOut, CompetidorOut, CompetidoresResponse
+
+router = APIRouter(prefix="/api", tags=["competidores"])
+
+
+@router.get("/competidores", response_model=CompetidoresResponse)
+def listar_competidores(
+    codi_districte: int = Query(..., ge=1, le=10),
+    limit: int = Query(200, ge=1, le=1000),
+    db: Session = Depends(get_session),
+):
+    centro_row = db.execute(
+        text(
+            """
+            SELECT AVG(ST_Y(geom::geometry)) AS lat, AVG(ST_X(geom::geometry)) AS lng, COUNT(*) AS total
+            FROM competitors
+            WHERE codi_districte = :codi
+            """
+        ),
+        {"codi": codi_districte},
+    ).mappings().first()
+
+    if centro_row is None or centro_row["total"] == 0:
+        return CompetidoresResponse(centro=None, total=0, competidores=[])
+
+    filas = db.execute(
+        text(
+            """
+            SELECT id_global, nom_activitat, ST_Y(geom::geometry) AS lat, ST_X(geom::geometry) AS lng
+            FROM competitors
+            WHERE codi_districte = :codi
+            LIMIT :limit
+            """
+        ),
+        {"codi": codi_districte, "limit": limit},
+    ).mappings().all()
+
+    return CompetidoresResponse(
+        centro=CentroOut(lat=centro_row["lat"], lng=centro_row["lng"]),
+        total=centro_row["total"],
+        competidores=[CompetidorOut(**dict(f)) for f in filas],
+    )

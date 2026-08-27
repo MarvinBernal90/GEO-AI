@@ -31,3 +31,8 @@ export async function generarInforme(codiDistricte, zonaPgm) {
   })
   return handleResponse(response)
 }
+
+export async function obtenerCompetidores(codiDistricte) {
+  const response = await fetch(`${API_BASE_URL}/api/competidores?codi_districte=${codiDistricte}`)
+  return handleResponse(response)
+}

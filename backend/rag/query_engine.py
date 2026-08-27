@@ -1,6 +1,18 @@
 """
-Motor de consulta del RAG legal. Reconstruido tras reinicio de sandbox --
-ver conversación previa para el diseño completo.
+Motor de consulta RAG sobre el corpus de normativa legal (PGM y leyes
+generales). Recupera los artículos más relevantes por similitud
+semántica y genera una respuesta con el LLM, citando siempre la norma y
+el artículo exactos.
+
+Al filtrar por zona PGM, combina en la misma consulta la normativa
+específica de esa zona con la normativa general que aplica en toda la
+ciudad (horarios, consumo, etc.), para que ninguna de las dos quede
+fuera por el filtro.
+
+Funciones principales:
+- generate_answer: punto de entrada público; recupera contexto y genera la respuesta del LLM.
+- retrieve_relevant_chunks: recuperación por similitud, combinando zona específica y normativa general.
+- build_context: arma el bloque de contexto legal citando fuente y artículo para cada resultado.
 """
 
 import os
@@ -100,7 +112,7 @@ def generate_answer(
     llm_client=None,
     model: str = DEFAULT_MODEL,
     top_k: int = 3,
-    max_tokens: int = 2048,
+    max_tokens: int = 4096,
     zona_pgm: str | None = None,
 ) -> dict:
     chunks = retrieve_relevant_chunks(session, question, embed_fn=embed_fn, top_k=top_k, zona_pgm=zona_pgm)

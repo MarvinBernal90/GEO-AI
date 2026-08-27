@@ -3,16 +3,19 @@ import { ref } from 'vue'
 import FormularioViabilidad from './components/FormularioViabilidad.vue'
 import TarjetaVeredicto from './components/TarjetaVeredicto.vue'
 import BurbujaChat from './components/BurbujaChat.vue'
+import MapaDistrito from './components/MapaDistrito.vue'
 import { generarInforme } from './services/api.js'
 
 const cargando = ref(false)
 const error = ref(null)
 const informe = ref(null)
+const codiDistrictePedido = ref(null)
 
 async function onGenerar({ codiDistricte, zonaPgm }) {
   cargando.value = true
   error.value = null
   informe.value = null
+  codiDistrictePedido.value = codiDistricte
   try {
     informe.value = await generarInforme(codiDistricte, zonaPgm)
   } catch (err) {
@@ -52,6 +55,10 @@ async function onGenerar({ codiDistricte, zonaPgm }) {
 
       <div v-if="informe" class="space-y-5">
         <TarjetaVeredicto :informe="informe" />
+        <MapaDistrito
+          :codi-districte="codiDistrictePedido"
+          :nom-districte="informe.datos_distrito?.nom_districte"
+        />
         <BurbujaChat :informe="informe" />
       </div>
     </div>
