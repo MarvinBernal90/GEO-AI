@@ -14,7 +14,12 @@ from geoalchemy2.elements import WKTElement
 from sqlalchemy import text
 
 from backend.db.models import Competitor, District, DistrictIncome, DistrictMobility, LegalChunk
-from backend.ia.agent import SYNTHESIS_SYSTEM_PROMPT, generar_informe_viabilidad, zonas_pgm_disponibles
+from backend.ia.agent import (
+    SYNTHESIS_SYSTEM_PROMPT,
+    generar_informe_viabilidad,
+    generar_informe_viabilidad_stream,
+    zonas_pgm_disponibles,
+)
 
 
 def hash_embed(texts: list[str]) -> list[list[float]]:
@@ -53,6 +58,15 @@ class ScriptedLLMClient:
         if system == SYNTHESIS_SYSTEM_PROMPT:
             return FakeResponse(self.synthesis_response)
         return FakeResponse(self.legal_response)
+
+    def create_stream(self, model, max_tokens, system, messages):
+        # Solo se usa para la síntesis en streaming -- se parte la
+        # respuesta programada en palabras, para simular fragmentos
+        # reales sin depender de una llamada a Gemini.
+        texto = self.synthesis_response if system == SYNTHESIS_SYSTEM_PROMPT else self.legal_response
+        palabras = texto.split(" ")
+        for i, palabra in enumerate(palabras):
+            yield palabra + (" " if i < len(palabras) - 1 else "")
 
 
 @pytest.fixture
@@ -177,3 +191,53 @@ class TestGenerarInformeViabilidad:
             llm_client=client,
         )
         assert informe["semaforo"] == "ambar"  # fallback neutro, no revienta
+
+
+class TestGenerarInformeViabilidadStream:
+    def test_yields_datos_then_tokens_then_done_in_order(self, db_session, distrito_ciutat_vella, articulo_302):
+        client = ScriptedLLMClient(synthesis_response="VERDE\nResumen de prueba en streaming.")
+        eventos = list(
+            generar_informe_viabilidad_stream(
+                db_session, codi_districte=distrito_ciutat_vella, zona_pgm="nucli_antic",
+                embed_fn=hash_embed, llm_client=client,
+            )
+        )
+        tipos = [e["type"] for e in eventos]
+        assert tipos[0] == "datos"
+        assert tipos[-1] == "done"
+        assert all(t == "token" for t in tipos[1:-1])
+        assert len(tipos) > 2  # al menos un token real entre "datos" y "done"
+
+    def test_regression_concatenated_tokens_match_non_streaming_result(
+        self, db_session, distrito_ciutat_vella, articulo_302
+    ):
+        # Regresión: la concatenación de los fragmentos en streaming debe
+        # dar exactamente el mismo semáforo y resumen que la versión sin
+        # streaming para la misma respuesta -- ambas comparten
+        # _parsear_semaforo_y_resumen, pero conviene comprobarlo de punta
+        # a punta por si el trocear en palabras introdujera alguna
+        # diferencia (p. ej. espacios perdidos entre fragmentos).
+        client = ScriptedLLMClient(synthesis_response="AMBAR\nResumen con varias palabras para probar la unión.")
+        eventos = list(
+            generar_informe_viabilidad_stream(
+                db_session, codi_districte=distrito_ciutat_vella, zona_pgm="nucli_antic",
+                embed_fn=hash_embed, llm_client=client,
+            )
+        )
+        evento_done = eventos[-1]
+        assert evento_done["semaforo"] == "ambar"
+        assert evento_done["resumen"] == "Resumen con varias palabras para probar la unión."
+
+    def test_datos_event_includes_district_data_and_citations(self, db_session, distrito_ciutat_vella, articulo_302):
+        client = ScriptedLLMClient(synthesis_response="VERDE\nResumen.", legal_response="[texto legal distintivo]")
+        eventos = list(
+            generar_informe_viabilidad_stream(
+                db_session, codi_districte=distrito_ciutat_vella, zona_pgm="nucli_antic",
+                embed_fn=hash_embed, llm_client=client,
+            )
+        )
+        evento_datos = eventos[0]
+        assert evento_datos["type"] == "datos"
+        assert evento_datos["datos_distrito"]["nom_districte"] == "Ciutat Vella (dato de prueba)"
+        assert evento_datos["respuesta_legal"] == "[texto legal distintivo]"
+        assert evento_datos["articulos_citados"] == ["302"]

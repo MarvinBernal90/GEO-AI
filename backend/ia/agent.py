@@ -9,7 +9,8 @@ competencia) y normativa legal aplicable (zona PGM más leyes generales)
 
 Funciones principales:
 - generar_informe_viabilidad: punto de entrada público; genera el informe completo para un distrito y una zona PGM dados.
-- build_agent_graph: construye el grafo de LangGraph (nodos en paralelo + síntesis final).
+- generar_informe_viabilidad_stream: variante en streaming; entrega el veredicto y el resumen palabra a palabra a medida que el LLM los genera.
+- build_agent_graph: construye el grafo completo de LangGraph (nodos en paralelo + síntesis final).
 - zonas_pgm_disponibles: lista las zonas PGM que tienen normativa cargada en la base de datos.
 """
 
@@ -80,6 +81,91 @@ def _construir_pregunta_legal(zona_pgm: str) -> str:
     return f"¿Se permite abrir un bar o restaurante (uso comercial/hostelería) en una zona de tipo '{nombre_zona}'? ¿Con qué condiciones o límites?"
 
 
+def _construir_mensaje_sintesis(datos: dict | None, legal: dict) -> tuple[str, list[str]]:
+    """
+    Arma el mensaje que se envía al LLM para la síntesis final, a partir de
+    los resultados ya obtenidos de los dos nodos en paralelo. Compartido
+    entre generar_informe_viabilidad (sin streaming) y
+    generar_informe_viabilidad_stream, para no duplicar esta lógica.
+
+    Devuelve (mensaje, articulos_citados).
+    """
+    if datos is None:
+        bloque_datos = "No hay datos socioeconómicos disponibles para este distrito."
+    else:
+        bloque_datos = (
+            f"Distrito: {datos['nom_districte']}\n"
+            f"Renta media: {datos['renta_media']}€\n"
+            f"Afluencia peatonal diaria: {datos['daily_foot_traffic']}\n"
+            f"Competidores de hostelería en el distrito: {datos['total_competitors']}\n"
+            f"Índice de oportunidad (0-100): {datos['opportunity_score']}"
+        )
+
+    articulos_citados = [c.numero_articulo for c in legal["chunks_recuperados"]]
+    bloque_legal = f"{legal['respuesta']}\n\n(Artículos consultados: {', '.join(articulos_citados) or 'ninguno'})"
+    mensaje = f"DATOS SOCIOECONÓMICOS:\n{bloque_datos}\n\nRESPUESTA LEGAL:\n{bloque_legal}"
+    return mensaje, articulos_citados
+
+
+def _parsear_semaforo_y_resumen(texto: str) -> tuple[Semaforo, str]:
+    """
+    Extrae el semáforo (primera línea) y el resumen (resto) del texto de
+    síntesis. Si la primera línea no es un semáforo reconocible, cae en
+    "ambar" como valor neutro y conserva el texto completo como resumen.
+    """
+    texto = texto.strip()
+    primera_linea, *resto = texto.splitlines() or [""]
+    semaforo_texto = primera_linea.strip().upper()
+    if semaforo_texto not in ("VERDE", "AMBAR", "ROJO"):
+        logger.warning(f"El LLM no devolvió un semáforo reconocible en la primera línea: {primera_linea!r}")
+        return "ambar", texto
+    return semaforo_texto.lower(), "\n".join(resto).strip()
+
+
+def build_data_gathering_graph(
+    session: Session,
+    embed_fn: EmbeddingFunction = embed_texts,
+    llm_client=None,
+    model: str = DEFAULT_MODEL,
+):
+    """
+    Grafo reducido: solo los dos nodos en paralelo (datos socioeconómicos +
+    normativa legal), sin la síntesis final. Lo usa
+    generar_informe_viabilidad_stream, que hace la síntesis aparte en modo
+    streaming -- esta parte no se beneficia de streaming, ya que no es
+    texto generado token a token por el LLM.
+    """
+
+    def datos_socioeconomicos(state: ViabilityState) -> dict:
+        with Session(session.get_bind()) as node_session:
+            row = node_session.execute(
+                text("SELECT * FROM district_scorecard WHERE codi_districte = :codi"),
+                {"codi": state["codi_districte"]},
+            ).mappings().first()
+        if row is None:
+            logger.warning(f"No hay datos en district_scorecard para el distrito {state['codi_districte']}")
+            return {"datos_distrito": None}
+        return {"datos_distrito": dict(row)}
+
+    def normativa_legal(state: ViabilityState) -> dict:
+        with Session(session.get_bind()) as node_session:
+            pregunta = _construir_pregunta_legal(state["zona_pgm"])
+            resultado = generate_answer(
+                node_session, pregunta, embed_fn=embed_fn, llm_client=llm_client,
+                model=model, zona_pgm=state["zona_pgm"],
+            )
+        return {"respuesta_legal": resultado}
+
+    graph = StateGraph(ViabilityState)
+    graph.add_node("datos_socioeconomicos", datos_socioeconomicos)
+    graph.add_node("normativa_legal", normativa_legal)
+    graph.add_edge(START, "datos_socioeconomicos")
+    graph.add_edge(START, "normativa_legal")
+    graph.add_edge("datos_socioeconomicos", END)
+    graph.add_edge("normativa_legal", END)
+    return graph.compile()
+
+
 def build_agent_graph(
     session: Session,
     embed_fn: EmbeddingFunction = embed_texts,
@@ -111,41 +197,17 @@ def build_agent_graph(
         from backend.rag.gemini_adapter import GeminiAsAnthropicAdapter
 
         client = llm_client if llm_client is not None else GeminiAsAnthropicAdapter()
-        datos = state["datos_distrito"]
-        legal = state["respuesta_legal"]
-
-        if datos is None:
-            bloque_datos = "No hay datos socioeconómicos disponibles para este distrito."
-        else:
-            bloque_datos = (
-                f"Distrito: {datos['nom_districte']}\n"
-                f"Renta media: {datos['renta_media']}€\n"
-                f"Afluencia peatonal diaria: {datos['daily_foot_traffic']}\n"
-                f"Competidores de hostelería en el distrito: {datos['total_competitors']}\n"
-                f"Índice de oportunidad (0-100): {datos['opportunity_score']}"
-            )
-
-        articulos_citados = [c.numero_articulo for c in legal["chunks_recuperados"]]
-        bloque_legal = f"{legal['respuesta']}\n\n(Artículos consultados: {', '.join(articulos_citados) or 'ninguno'})"
-        mensaje = f"DATOS SOCIOECONÓMICOS:\n{bloque_datos}\n\nRESPUESTA LEGAL:\n{bloque_legal}"
+        mensaje, articulos_citados = _construir_mensaje_sintesis(state["datos_distrito"], state["respuesta_legal"])
 
         response = client.messages.create(
             model=model, max_tokens=max_tokens, system=SYNTHESIS_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": mensaje}],
         )
-        texto = response.content[0].text.strip()
-        primera_linea, *resto = texto.splitlines()
-        semaforo_texto = primera_linea.strip().upper()
-        semaforo: Semaforo = semaforo_texto.lower() if semaforo_texto in ("VERDE", "AMBAR", "ROJO") else "ambar"
-        if semaforo_texto not in ("VERDE", "AMBAR", "ROJO"):
-            logger.warning(f"El LLM no devolvió un semáforo reconocible en la primera línea: {primera_linea!r}")
-            resumen = texto
-        else:
-            resumen = "\n".join(resto).strip()
+        semaforo, resumen = _parsear_semaforo_y_resumen(response.content[0].text)
 
         informe = ViabilityReport(
-            semaforo=semaforo, resumen=resumen, datos_distrito=datos or {},
-            respuesta_legal=legal["respuesta"], articulos_citados=articulos_citados,
+            semaforo=semaforo, resumen=resumen, datos_distrito=state["datos_distrito"] or {},
+            respuesta_legal=state["respuesta_legal"]["respuesta"], articulos_citados=articulos_citados,
         )
         return {"informe": informe.__dict__}
 
@@ -173,3 +235,52 @@ def generar_informe_viabilidad(
     app = build_agent_graph(session, embed_fn=embed_fn, llm_client=llm_client, model=model, max_tokens=max_tokens)
     resultado = app.invoke({"codi_districte": codi_districte, "zona_pgm": zona_pgm})
     return resultado["informe"]
+
+
+def generar_informe_viabilidad_stream(
+    session: Session,
+    codi_districte: int,
+    zona_pgm: str,
+    embed_fn: EmbeddingFunction = embed_texts,
+    llm_client=None,
+    model: str = DEFAULT_MODEL,
+    max_tokens: int = 4096,
+):
+    """
+    Variante en streaming de generar_informe_viabilidad. Genera (yield)
+    eventos como diccionarios, en este orden:
+
+    1. {"type": "datos", "datos_distrito": ..., "respuesta_legal": ..., "articulos_citados": [...]}
+       -- una sola vez, en cuanto los dos nodos en paralelo terminan.
+    2. {"type": "token", "text": "..."} -- uno por cada fragmento de texto
+       que Gemini genera durante la síntesis final.
+    3. {"type": "done", "semaforo": "...", "resumen": "..."} -- una sola
+       vez, al terminar, con el semáforo y el resumen ya separados.
+    """
+    from backend.rag.gemini_adapter import GeminiAsAnthropicAdapter
+
+    grafo = build_data_gathering_graph(session, embed_fn=embed_fn, llm_client=llm_client, model=model)
+    resultado = grafo.invoke({"codi_districte": codi_districte, "zona_pgm": zona_pgm})
+
+    datos = resultado.get("datos_distrito")
+    legal = resultado["respuesta_legal"]
+    mensaje, articulos_citados = _construir_mensaje_sintesis(datos, legal)
+
+    yield {
+        "type": "datos",
+        "datos_distrito": datos or {},
+        "respuesta_legal": legal["respuesta"],
+        "articulos_citados": articulos_citados,
+    }
+
+    client = llm_client if llm_client is not None else GeminiAsAnthropicAdapter()
+    texto_acumulado = ""
+    for fragmento in client.messages.create_stream(
+        model=model, max_tokens=max_tokens, system=SYNTHESIS_SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": mensaje}],
+    ):
+        texto_acumulado += fragmento
+        yield {"type": "token", "text": fragmento}
+
+    semaforo, resumen = _parsear_semaforo_y_resumen(texto_acumulado)
+    yield {"type": "done", "semaforo": semaforo, "resumen": resumen}

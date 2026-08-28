@@ -13,21 +13,45 @@ Diseño:
     - Errores del LLM o de la base de datos se capturan y se traducen a
       un 502 con un mensaje claro, en vez de dejar que FastAPI devuelva
       un stack trace crudo al frontend.
+    - /informes/stream entrega la respuesta por Server-Sent Events en vez
+      de esperar a tenerla completa -- ver generar_informe_viabilidad_stream.
 """
 
+import json
 import logging
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from backend.api.deps import get_session
 from backend.api.schemas.informes import DistritoOut, InformeRequest, InformeResponse, ZonaPgmOut
-from backend.ia.agent import ZONA_PGM_NOMBRES, generar_informe_viabilidad, zonas_pgm_disponibles
+from backend.ia.agent import (
+    ZONA_PGM_NOMBRES,
+    generar_informe_viabilidad,
+    generar_informe_viabilidad_stream,
+    zonas_pgm_disponibles,
+)
 
 logger = logging.getLogger("geoyield_api")
 
 router = APIRouter(prefix="/api", tags=["informes"])
+
+
+def _json_default(obj):
+    """
+    json.dumps no sabe serializar Decimal -- los valores numéricos que
+    vienen directos de Postgres (renta_media, opportunity_score...) son
+    Decimal, no float, cuando se leen sin pasar por un esquema Pydantic
+    (que sí hace esta conversión automáticamente, como en /api/informes
+    sin streaming). Aquí, al construir el JSON a mano para cada evento
+    SSE, hace falta indicárselo explícitamente.
+    """
+    if isinstance(obj, Decimal):
+        return float(obj)
+    raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
 
 
 @router.get("/distritos", response_model=list[DistritoOut])
@@ -62,3 +86,21 @@ def crear_informe(payload: InformeRequest, db: Session = Depends(get_session)):
             detail="No se pudo generar el informe (fallo al contactar el modelo de IA o la base de datos). Inténtalo de nuevo en unos segundos.",
         )
     return informe
+
+
+@router.post("/informes/stream")
+def crear_informe_stream(payload: InformeRequest, db: Session = Depends(get_session)):
+    def eventos():
+        try:
+            for evento in generar_informe_viabilidad_stream(
+                db, codi_districte=payload.codi_districte, zona_pgm=payload.zona_pgm
+            ):
+                yield f"data: {json.dumps(evento, ensure_ascii=False, default=_json_default)}\n\n"
+        except Exception:
+            logger.exception(
+                f"Error en el streaming del informe (distrito={payload.codi_districte}, zona={payload.zona_pgm})"
+            )
+            error = {"type": "error", "detail": "No se pudo generar el informe. Inténtalo de nuevo en unos segundos."}
+            yield f"data: {json.dumps(error, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(eventos(), media_type="text/event-stream")

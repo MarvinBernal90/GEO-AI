@@ -1,23 +1,60 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import FormularioViabilidad from './components/FormularioViabilidad.vue'
 import TarjetaVeredicto from './components/TarjetaVeredicto.vue'
 import BurbujaChat from './components/BurbujaChat.vue'
 import MapaDistrito from './components/MapaDistrito.vue'
-import { generarInforme } from './services/api.js'
+import { generarInformeStream } from './services/api.js'
+
+const SEMAFOROS_VALIDOS = ['verde', 'ambar', 'rojo']
 
 const cargando = ref(false)
 const error = ref(null)
-const informe = ref(null)
 const codiDistrictePedido = ref(null)
+
+const datosDistrito = ref(null)
+const respuestaLegal = ref('')
+const articulosCitados = ref([])
+const textoSintesis = ref('')
+
+// El semáforo es la primera línea del texto de síntesis -- se detecta en
+// cuanto el streaming acumula un salto de línea, sin esperar a que
+// termine el resumen completo. Así la tarjeta de veredicto aparece en
+// cuanto se conoce el dato más importante, no al final de todo.
+const semaforo = computed(() => {
+  const primeraLinea = textoSintesis.value.split('\n')[0]?.trim().toLowerCase()
+  return SEMAFOROS_VALIDOS.includes(primeraLinea) ? primeraLinea : null
+})
+
+const resumen = computed(() => {
+  if (!semaforo.value) return ''
+  return textoSintesis.value.split('\n').slice(1).join('\n').trim()
+})
 
 async function onGenerar({ codiDistricte, zonaPgm }) {
   cargando.value = true
   error.value = null
-  informe.value = null
   codiDistrictePedido.value = codiDistricte
+  datosDistrito.value = null
+  respuestaLegal.value = ''
+  articulosCitados.value = []
+  textoSintesis.value = ''
+
   try {
-    informe.value = await generarInforme(codiDistricte, zonaPgm)
+    await generarInformeStream(codiDistricte, zonaPgm, {
+      onDatos: (evento) => {
+        datosDistrito.value = evento.datos_distrito
+        respuestaLegal.value = evento.respuesta_legal
+        articulosCitados.value = evento.articulos_citados
+        cargando.value = false // ya hay algo que mostrar, aunque el veredicto siga en camino
+      },
+      onToken: (texto) => {
+        textoSintesis.value += texto
+      },
+      onError: (detail) => {
+        error.value = detail
+      },
+    })
   } catch (err) {
     error.value = err.message
   } finally {
@@ -50,16 +87,29 @@ async function onGenerar({ codiDistricte, zonaPgm }) {
 
       <div v-if="cargando" class="flex items-center gap-3 text-sm text-paper/50">
         <span class="h-2 w-2 animate-ping rounded-full bg-brass" />
-        Consultando normativa y generando el informe…
+        Consultando normativa y datos del distrito…
       </div>
 
-      <div v-if="informe" class="space-y-5">
-        <TarjetaVeredicto :informe="informe" />
-        <MapaDistrito
-          :codi-districte="codiDistrictePedido"
-          :nom-districte="informe.datos_distrito?.nom_districte"
+      <div v-if="datosDistrito || respuestaLegal" class="space-y-5">
+        <TarjetaVeredicto
+          v-if="semaforo"
+          :informe="{ semaforo, resumen, datos_distrito: datosDistrito || {} }"
         />
-        <BurbujaChat :informe="informe" />
+        <div v-else class="flex items-center gap-3 rounded-lg border border-paper/15 bg-paper px-6 py-5 text-sm text-ink/60">
+          <span class="h-2 w-2 animate-ping rounded-full bg-brass" />
+          Generando el veredicto…
+        </div>
+
+        <MapaDistrito
+          v-if="datosDistrito"
+          :codi-districte="codiDistrictePedido"
+          :nom-districte="datosDistrito.nom_districte"
+        />
+
+        <BurbujaChat
+          v-if="respuestaLegal"
+          :informe="{ respuesta_legal: respuestaLegal, articulos_citados: articulosCitados }"
+        />
       </div>
     </div>
   </div>

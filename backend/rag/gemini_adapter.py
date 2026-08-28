@@ -65,3 +65,19 @@ class GeminiAsAnthropicAdapter:
                 "considera subir max_tokens en generate_answer()."
             )
         return _FakeAnthropicResponse(response.text)
+
+    def create_stream(self, model: str, max_tokens: int, system: str, messages: list[dict]):
+        """
+        Igual que create(), pero entrega el texto en fragmentos a medida que
+        Gemini los genera, en vez de esperar a la respuesta completa. No
+        lleva la misma lógica de reintento que create(): reintentar a mitad
+        de un flujo ya iniciado duplicaría el texto ya entregado.
+        """
+        from google.genai import types
+
+        user_content = messages[0]["content"]
+        config = types.GenerateContentConfig(system_instruction=system, max_output_tokens=max_tokens)
+
+        for chunk in self._client.models.generate_content_stream(model=model, contents=user_content, config=config):
+            if chunk.text:
+                yield chunk.text
