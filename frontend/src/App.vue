@@ -14,32 +14,53 @@ const error = ref(null)
 const articuloSeleccionado = ref(null)
 
 const codiDistrictePedido = ref(null)
+const ubicacionPedida = ref(null)
 const datosDistrito = ref(null)
 const respuestaLegal = ref('')
 const articulosCitados = ref([])
 const textoSintesis = ref('')
 
+// El backend ya parsea el semáforo con tolerancia a puntuación (ver
+// _parsear_semaforo_y_resumen), pero mientras el texto va llegando en
+// vivo, aquí se hace una detección propia y más simple para revelar el
+// veredicto cuanto antes. Si esa detección en vivo llegara a fallar por
+// cualquier motivo no previsto, semaforoConfirmado (relleno por
+// onDone con el resultado ya parseado del backend) corrige la pantalla
+// en cuanto el streaming termina -- así nunca se queda colgada en
+// "Generando el veredicto" para siempre, pase lo que pase con el texto.
+const semaforoConfirmado = ref(null)
+const resumenConfirmado = ref(null)
+
 const semaforo = computed(() => {
-  const primeraLinea = textoSintesis.value.split('\n')[0]?.trim().toLowerCase()
+  if (semaforoConfirmado.value) return semaforoConfirmado.value
+  const primeraLinea = textoSintesis.value
+    .split('\n')[0]
+    ?.trim()
+    .toLowerCase()
+    .replace(/[.!:;,]+$/, '') // el LLM a veces añade puntuación al final (p. ej. "ambar.")
   return SEMAFOROS_VALIDOS.includes(primeraLinea) ? primeraLinea : null
 })
 
 const resumen = computed(() => {
+  if (resumenConfirmado.value !== null) return resumenConfirmado.value
   if (!semaforo.value) return ''
   return textoSintesis.value.split('\n').slice(1).join('\n').trim()
 })
 
 const tieneResultados = computed(() => datosDistrito.value || respuestaLegal.value)
 
-async function onGenerar({ codiDistricte, zonaPgm }) {
+async function onGenerar({ codiDistricte, zonaPgm, ubicacion }) {
   cargando.value = true
   error.value = null
   codiDistrictePedido.value = codiDistricte
+  ubicacionPedida.value = ubicacion
 
   datosDistrito.value = null
   respuestaLegal.value = ''
   articulosCitados.value = []
   textoSintesis.value = ''
+  semaforoConfirmado.value = null
+  resumenConfirmado.value = null
 
   await generarInformeStream(codiDistricte, zonaPgm, {
     onDatos: (evento) => {
@@ -55,7 +76,9 @@ async function onGenerar({ codiDistricte, zonaPgm }) {
       error.value = detail
       cargando.value = false
     },
-    onDone: () => {
+    onDone: (evento) => {
+      semaforoConfirmado.value = evento.semaforo
+      resumenConfirmado.value = evento.resumen
       cargando.value = false
     },
   })
@@ -105,6 +128,7 @@ async function onGenerar({ codiDistricte, zonaPgm }) {
             class="h-full min-h-[300px] overflow-hidden rounded-xl border border-paper/15 shadow-sm"
             :codi-districte="codiDistrictePedido"
             :nom-districte="datosDistrito.nom_districte"
+            :ubicacion="ubicacionPedida"
           />
 
           <BurbujaChat

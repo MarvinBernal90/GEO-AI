@@ -69,3 +69,62 @@ class TestListarCompetidores:
         response = client.get("/api/competidores", params={"codi_districte": 99})
         app.dependency_overrides.clear()
         assert response.status_code == 422
+
+
+class FakeSessionRadio:
+    """Simula las dos consultas del modo radio: COUNT total, y el listado."""
+
+    def __init__(self, total, filas):
+        self._total = total
+        self._filas = filas
+        self.ultimos_params = None
+
+    def execute(self, statement, params=None):
+        self.ultimos_params = params
+        result = MagicMock()
+        sql = str(statement)
+        if "COUNT(*)" in sql:
+            result.mappings.return_value.first.return_value = {"total": self._total}
+        else:
+            result.mappings.return_value.all.return_value = self._filas
+        return result
+
+
+class TestListarCompetidoresPorRadio:
+    def test_uses_radio_mode_when_lat_lon_given(self):
+        fake_session = FakeSessionRadio(total=3, filas=[{"id_global": "a1", "nom_activitat": "Bar", "lat": 41.38, "lng": 2.17}])
+        app.dependency_overrides[get_session] = lambda: fake_session
+        client = TestClient(app)
+        response = client.get(
+            "/api/competidores", params={"codi_districte": 1, "lat": 41.38, "lon": 2.17, "radio_metros": 500}
+        )
+        app.dependency_overrides.clear()
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["modo"] == "radio"
+        assert body["radio_metros"] == 500
+        assert body["centro"] == {"lat": 41.38, "lng": 2.17}  # el centro es el punto dado, no un promedio
+        assert body["total"] == 3
+
+    def test_regression_radio_count_independent_of_district_total(self):
+        # Regresión: el total en modo radio debe venir de ST_DWithin
+        # (competidores reales cerca del punto), no del total del
+        # distrito completo -- son números distintos a propósito.
+        fake_session = FakeSessionRadio(total=12, filas=[])
+        app.dependency_overrides[get_session] = lambda: fake_session
+        client = TestClient(app)
+        response = client.get("/api/competidores", params={"codi_districte": 1, "lat": 41.38, "lon": 2.17})
+        app.dependency_overrides.clear()
+
+        assert response.json()["total"] == 12
+
+    def test_default_district_mode_when_no_lat_lon(self):
+        centro_row = {"lat": 41.38, "lng": 2.17, "total": 1588}
+        app.dependency_overrides[get_session] = lambda: FakeSessionConDatos(centro_row, [])
+        client = TestClient(app)
+        response = client.get("/api/competidores", params={"codi_districte": 1})
+        app.dependency_overrides.clear()
+
+        assert response.json()["modo"] == "distrito"
+        assert response.json()["radio_metros"] is None

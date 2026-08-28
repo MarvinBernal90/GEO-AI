@@ -54,10 +54,29 @@ export async function obtenerArticulo(fuenteLegal, numeroArticulo) {
 }
 
 /**
- * Obtiene la lista de competidores en un distrito.
+ * Geocodifica una dirección de texto libre -- devuelve distrito y zona
+ * PGM sugeridos, cuando se pueden determinar. Lanza un error (que
+ * handleResponse convierte en Error con el detail del backend) si la
+ * dirección no se encuentra dentro de Barcelona.
  */
-export async function obtenerCompetidores(codiDistricte) {
-  const response = await fetch(`${API_BASE_URL}/api/competidores?codi_districte=${codiDistricte}`)
+export async function geocodificarDireccion(direccion) {
+  const params = new URLSearchParams({ direccion })
+  const response = await fetch(`${API_BASE_URL}/api/geocodificar?${params}`)
+  return handleResponse(response)
+}
+
+/**
+ * Obtiene la lista de competidores en un distrito. Si se pasa ubicacion
+ * ({lat, lon}), busca por radio alrededor de ese punto exacto en vez de
+ * todo el distrito.
+ */
+export async function obtenerCompetidores(codiDistricte, ubicacion = null) {
+  const params = new URLSearchParams({ codi_districte: codiDistricte })
+  if (ubicacion) {
+    params.set('lat', ubicacion.lat)
+    params.set('lon', ubicacion.lon)
+  }
+  const response = await fetch(`${API_BASE_URL}/api/competidores?${params}`)
   return handleResponse(response)
 }
 

@@ -7,6 +7,7 @@ sintetiza en un informe final con un veredicto tipo semáforo.
 """
 
 import logging
+import re
 from dataclasses import dataclass
 from typing import Any, Callable, Iterator, Literal, TypedDict
 
@@ -25,6 +26,10 @@ ZONA_PGM_NOMBRES = {
     "nucli_antic": "Nucli antic / Centre històric (p. ej. Ciutat Vella)",
     "densificacio_urbana": "Densificació urbana (p. ej. gran part de l'Eixample)",
     "industrial": "Zona industrial",
+    "conservacio_estructura_urbana": "Conservació de l'estructura urbana i edificatòria",
+    "ordenacio_volumetrica_especifica": "Ordenació volumètrica específica",
+    "edificacio_aillada": "Edificació aïllada (unifamiliar o plurifamiliar)",
+    "renovacio_urbana": "Renovació urbana",
 }
 
 
@@ -63,7 +68,7 @@ Recibes dos bloques de información ya verificados:
 
 Tu tarea es sintetizar AMBOS en un informe de viabilidad breve para el usuario final (el dueño del negocio, no un desarrollador). Estructura tu respuesta EXACTAMENTE así:
 
-Primera línea: una sola palabra, en mayúsculas, entre VERDE, AMBAR o ROJO -- nada más en esa línea.
+Primera línea: exactamente una palabra, en mayúsculas, sin ningún signo de puntuación al final (sin punto, sin dos puntos, nada) -- solo VERDE, AMBAR o ROJO, letra por letra, nada más en esa línea.
     - ROJO: la normativa prohíbe explícitamente el uso, o el contexto legal no da certeza suficiente.
     - AMBAR: el uso está permitido, pero con restricciones relevantes o riesgos socioeconómicos notables.
     - VERDE: el uso está permitido y las condiciones socioeconómicas son favorables.
@@ -129,7 +134,11 @@ def _parsear_semaforo_y_resumen(texto: str) -> tuple[Semaforo, str]:
     """
     texto = texto.strip()
     primera_linea, *resto = texto.splitlines() or [""]
-    semaforo_texto = primera_linea.strip().upper()
+    # El LLM a veces añade puntuación al final de la palabra del
+    # semáforo (p. ej. "AMBAR." en vez de "AMBAR", un hábito natural de
+    # cerrar frases) -- se quita antes de comparar, para no caer en el
+    # fallback por un simple punto de más. Bug real encontrado en producción.
+    semaforo_texto = re.sub(r"[.!:;,]+$", "", primera_linea.strip().upper())
 
     if semaforo_texto not in ("VERDE", "AMBAR", "ROJO"):
         logger.warning(

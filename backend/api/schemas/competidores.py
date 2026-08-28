@@ -17,3 +17,5 @@ class CompetidoresResponse(BaseModel):
     centro: CentroOut | None
     total: int
     competidores: list[CompetidorOut]
+    modo: str  # "distrito" (centroide + todo el distrito) o "radio" (punto exacto + radio en metros)
+    radio_metros: int | None = None

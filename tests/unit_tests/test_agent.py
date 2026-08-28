@@ -192,6 +192,26 @@ class TestGenerarInformeViabilidad:
         )
         assert informe["semaforo"] == "ambar"  # fallback neutro, no revienta
 
+    def test_regression_trailing_period_after_semaforo_still_recognized(
+        self, db_session, distrito_ciutat_vella, articulo_302
+    ):
+        # Regresión real: el LLM devolvió "AMBAR." (con punto final) en
+        # producción, y como la comparación era exacta, caía en el
+        # fallback -- además de perder el semáforo real, el resumen
+        # quedaba con "AMBAR." pegado al principio, filtrando la palabra
+        # del semáforo hacia el texto visible.
+        client = ScriptedLLMClient(synthesis_response="AMBAR.\nResumen de prueba tras el punto final.")
+        informe = generar_informe_viabilidad(
+            db_session,
+            codi_districte=distrito_ciutat_vella,
+            zona_pgm="nucli_antic",
+            embed_fn=hash_embed,
+            llm_client=client,
+        )
+        assert informe["semaforo"] == "ambar"
+        assert informe["resumen"] == "Resumen de prueba tras el punto final."
+        assert "AMBAR" not in informe["resumen"]  # no debe haberse filtrado al resumen
+
 
 class TestGenerarInformeViabilidadStream:
     def test_yields_datos_then_tokens_then_done_in_order(self, db_session, distrito_ciutat_vella, articulo_302):
