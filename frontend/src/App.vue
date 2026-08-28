@@ -4,23 +4,21 @@ import FormularioViabilidad from './components/FormularioViabilidad.vue'
 import TarjetaVeredicto from './components/TarjetaVeredicto.vue'
 import BurbujaChat from './components/BurbujaChat.vue'
 import MapaDistrito from './components/MapaDistrito.vue'
+import VisorNormativa from './components/VisorNormativa.vue'
 import { generarInformeStream } from './services/api.js'
 
 const SEMAFOROS_VALIDOS = ['verde', 'ambar', 'rojo']
 
 const cargando = ref(false)
 const error = ref(null)
-const codiDistrictePedido = ref(null)
+const articuloSeleccionado = ref(null)
 
+const codiDistrictePedido = ref(null)
 const datosDistrito = ref(null)
 const respuestaLegal = ref('')
 const articulosCitados = ref([])
 const textoSintesis = ref('')
 
-// El semáforo es la primera línea del texto de síntesis -- se detecta en
-// cuanto el streaming acumula un salto de línea, sin esperar a que
-// termine el resumen completo. Así la tarjeta de veredicto aparece en
-// cuanto se conoce el dato más importante, no al final de todo.
 const semaforo = computed(() => {
   const primeraLinea = textoSintesis.value.split('\n')[0]?.trim().toLowerCase()
   return SEMAFOROS_VALIDOS.includes(primeraLinea) ? primeraLinea : null
@@ -31,86 +29,103 @@ const resumen = computed(() => {
   return textoSintesis.value.split('\n').slice(1).join('\n').trim()
 })
 
+const tieneResultados = computed(() => datosDistrito.value || respuestaLegal.value)
+
 async function onGenerar({ codiDistricte, zonaPgm }) {
   cargando.value = true
   error.value = null
   codiDistrictePedido.value = codiDistricte
+
   datosDistrito.value = null
   respuestaLegal.value = ''
   articulosCitados.value = []
   textoSintesis.value = ''
 
-  try {
-    await generarInformeStream(codiDistricte, zonaPgm, {
-      onDatos: (evento) => {
-        datosDistrito.value = evento.datos_distrito
-        respuestaLegal.value = evento.respuesta_legal
-        articulosCitados.value = evento.articulos_citados
-        cargando.value = false // ya hay algo que mostrar, aunque el veredicto siga en camino
-      },
-      onToken: (texto) => {
-        textoSintesis.value += texto
-      },
-      onError: (detail) => {
-        error.value = detail
-      },
-    })
-  } catch (err) {
-    error.value = err.message
-  } finally {
-    cargando.value = false
-  }
+  await generarInformeStream(codiDistricte, zonaPgm, {
+    onDatos: (evento) => {
+      datosDistrito.value = evento.datos_distrito
+      respuestaLegal.value = evento.respuesta_legal
+      articulosCitados.value = evento.articulos_citados
+      cargando.value = false
+    },
+    onToken: (texto) => {
+      textoSintesis.value += texto
+    },
+    onError: (detail) => {
+      error.value = detail
+      cargando.value = false
+    },
+    onDone: () => {
+      cargando.value = false
+    },
+  })
 }
 </script>
 
 <template>
-  <div class="fondo-plano min-h-screen">
-    <div class="mx-auto max-w-3xl px-4 py-12 sm:py-16">
-      <header class="mb-10">
-        <p class="mb-2 font-mono text-xs tracking-[0.2em] text-brass uppercase">Geo-Yield-AI</p>
-        <h1 class="font-display text-3xl font-semibold text-paper sm:text-4xl">
+  <main class="fondo-plano min-h-screen">
+    <div class="mx-auto max-w-4xl px-4 py-12 sm:px-6 sm:py-16">
+      <header class="mb-10 text-center sm:text-left">
+        <p class="mb-2 font-mono text-xs font-bold tracking-[0.2em] text-brass uppercase">Geo-Yield-AI</p>
+        <h1 class="font-display text-3xl font-semibold text-paper sm:text-5xl">
           Dossier de viabilidad de hostelería
         </h1>
-        <p class="mt-2 max-w-xl text-sm text-paper/60">
+        <p class="mt-4 text-sm leading-relaxed text-paper/70 sm:max-w-2xl sm:text-base">
           Selecciona un distrito y una zona urbanística de Barcelona para generar un informe
-          que cruza normativa legal vigente con datos socioeconómicos reales.
+          que cruza la normativa legal vigente con datos socioeconómicos reales.
         </p>
       </header>
 
-      <div class="mb-8 rounded-lg border border-paper/15 bg-ink-light/40 p-6">
+      <section class="mb-8 rounded-xl border border-paper/15 bg-ink-light/50 p-6 shadow-lg backdrop-blur-sm">
         <FormularioViabilidad :cargando="cargando" @generar="onGenerar" />
-      </div>
+      </section>
 
-      <div v-if="error" class="mb-8 rounded border border-rojo/40 bg-rojo/10 px-4 py-3 text-sm text-paper">
+      <div v-if="error" class="mb-8 flex items-center gap-3 rounded-lg border border-rojo/40 bg-rojo/10 px-5 py-4 text-sm text-paper shadow-sm">
         {{ error }}
       </div>
 
-      <div v-if="cargando" class="flex items-center gap-3 text-sm text-paper/50">
-        <span class="h-2 w-2 animate-ping rounded-full bg-brass" />
-        Consultando normativa y datos del distrito…
+      <div v-if="cargando && !tieneResultados" class="flex items-center justify-center gap-3 py-12 text-sm text-paper/60">
+        <span class="h-2.5 w-2.5 animate-ping rounded-full bg-brass" />
+        Consultando la normativa y analizando datos del distrito...
       </div>
 
-      <div v-if="datosDistrito || respuestaLegal" class="space-y-5">
+      <section v-if="tieneResultados" class="space-y-6 animate-fade-in">
         <TarjetaVeredicto
           v-if="semaforo"
           :informe="{ semaforo, resumen, datos_distrito: datosDistrito || {} }"
         />
-        <div v-else class="flex items-center gap-3 rounded-lg border border-paper/15 bg-paper px-6 py-5 text-sm text-ink/60">
+        <div v-else class="flex items-center gap-3 rounded-xl border border-paper/15 bg-paper px-6 py-5 text-sm text-ink/60 shadow-sm">
           <span class="h-2 w-2 animate-ping rounded-full bg-brass" />
           Generando el veredicto…
         </div>
 
-        <MapaDistrito
-          v-if="datosDistrito"
-          :codi-districte="codiDistrictePedido"
-          :nom-districte="datosDistrito.nom_districte"
-        />
+        <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <MapaDistrito
+            v-if="datosDistrito"
+            class="h-full min-h-[300px] overflow-hidden rounded-xl border border-paper/15 shadow-sm"
+            :codi-districte="codiDistrictePedido"
+            :nom-districte="datosDistrito.nom_districte"
+          />
 
-        <BurbujaChat
-          v-if="respuestaLegal"
-          :informe="{ respuesta_legal: respuestaLegal, articulos_citados: articulosCitados }"
-        />
-      </div>
+          <BurbujaChat
+            v-if="respuestaLegal"
+            :informe="{ respuesta_legal: respuestaLegal, articulos_citados: articulosCitados }"
+            @ver-articulo="articuloSeleccionado = $event"
+          />
+        </div>
+      </section>
     </div>
-  </div>
+
+    <VisorNormativa :articulo="articuloSeleccionado" @cerrar="articuloSeleccionado = null" />
+  </main>
 </template>
+
+<style>
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+</style>

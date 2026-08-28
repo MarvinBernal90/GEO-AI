@@ -166,7 +166,7 @@ class TestGenerarInformeViabilidad:
         assert informe["semaforo"] == "ambar"
         assert informe["resumen"] == "resumen de sintesis"
         assert informe["respuesta_legal"] == "[texto legal distintivo]"
-        assert informe["articulos_citados"] == ["302"]
+        assert informe["articulos_citados"] == [{"numero_articulo": "302", "fuente_legal": "PGM (Secció V)"}]
         assert informe["datos_distrito"]["nom_districte"] == "Ciutat Vella (dato de prueba)"
 
     def test_missing_district_data_does_not_crash(self, db_session, articulo_302):
@@ -240,4 +240,4 @@ class TestGenerarInformeViabilidadStream:
         assert evento_datos["type"] == "datos"
         assert evento_datos["datos_distrito"]["nom_districte"] == "Ciutat Vella (dato de prueba)"
         assert evento_datos["respuesta_legal"] == "[texto legal distintivo]"
-        assert evento_datos["articulos_citados"] == ["302"]
+        assert evento_datos["articulos_citados"] == [{"numero_articulo": "302", "fuente_legal": "PGM (Secció V)"}]

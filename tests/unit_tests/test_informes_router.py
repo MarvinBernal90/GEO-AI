@@ -71,7 +71,7 @@ class TestCrearInforme:
             "resumen": "Resumen de prueba.",
             "datos_distrito": {"codi_districte": 1, "nom_districte": "Ciutat Vella", "opportunity_score": 69.67},
             "respuesta_legal": "Respuesta legal de prueba.",
-            "articulos_citados": ["302"],
+            "articulos_citados": [{"numero_articulo": "302", "fuente_legal": "PGM (Secció V)"}],
         }
         with patch("backend.api.routers.informes.generar_informe_viabilidad", return_value=informe_falso):
             client = TestClient(app)

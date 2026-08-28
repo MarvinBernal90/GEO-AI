@@ -1,22 +1,15 @@
 """
-Motor de consulta RAG sobre el corpus de normativa legal (PGM y leyes
-generales). Recupera los artículos más relevantes por similitud
-semántica y genera una respuesta con el LLM, citando siempre la norma y
-el artículo exactos.
+Motor de consulta RAG sobre el corpus de normativa legal.
 
-Al filtrar por zona PGM, combina en la misma consulta la normativa
-específica de esa zona con la normativa general que aplica en toda la
-ciudad (horarios, consumo, etc.), para que ninguna de las dos quede
-fuera por el filtro.
-
-Funciones principales:
-- generate_answer: punto de entrada público; recupera contexto y genera la respuesta del LLM.
-- retrieve_relevant_chunks: recuperación por similitud, combinando zona específica y normativa general.
-- build_context: arma el bloque de contexto legal citando fuente y artículo para cada resultado.
+Recupera los artículos más relevantes por similitud semántica y genera
+una respuesta con el LLM, citando siempre la norma y el artículo exactos.
+Al filtrar por zona PGM, combina la normativa específica de la zona con
+la normativa general aplicable en toda la ciudad.
 """
 
 import os
 from dataclasses import dataclass
+from typing import Any, Sequence
 
 from sqlalchemy.orm import Session
 
@@ -31,11 +24,14 @@ Eres un asistente legal especializado en normativa urbanística de Barcelona (Pl
 
 Respondes ÚNICAMENTE basándote en los artículos normativos que se te proporcionan como contexto. Para cada afirmación, cita tanto la norma como el número de artículo exacto (p. ej. "según el Artículo 302 del PGM..." o "según el Artículo 4 de la Ordre INT/358/2011..."), ya que puede haber varias normas distintas en el contexto y el número de artículo por sí solo no las distingue. Si el contexto proporcionado no contiene información suficiente para responder con seguridad, dilo explícitamente en vez de inventar o generalizar.
 
+No uses formato Markdown de ningún tipo (nada de **negrita**, encabezados con #, ni listas con - o *). La interfaz que muestra tu respuesta no interpreta Markdown, así que esos símbolos aparecerían tal cual, como ruido visible. Escribe en prosa corrida, con párrafos separados por saltos de línea si hace falta estructurar la respuesta.
+
 Esta respuesta es orientativa, no un dictamen legal vinculante — recomienda siempre confirmar con el ayuntamiento o un profesional antes de tomar una decisión."""
 
 
 @dataclass
 class RetrievedChunk:
+    """Representa un fragmento de texto legal recuperado de la base de datos."""
     numero_articulo: str
     titulo: str
     contenido: str
@@ -43,12 +39,23 @@ class RetrievedChunk:
     fuente_legal: str = "PGM"
 
 
-def _query_chunks(session, query_embedding, top_k, zona_filter):
+def _query_chunks(
+    session: Session,
+    query_embedding: list[float],
+    top_k: int,
+    zona_filter: str | bool | None
+) -> Sequence[Any]:
     """
-    zona_filter:
-        - un str -> filtra a esa zona_pgm exacta
-        - False  -> filtra a zona_pgm IS NULL (normativa general, aplica en toda la ciudad)
-        - None   -> sin filtro (todo)
+    Ejecuta la consulta vectorial en la base de datos.
+
+    Args:
+        session: Sesión activa de SQLAlchemy.
+        query_embedding: Vector que representa la pregunta del usuario.
+        top_k: Número máximo de resultados a recuperar.
+        zona_filter:
+            - str: filtra por esa zona_pgm exacta.
+            - False: filtra normativa general (zona_pgm IS NULL).
+            - None: sin filtro de zona (busca en todo el corpus).
     """
     stmt = session.query(
         LegalChunk.numero_articulo,
@@ -57,10 +64,12 @@ def _query_chunks(session, query_embedding, top_k, zona_filter):
         LegalChunk.fuente_legal,
         LegalChunk.embedding.cosine_distance(query_embedding).label("distancia"),
     )
+
     if zona_filter is False:
         stmt = stmt.filter(LegalChunk.zona_pgm.is_(None))
     elif zona_filter is not None:
         stmt = stmt.filter(LegalChunk.zona_pgm == zona_filter)
+
     return stmt.order_by("distancia").limit(top_k).all()
 
 
@@ -72,36 +81,42 @@ def retrieve_relevant_chunks(
     zona_pgm: str | None = None,
 ) -> list[RetrievedChunk]:
     """
-    Recupera los top_k artículos más cercanos por similitud coseno a `query`.
+    Recupera los artículos más cercanos por similitud coseno a la consulta.
 
-    Si se indica `zona_pgm`, combina DOS búsquedas: los `top_k` artículos
-    de esa zona exacta (columna zona_pgm, migración 0004) MÁS los `top_k`
-    artículos de normativa general que aplica en toda la ciudad
-    (zona_pgm IS NULL, p. ej. horarios comerciales, venta de alcohol --
-    migración 0005). Sin esto, una norma general nunca podría aparecer en
-    una consulta filtrada por zona, aunque sea justo la que el usuario
-    necesita (p. ej. preguntar por horarios de un bar en una zona
-    concreta antes solo devolvía normativa de zonificación, nunca la
-    norma de horarios).
+    Si se indica `zona_pgm`, combina los `top_k` artículos de esa zona exacta
+    con los `top_k` artículos de normativa general (aplicable a toda la ciudad),
+    y los ordena globalmente por relevancia -- un artículo general más
+    relevante que uno de zona aparece primero, en vez de agruparse siempre
+    por "de dónde viene".
     """
     query_embedding = embed_fn([query])[0]
 
     if zona_pgm is not None:
-        especifica = _query_chunks(session, query_embedding, top_k, zona_pgm)
-        general = _query_chunks(session, query_embedding, top_k, False)
-        results = list(especifica) + list(general)
+        chunks_especificos = _query_chunks(session, query_embedding, top_k, zona_pgm)
+        chunks_generales = _query_chunks(session, query_embedding, top_k, False)
+
+        results = list(chunks_especificos) + list(chunks_generales)
+        results.sort(key=lambda r: r.distancia)
     else:
-        results = _query_chunks(session, query_embedding, top_k, None)
+        results = list(_query_chunks(session, query_embedding, top_k, None))
 
     return [
-        RetrievedChunk(r.numero_articulo, r.titulo, r.contenido, r.distancia, r.fuente_legal)
+        RetrievedChunk(
+            numero_articulo=r.numero_articulo,
+            titulo=r.titulo,
+            contenido=r.contenido,
+            distancia=r.distancia,
+            fuente_legal=r.fuente_legal
+        )
         for r in results
     ]
 
 
 def build_context(chunks: list[RetrievedChunk]) -> str:
+    """Construye el bloque de texto con el contexto legal para el LLM."""
     return "\n\n".join(
-        f"--- {c.fuente_legal}, Artículo {c.numero_articulo}: {c.titulo} ---\n{c.contenido}" for c in chunks
+        f"--- {c.fuente_legal}, Artículo {c.numero_articulo}: {c.titulo} ---\n{c.contenido}"
+        for c in chunks
     )
 
 
@@ -109,22 +124,42 @@ def generate_answer(
     session: Session,
     question: str,
     embed_fn: EmbeddingFunction = embed_texts,
-    llm_client=None,
+    llm_client: Any = None,
     model: str = DEFAULT_MODEL,
     top_k: int = 3,
     max_tokens: int = 4096,
     zona_pgm: str | None = None,
-) -> dict:
-    chunks = retrieve_relevant_chunks(session, question, embed_fn=embed_fn, top_k=top_k, zona_pgm=zona_pgm)
+) -> dict[str, Any]:
+    """
+    Recupera contexto legal y genera una respuesta con el modelo de lenguaje.
+
+    Devuelve un diccionario con la respuesta generada y los chunks utilizados.
+    """
+    chunks = retrieve_relevant_chunks(
+        session, question, embed_fn=embed_fn, top_k=top_k, zona_pgm=zona_pgm
+    )
+
     if not chunks:
-        return {"respuesta": "No hi ha normativa carregada a la base de dades encara.", "chunks_recuperados": []}
+        return {
+            "respuesta": "No hi ha normativa carregada a la base de dades encara.",
+            "chunks_recuperados": []
+        }
+
     context = build_context(chunks)
     user_message = f"CONTEXT NORMATIU:\n{context}\n\nPREGUNTA: {question}"
+
     if llm_client is None:
         from backend.rag.gemini_adapter import GeminiAsAnthropicAdapter
         llm_client = GeminiAsAnthropicAdapter()
+
     response = llm_client.messages.create(
-        model=model, max_tokens=max_tokens, system=SYSTEM_PROMPT,
+        model=model,
+        max_tokens=max_tokens,
+        system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": user_message}],
     )
-    return {"respuesta": response.content[0].text, "chunks_recuperados": chunks}
+
+    return {
+        "respuesta": response.content[0].text,
+        "chunks_recuperados": chunks
+    }

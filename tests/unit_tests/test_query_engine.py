@@ -54,6 +54,42 @@ def articulo_general(db_session):
     db_session.commit()
 
 
+class TestRetrieveOrdenaPorRelevanciaGlobal:
+    def test_regression_general_chunk_more_relevant_appears_before_zone_chunk(self, db_session):
+        # Regresión: antes, los resultados se concatenaban en un orden
+        # fijo (zona primero, generales después), sin importar cuál era
+        # realmente más relevante. Con embeddings fijados a mano (no el
+        # hash_embed habitual, que no permite controlar distancias
+        # exactas), se sabe de antemano qué artículo debe quedar primero.
+        def embed_pregunta(textos):
+            return [[1.0] + [0.0] * 383 for _ in textos]
+
+        vector_cercano = [0.99] + [0.0] * 383  # muy cerca del vector de la pregunta
+        vector_lejano = [0.1] + [0.99] * 383  # lejos del vector de la pregunta
+
+        db_session.add(LegalChunk(
+            fuente_legal="PGM (Secció V)", numero_articulo="1", titulo="t",
+            contenido="artículo de zona, lejos de la pregunta",
+            versio="original", zona_pgm="industrial", embedding=vector_lejano,
+        ))
+        db_session.add(LegalChunk(
+            fuente_legal="Ordre INT/358/2011", numero_articulo="2", titulo="t",
+            contenido="artículo general, muy cerca de la pregunta",
+            versio="vigente", zona_pgm=None, embedding=vector_cercano,
+        ))
+        db_session.commit()
+
+        resultados = retrieve_relevant_chunks(
+            db_session, "pregunta", embed_fn=embed_pregunta, top_k=1, zona_pgm="industrial"
+        )
+
+        assert len(resultados) == 2
+        # El general (más cercano) debe ir primero, aunque la concatenación
+        # original (zona primero) lo habría puesto en segundo lugar.
+        assert resultados[0].fuente_legal == "Ordre INT/358/2011"
+        assert resultados[1].fuente_legal == "PGM (Secció V)"
+
+
 class TestRetrieveCombinaZonaYGeneral:
     def test_regression_general_law_never_surfaced_when_filtering_by_zone(
         self, db_session, articulo_zona, articulo_general
