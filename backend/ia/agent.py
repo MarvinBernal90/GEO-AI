@@ -121,6 +121,7 @@ def _construir_mensaje_sintesis(
             f"Renta media: {datos['renta_media']}€\n"
             f"Afluencia peatonal diaria: {datos['daily_foot_traffic']}\n"
             f"Competidores de hostelería en el distrito: {datos['total_competitors']}\n"
+            f"Viajes intraprovinciales (MITMA): {datos['viajes_intraprovinciales']}\n"
             f"Índice de oportunidad (0-100): {datos['opportunity_score']}"
         )
 
@@ -178,9 +179,12 @@ def _crear_nodos_paralelos(
         with Session(session.get_bind()) as node_session:
             row = node_session.execute(
                 text(
-                    "SELECT codi_districte, nom_districte, renta_media, daily_foot_traffic, "
-                    "total_competitors, opportunity_score "
-                    "FROM district_scorecard WHERE codi_districte = :codi"
+                    "SELECT ds.codi_districte, ds.nom_districte, ds.renta_media, ds.daily_foot_traffic, "
+                    "ds.total_competitors, ds.opportunity_score, "
+                    "dm.total_trips AS viajes_intraprovinciales "
+                    "FROM district_scorecard ds "
+                    "LEFT JOIN district_mobility dm ON ds.codi_districte = dm.codi_districte "
+                    "WHERE ds.codi_districte = :codi"
                 ),
                 {"codi": state["codi_districte"]},
             ).mappings().first()

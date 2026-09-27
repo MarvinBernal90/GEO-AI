@@ -83,11 +83,18 @@ services:
     restart: unless-stopped
     env_file:
       - ../.env
+    environment:
+      - DB_HOST_OVERRIDE=
+      - DB_PORT_OVERRIDE=
     # Port mapping to avoid collisions:
     # The API runs internally on port 8000, but we expose it on 8080 to avoid
     # conflicting with other local applications on the host.
     ports:
       - "8080:8000"
+    volumes:
+      # Montamos la carpeta data local dentro del contenedor 
+      # para que la API pueda acceder a los CSVs en Fase 1 (hasta que se migre a S3)
+      - ../data:/app/data
     # No log volume any more: logs go to stdout as JSON (one line per event),
     # which is what both `docker compose logs` and the ECS awslogs/FireLens
     # drivers collect. A file inside the container reaches no collector.

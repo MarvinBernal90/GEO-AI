@@ -96,9 +96,12 @@ def get_opportunity_score(dirección: str) -> float:
         with Session(engine) as session:
             row = session.execute(
                 text(
-                    "SELECT codi_districte, nom_districte, renta_media, daily_foot_traffic, "
-                    "total_competitors, opportunity_score "
-                    "FROM district_scorecard WHERE codi_districte = :codi"
+                    "SELECT ds.codi_districte, ds.nom_districte, ds.renta_media, ds.daily_foot_traffic, "
+                    "ds.total_competitors, ds.opportunity_score, "
+                    "dm.total_trips AS viajes_intraprovinciales "
+                    "FROM district_scorecard ds "
+                    "LEFT JOIN district_mobility dm ON ds.codi_districte = dm.codi_districte "
+                    "WHERE ds.codi_districte = :codi"
                 ),
                 {"codi": res['codi_districte']},
             ).mappings().first()

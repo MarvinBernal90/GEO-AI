@@ -117,6 +117,15 @@ export async function geocodificarDireccion(direccion) {
 }
 
 /**
+ * Triggers the MITMA ETL process in the background.
+ */
+export async function dispararEtlMitma() {
+  return request('dispararEtlMitma', `${API_BASE_URL}/api/etl/mitma`, {
+    method: 'POST'
+  })
+}
+
+/**
  * Fetches commercial competitors. If coordinates {lat, lon} are provided,
  * performs a geospatial radius search instead of a district-wide search.
  */

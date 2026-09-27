@@ -63,6 +63,7 @@ class DatosDistrito(BaseModel):
     renta_media: float | None = None
     total_competitors: int | None = None
     opportunity_score: float | None = None
+    viajes_intraprovinciales: float | None = None
 
 
 class ArticuloCitadoOut(BaseModel):
