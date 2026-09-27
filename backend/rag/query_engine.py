@@ -5,8 +5,8 @@ RAG PIPELINE: SEMANTIC QUERY ENGINE
 File: backend/rag/query_engine.py
 
 This module orchestrates the core Retrieval-Augmented Generation (RAG) flow.
-It vectorizes the user's question, performs a semantic similarity search 
-against the PostGIS (pgvector) database, builds a context prompt, and 
+It vectorizes the user's question, performs a semantic similarity search
+against the PostGIS (pgvector) database, builds a context prompt, and
 generates the final answer using the LLM (Gemini via Adapter).
 """
 
@@ -14,6 +14,7 @@ import os
 from dataclasses import dataclass
 from typing import Any, Sequence
 
+from sentence_transformers import CrossEncoder
 from sqlalchemy.orm import Session
 
 from backend.db.models import LegalChunk
@@ -22,13 +23,17 @@ from backend.rag.embeddings import EmbeddingFunction, embed_texts
 # Allows seamless upgrades to newer Gemini models via environment variables
 DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
+# Cross-encoder used to rerank retrieved chunks -- see
+# retrieve_relevant_chunks_with_rerank below.
+RERANK_MODEL = os.getenv("RERANK_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
+
 # ------------------------------------------------------------------------------
 # PROMPT ENGINEERING
 # ------------------------------------------------------------------------------
-# 1. Cross-lingual mapping: The corpus is in Catalan, but the LLM is instructed 
+# 1. Cross-lingual mapping: The corpus is in Catalan, but the LLM is instructed
 #    to dynamically translate the answer to the user's query language.
 # 2. Strict Citation: Anti-hallucination mechanism. The LLM must cite the source.
-# 3. UI Constraint: Markdown is banned because the frontend map popups do not 
+# 3. UI Constraint: Markdown is banned because the frontend map popups do not
 #    support rendering Markdown tokens (*, #), preventing ugly raw text on the UI.
 SYSTEM_PROMPT = """INSTRUCCIÓN DE IDIOMA (síguela siempre, sin excepción): responde en el MISMO idioma en el que esté escrita la pregunta del usuario. El contexto normativo que recibes está en catalán, pero eso NO determina el idioma de tu respuesta — solo el idioma de la pregunta del usuario lo determina. Si la pregunta está en castellano, responde en castellano, traduciendo o parafraseando el contenido normativo según haga falta.
 
@@ -64,7 +69,7 @@ def _query_chunks(
         session: SQLAlchemy active session.
         query_embedding: The vectorized user question.
         top_k: Limit of chunks to retrieve.
-        zona_filter: 
+        zona_filter:
             - str: Exact zoning code (e.g., 'nucli_antic').
             - False: General City Law (zona_pgm IS NULL).
             - None: Unfiltered search across the entire corpus.
@@ -90,16 +95,16 @@ def retrieve_relevant_chunks(
     session: Session,
     query: str,
     embed_fn: EmbeddingFunction = embed_texts,
-    top_k: int = 3,
+    top_k: int = 10,
     zona_pgm: str | None = None,
 ) -> list[RetrievedChunk]:
     """
     Domain-Aware Retrieval Strategy.
-    
-    A naïve RAG simply queries the entire DB. Here, if the user asks about a 
-    specific zone (e.g., 'nucli_antic'), we query the top K laws for that exact 
-    zone, AND the top K general city laws. We then merge both lists and sort 
-    them globally by absolute cosine distance. This ensures the LLM receives a 
+
+    A naïve RAG simply queries the entire DB. Here, if the user asks about a
+    specific zone (e.g., 'nucli_antic'), we query the top K laws for that exact
+    zone, AND the top K general city laws. We then merge both lists and sort
+    them globally by absolute cosine distance. This ensures the LLM receives a
     balanced context of both hyper-local zoning rules and general municipal codes.
     """
     # 1. Embed the user's natural language question
@@ -128,6 +133,44 @@ def retrieve_relevant_chunks(
     ]
 
 
+def retrieve_relevant_chunks_with_rerank(session: Session,
+                                         query: str,
+                                         embed_fn: EmbeddingFunction = embed_texts,
+                                         top_k: int = 10,
+                                         zona_pgm: str | None = None,
+                                         cross_encoder_model: str = RERANK_MODEL,
+                                         final_top_k: int = 4) -> list[RetrievedChunk]:
+
+    """
+    Reranks the list of chunks obtained from retrieve_relevant_chunks using a
+    cross-encoder model, for higher-precision relevance ordering than raw
+    cosine distance alone.
+
+    Args:
+        session: SQLAlchemy active session.
+        query: The question used to retrieve the initial candidate chunks.
+        embed_fn: Embedding function used for the initial retrieval step.
+        top_k: Number of candidate chunks to retrieve before reranking.
+        zona_pgm: Optional PGM zone to filter the initial retrieval by.
+        cross_encoder_model: Name of the cross-encoder model used for reranking.
+        final_top_k: Number of chunks to return after reranking.
+
+    Returns:
+        The final_top_k chunks, reordered by the cross-encoder's relevance score.
+    """
+
+    chunks = retrieve_relevant_chunks(session, query, embed_fn, top_k, zona_pgm)
+
+    model = CrossEncoder(cross_encoder_model)
+
+    texts = [f'{c.numero_articulo}||{c.titulo}||{c.contenido}||{c.fuente_legal}' for c in chunks]
+
+    ranks = model.rank(query, texts, final_top_k)
+
+    # corpus_id is the index into the original list of RetrievedChunks
+    return [chunks[r['corpus_id']] for r in ranks]
+
+
 def build_context(chunks: list[RetrievedChunk]) -> str:
     """Compiles the retrieved DTOs into a single prompt block for the LLM."""
     return "\n\n".join(
@@ -148,7 +191,7 @@ def generate_answer(
 ) -> dict[str, Any]:
     """
     Final Generation Step (The 'G' in RAG).
-    Passes the strict system instructions, the retrieved legal context, and 
+    Passes the strict system instructions, the retrieved legal context, and
     the user's question to the LLM Adapter.
     """
     chunks = retrieve_relevant_chunks(
@@ -157,7 +200,7 @@ def generate_answer(
 
     # Fast-fail if the database is empty or no relevant vectors are found
     if not chunks:
-        # Known Bug (Technical Debt): This fallback is hardcoded in Catalan, 
+        # Known Bug (Technical Debt): This fallback is hardcoded in Catalan,
         # violating the dynamic language rule defined in the SYSTEM_PROMPT.
         return {
             "respuesta": "No hi ha normativa carregada a la base de dades encara.",

@@ -4,13 +4,13 @@ DATA WRANGLING: API PROBE (SCHEMA DISCOVERY)
 ==============================================================================
 File: scripts/investigacion_pgm/amb_diagnosis.py
 
-Initial exploratory script (Phase 4) used to blindly interrogate the AMB 
-Open Data API. It retrieves the raw payload without making any assumptions 
+Initial exploratory script (Phase 4) used to blindly interrogate the AMB
+Open Data API. It retrieves the raw payload without making any assumptions
 about the JSON schema or data structure.
 
 Architectural Note:
-This is a standalone diagnostic script. It intentionally does not import 
-models from the `backend/` application to avoid tightly coupling early 
+This is a standalone diagnostic script. It intentionally does not import
+models from the `backend/` application to avoid tightly coupling early
 exploration to strict database schemas.
 """
 
@@ -41,12 +41,12 @@ def diagnosticar():
     # API RATE LIMIT PROTECTION (LOCAL CACHING)
     # ------------------------------------------------------------------------------
     # Save the raw unparsed payload to disk.
-    # Why? It allows subsequent Data Wrangling scripts to iterate over the 500+ 
-    # articles thousands of times during development without hammering the 
+    # Why? It allows subsequent Data Wrangling scripts to iterate over the 500+
+    # articles thousands of times during development without hammering the
     # government server, avoiding API Rate Limits or IP bans.
     with open('raw_response.json', 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
-    print("\nRespuesta completa guardada en respuesta_cruda.json -- ábrelo y mira un artículo entero")
+    print("\nRespuesta completa guardada en raw_response.json -- ábrelo y mira un artículo entero")
     print("antes de que filtremos nada, para confirmar los nombres reales de los campos.")
 
 

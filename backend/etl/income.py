@@ -4,8 +4,8 @@ ETL PIPELINE: DISTRICT INCOME (INE)
 ==============================================================================
 File: backend/etl/income.py
 
-This module extracts and transforms district-level income data from the Spanish 
-National Statistics Institute (INE). It implements the logic prototyped in the 
+This module extracts and transforms district-level income data from the Spanish
+National Statistics Institute (INE). It implements the logic prototyped in the
 Jupyter Notebook '03_eda_income_ine.ipynb'.
 """
 
@@ -26,12 +26,12 @@ def read_raw_income(path) -> pd.DataFrame:
     Reads the raw INE income CSV file.
 
     Data Engineering Note (Defensive Programming):
-    `dtype=str` is strictly required here to prevent silent data corruption. 
+    `dtype=str` is strictly required here to prevent silent data corruption.
     The INE provides numbers in Spanish format (e.g., "13.990" means 13,990 Euros).
     If we let Pandas infer the types, it reads the dot as a decimal separator,
-    converting the string to a float (13.99). Since 13.990 and 13.99 are 
-    mathematically identical in Python, the trailing zero is lost forever, making 
-    it impossible to reconstruct the original number. By forcing `dtype=str`, 
+    converting the string to a float (13.99). Since 13.990 and 13.99 are
+    mathematically identical in Python, the trailing zero is lost forever, making
+    it impossible to reconstruct the original number. By forcing `dtype=str`,
     we capture the raw text before Pandas tries to "be smart".
     """
     return pd.read_csv(path, sep=";", encoding="utf-8-sig", dtype=str)
@@ -63,7 +63,7 @@ def _extract_district_number(distritos_value: str) -> int | None:
 def build_district_income(raw_df: pd.DataFrame) -> pd.DataFrame:
     """
     Transforms the raw INE DataFrame into a clean, district-level fact table.
-    
+
     Transformation Rules (Derived from EDA phase):
         1. Filter by target municipality (Barcelona INE code '08019').
         2. Isolate DISTRICT level granularity (has 'Distritos', but no 'Secciones').
@@ -81,6 +81,10 @@ def build_district_income(raw_df: pd.DataFrame) -> pd.DataFrame:
     df["Periodo"] = df["Periodo"].astype(int)
 
     # 1. Geographic & Indicator Filtering
+    # Note: if loading a source CSV that has already been pre-filtered down to
+    # Barcelona-only, district-level rows, comment out this block instead --
+    # the "Municipio"/"Distritos"/"Secciones" columns this filter expects may
+    # not exist (or already be redundant) in that shape of file.
     is_barcelona = df["Municipio"].astype(str).str.contains(BARCELONA_MUNICIPIO_CODE, na=False)
     # Boolean logic to isolate the exact level of granularity (Districts)
     is_district_level = df["Distritos"].notna() & df["Secciones"].isna()

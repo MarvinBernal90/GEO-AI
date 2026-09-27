@@ -31,7 +31,7 @@ def read_raw_mobility(path) -> pd.DataFrame:
     with "08019", the filter fails completely, returning an empty table. 
     Forcing `str` parsing protects the data integrity.
     """
-    return pd.read_csv(path, sep="|", dtype={"destino": str, "origen": str})
+    return pd.read_csv(path, sep="|", dtype={"destino": str, "origen": str}, compression='infer')
 
 
 def build_district_mobility(raw_df: pd.DataFrame) -> pd.DataFrame:
