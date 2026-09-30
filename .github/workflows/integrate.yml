@@ -70,10 +70,10 @@ jobs:
           exit 1
 
   # ==============================================================================
-  # LINT Y FORMATO DEL FRONTEND
+  # FRONTEND LINT AND FORMATTING
   # ==============================================================================
-  # Corre en paralelo al job Python. Falla el PR si ESLint encuentra errores o
-  # si algún archivo no cumple el formato de Prettier.
+  # Runs in parallel with the Python job. Fails the PR if ESLint finds errors or
+  # if any file does not comply with Prettier formatting.
   frontend-lint:
     runs-on: ubuntu-latest
 
