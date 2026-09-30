@@ -29,7 +29,7 @@ const manejarTeclado = (e) => {
   if (e.key === 'Escape' && props.articulo) emit('cerrar')
 }
 
-// Memory Leak Prevention: 
+// Memory Leak Prevention:
 // Global event listeners MUST be explicitly removed when the component unmounts.
 onMounted(() => document.addEventListener('keydown', manejarTeclado))
 onUnmounted(() => document.removeEventListener('keydown', manejarTeclado))
@@ -103,15 +103,17 @@ watch(
         v-if="articulo"
         class="fixed inset-y-0 right-0 z-[2000] flex w-full max-w-md flex-col overflow-y-auto border-l border-paper/15 bg-paper text-ink shadow-2xl"
       >
-        <header class="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-ink/10 bg-paper/95 px-6 py-4 backdrop-blur">
+        <header
+          class="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-ink/10 bg-paper/95 px-6 py-4 backdrop-blur"
+        >
           <div>
             <p class="font-mono text-[11px] tracking-widest text-ink/50 uppercase">Visor de normativa</p>
             <h2 class="font-display text-xl font-semibold text-ink">Artículo {{ articulo.numero_articulo }}</h2>
           </div>
           <button
-            @click="emit('cerrar')"
             class="rounded-full px-3 py-1.5 text-lg text-ink/40 transition-colors hover:bg-ink/5 hover:text-ink focus:outline-none focus:ring-2 focus:ring-brass/50"
             aria-label="Cerrar visor"
+            @click="emit('cerrar')"
           >
             ✕
           </button>

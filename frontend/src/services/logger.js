@@ -26,8 +26,8 @@ import {
   MIN_LEVEL,
   REMOTE_ENABLED,
   SERVICE,
-  VERSION
-} from "../constants/logger.constant"
+  VERSION,
+} from '../constants/logger.constant'
 
 let buffer = []
 let flushTimer = null
@@ -83,20 +83,13 @@ function serialiseError(error) {
 
 function toConsole(event) {
   const method =
-    event.level === 'ERROR' || event.level === 'CRITICAL'
-      ? 'error'
-      : event.level === 'WARNING'
-        ? 'warn'
-        : 'log'
+    event.level === 'ERROR' || event.level === 'CRITICAL' ? 'error' : event.level === 'WARNING' ? 'warn' : 'log'
 
   if (!IS_PRODUCTION) {
     const extras = { ...(event.context || {}) }
     if (event.error) extras.error = event.error
     if (event.duration_ms !== undefined) extras.duration_ms = event.duration_ms
-    console[method](
-      `[${event.level}] ${event.logger}: ${event.message}`,
-      Object.keys(extras).length ? extras : '',
-    )
+    console[method](`[${event.level}] ${event.logger}: ${event.message}`, Object.keys(extras).length ? extras : '')
   } else {
     console[method](JSON.stringify(event))
   }
@@ -153,9 +146,7 @@ async function sendBatch(batch, attempt = 0) {
       buffer = []
       // console directly, not the logger: reporting a logger failure through
       // the logger would feed the loop we are trying to break.
-      console.warn(
-        '[logger] Log shipping disabled after repeated failures. The app continues normally.',
-      )
+      console.warn('[logger] Log shipping disabled after repeated failures. The app continues normally.')
     }
   }
 }

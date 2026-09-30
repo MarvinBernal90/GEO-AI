@@ -19,12 +19,10 @@ export const IS_PRODUCTION = import.meta.env.PROD
 export const LEVELS = { DEBUG: 10, INFO: 20, WARNING: 30, ERROR: 40, CRITICAL: 50 }
 
 export const MIN_LEVEL =
-  LEVELS[(import.meta.env.VITE_LOG_LEVEL || '').toUpperCase()] ??
-  (IS_PRODUCTION ? LEVELS.INFO : LEVELS.DEBUG)
+  LEVELS[(import.meta.env.VITE_LOG_LEVEL || '').toUpperCase()] ?? (IS_PRODUCTION ? LEVELS.INFO : LEVELS.DEBUG)
 
 export const REMOTE_ENABLED =
-  import.meta.env.VITE_LOG_REMOTE === 'true' ||
-  (IS_PRODUCTION && import.meta.env.VITE_LOG_REMOTE !== 'false')
+  import.meta.env.VITE_LOG_REMOTE === 'true' || (IS_PRODUCTION && import.meta.env.VITE_LOG_REMOTE !== 'false')
 
 export const FLUSH_INTERVAL_MS = 5000
 export const EVENTS_PER_BATCH = 20

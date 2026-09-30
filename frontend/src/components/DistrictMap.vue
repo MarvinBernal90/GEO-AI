@@ -14,9 +14,9 @@ import L from 'leaflet'
 // ---------------------------------------------------------------------------
 // LEGACY MODULE BRIDGING
 // ---------------------------------------------------------------------------
-// The 'leaflet.markercluster' plugin predates modern ES Modules and blindly 
-// expects 'L' to exist on the global Window object. In Vite, modules are 
-// scoped tightly. By explicitly injecting 'L' into globalThis, we bridge the 
+// The 'leaflet.markercluster' plugin predates modern ES Modules and blindly
+// expects 'L' to exist on the global Window object. In Vite, modules are
+// scoped tightly. By explicitly injecting 'L' into globalThis, we bridge the
 // gap and prevent "L is not defined" crashes.
 globalThis.L = L
 
@@ -36,7 +36,7 @@ const props = defineProps({
   ubicacion: { type: Object, default: null }, // { lat, lon } | null
 })
 
-// Fallback coordinate to prevent rendering a broken "gray ocean" map 
+// Fallback coordinate to prevent rendering a broken "gray ocean" map
 // if a district has zero competitors in the database.
 const CENTRO_BARCELONA = [41.3851, 2.1734]
 
@@ -61,7 +61,7 @@ async function cargarCompetidores() {
     modo.value = datos.modo
     radioMetros.value = datos.radio_metros
 
-    // UX Polish: A 500m radius search requires a closer zoom (16) than 
+    // UX Polish: A 500m radius search requires a closer zoom (16) than
     // a full district overview (14) to be visually useful.
     zoom.value = datos.modo === 'radio' ? 16 : 14
 
@@ -89,7 +89,7 @@ watch(() => [props.codiDistricte, props.ubicacion], cargarCompetidores, { immedi
 // ---------------------------------------------------------------------------
 // SEMANTIC MAP DESIGN (CSS-IN-JS)
 // ---------------------------------------------------------------------------
-// Overrides the default neon-colored clusters from Leaflet with our custom 
+// Overrides the default neon-colored clusters from Leaflet with our custom
 // Design Tokens (Brass, Ink, Paper) to maintain visual coherence.
 function crearIconoCluster(cluster) {
   const cantidad = cluster.getChildCount()
@@ -100,7 +100,7 @@ function crearIconoCluster(cluster) {
   })
 }
 
-// Custom "You Are Here" marker. Uses semantic Red for high contrast against 
+// Custom "You Are Here" marker. Uses semantic Red for high contrast against
 // the Brass clusters.
 const iconoUbicacion = L.divIcon({
   html: '<div style="width:18px;height:18px;border-radius:9999px;background:#9C4A3C;border:3px solid #F5F1E8;box-shadow:0 0 0 6px rgba(156,74,60,0.25);"></div>',
@@ -121,8 +121,8 @@ const iconoUbicacion = L.divIcon({
         <span v-else-if="totalReal" class="text-paper/40"> · {{ totalReal }} competidores en la base de datos </span>
       </p>
       <button
-        @click="mostrarCompetidores = !mostrarCompetidores"
         class="rounded border border-brass/30 bg-brass/10 px-2.5 py-1 text-xs text-brass transition hover:bg-brass/20"
+        @click="mostrarCompetidores = !mostrarCompetidores"
       >
         {{ mostrarCompetidores ? 'Ocultar competidores' : 'Mostrar competidores' }}
       </button>
@@ -131,7 +131,10 @@ const iconoUbicacion = L.divIcon({
     <div v-if="error" class="bg-rojo/10 px-4 py-3 text-sm text-paper">{{ error }}</div>
 
     <div class="relative h-80 w-full">
-      <div v-if="cargando" class="absolute inset-0 z-[1000] flex items-center justify-center bg-ink/60 text-sm text-paper/70">
+      <div
+        v-if="cargando"
+        class="absolute inset-0 z-[1000] flex items-center justify-center bg-ink/60 text-sm text-paper/70"
+      >
         Cargando competidores…
       </div>
       <l-map :key="centro.join(',')" :zoom="zoom" :center="centro" :use-global-leaflet="true" class="h-full w-full">
@@ -146,13 +149,18 @@ const iconoUbicacion = L.divIcon({
 
         <l-marker-cluster-group v-if="mostrarCompetidores" :icon-create-function="crearIconoCluster">
           <l-marker v-for="c in competidores" :key="c.id_global" :lat-lng="[c.lat, c.lng]">
-            <l-popup><span class="text-sm">{{ c.nom_activitat }}</span></l-popup>
+            <l-popup
+              ><span class="text-sm">{{ c.nom_activitat }}</span></l-popup
+            >
           </l-marker>
         </l-marker-cluster-group>
       </l-map>
     </div>
 
-    <p v-if="totalReal > competidores.length" class="border-t border-paper/10 bg-ink-light px-4 py-2 text-xs text-paper/40">
+    <p
+      v-if="totalReal > competidores.length"
+      class="border-t border-paper/10 bg-ink-light px-4 py-2 text-xs text-paper/40"
+    >
       Mostrando {{ competidores.length }} de {{ totalReal }} competidores reales
       {{ modo === 'radio' ? 'en el radio.' : 'del distrito.' }}
     </p>

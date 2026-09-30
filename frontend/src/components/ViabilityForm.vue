@@ -42,9 +42,9 @@ const mensajeDireccion = ref(null) // { tipo: 'exito' | 'aviso' | 'error', texto
 const ubicacionGeocodificada = ref(null) // { lat, lon } | null
 const distritoDeLaUbicacion = ref(null)
 
-// Geospatial Safeguard: 
-// If the user searches an address (saving precise lat/lon), but then manually 
-// changes the District dropdown, we MUST delete the cached coordinates. 
+// Geospatial Safeguard:
+// If the user searches an address (saving precise lat/lon), but then manually
+// changes the District dropdown, we MUST delete the cached coordinates.
 // Otherwise, the Map would show a pin in District A while analyzing District B.
 watch(codiDistricte, (nuevo) => {
   if (distritoDeLaUbicacion.value !== null && nuevo !== distritoDeLaUbicacion.value) {
@@ -168,7 +168,7 @@ function onSubmit() {
 </script>
 
 <template>
-  <form @submit.prevent="onSubmit" class="space-y-5">
+  <form class="space-y-5" @submit.prevent="onSubmit">
     <div v-if="errorCarga" class="rounded border border-rojo/40 bg-rojo/10 px-4 py-3 text-sm text-paper">
       {{ errorCarga }}
     </div>
@@ -188,9 +188,9 @@ function onSubmit() {
         />
         <button
           type="button"
-          @click="buscarDireccion"
           :disabled="buscandoDireccion || !direccionInput.trim()"
           class="shrink-0 rounded border border-brass/30 bg-brass/10 px-4 py-2.5 text-sm text-brass transition hover:bg-brass/20 disabled:cursor-not-allowed disabled:opacity-40"
+          @click="buscarDireccion"
         >
           {{ buscandoDireccion ? 'Buscando…' : 'Buscar' }}
         </button>

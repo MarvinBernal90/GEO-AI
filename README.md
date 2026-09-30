@@ -181,6 +181,19 @@ VITE_API_BASE_URL=http://localhost:8000
 
 Con ambos corriendo, abre `http://localhost:5173` en el navegador: ahí están el chat, el formulario, el mapa y el visor de normativa, todo integrado.
 
+#### Lint y formato del frontend
+
+El frontend usa ESLint (con `eslint-plugin-vue`) y Prettier. Desde `frontend/`:
+
+```bash
+npm run lint          # analiza el código con ESLint
+npm run lint:fix      # aplica las correcciones automáticas de ESLint
+npm run format        # formatea con Prettier
+npm run format:check  # comprueba el formato sin modificar archivos
+```
+
+El job `frontend-lint` de `.github/workflows/integrate.yml` ejecuta `lint` y `format:check` en cada Pull Request.
+
 ### Uso directo del motor RAG y el agente (sin la API, para depuración o notebooks)
 
 ```python
