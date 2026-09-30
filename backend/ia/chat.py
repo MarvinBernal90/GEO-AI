@@ -1,19 +1,19 @@
 """ "
-Se constuye un agente en el que un LLM procesa el prompt de usuario, desgranando las tareas que se piden, llamando a herramientas para completarlas y finalmente, cuando considera que dispone de toda la información, componer una respuesta para el usuario. Se trata de una arquitectura ReAct (Reasoning and Acting: https://www.ibm.com/think/topics/react-agent)
+An agent is built in which an LLM processes the user prompt, breaks down the requested tasks, calls tools to complete them and, finally, when it considers it has all the information, composes a response for the user. This is a ReAct (Reasoning and Acting) architecture: https://www.ibm.com/think/topics/react-agent
 
-Es un agente con memoria para cada usuario, que puede escoger si seguir con una conversación previa o inicar una nueva. En el notebook cada usuario se identifica con un thread_id
-En este momento el agente dispone de dos herramientas:
-- el modelo que infiere los mejores lugares para ubicar un negocio de hostelería dadas una serie de características (zona, perfil de cliente, características del servicio ofrecido, etc). Ofrece un iterfaz tipo API al modelo. Dado que es solamente una aplicación ad-hoc, no se considera el uso de MCP
-- un RAG que da contexto sobre cuestiones de normativa y procedimientos
+It is an agent with per-user memory, which can choose to continue a previous conversation or start a new one. In the notebook each user is identified by a thread_id.
+At the moment the agent has two tools:
+- the model that infers the best places to locate a hospitality business given a set of characteristics (area, customer profile, characteristics of the service offered, etc.). It offers an API-style interface to the model. Since this is only an ad-hoc application, the use of MCP is not considered.
+- a RAG that provides context on regulations and procedures.
 
-Se usa el framework LangChain/LangGraph en tanto que provee unos esquemas estándar que se consideran particularmente útiles a la hora de introducirse en este mundo, empezar por genérico para poder evolucionar a lo particualar de un proveedor o tecnología, de ser necesario
+The LangChain/LangGraph framework is used because it provides standard schemas that are considered particularly useful when getting started in this field: start generic so that it can evolve towards a specific provider or technology, if necessary.
 
-La principal característica del modelo que soporta el agente que decide si se debe usar una tool y cuál y en qué punto dispone de toda la información para poder finalizar, es la de 'razonamiento'.
-No se ha hecho porqué con el usuario genérico del PJ (geoyield@gmail.com)m no es posible crear cuenta en Google AI Studio. Es por ello que se usa usa groq: https://pricepertoken.com/endpoints/groq/free
+The key feature of the model behind the agent, which decides whether a tool should be used, which one, and at what point it has all the information needed to finish, is 'reasoning'.
+This was not done with Google because the generic project user (geoyield@gmail.com) cannot create an account in Google AI Studio. That is why groq is used: https://pricepertoken.com/endpoints/groq/free
 
-El agente se plantea con memoria durante la interacción, de forma que las respuestas previas se añaden al contexto. Cada conversación dispone de un identificador, por lo que se puede retomar más tarde. Para evitar un crecimiento desmesurado del contexto, los mensajes más antiguos se se se van añadiendo a un mensaje de resumen en la base de la lista.
+The agent is designed with memory during the interaction, so that previous responses are added to the context. Each conversation has an identifier, so it can be resumed later. To avoid excessive growth of the context, the oldest messages are progressively added to a summary message at the base of the list.
 
-Una vez comporbado el funcionamiento, se va a persistir en potgis la conversaciones de los usuarios (https://docs.langchain.com/oss/python/langgraph/add-memory#example-using-postgres-checkpointer)
+Once the behaviour has been verified, user conversations will be persisted in postgis (https://docs.langchain.com/oss/python/langgraph/add-memory#example-using-postgres-checkpointer)
 """
 
 import logging
@@ -40,7 +40,7 @@ from backend.db.connection import resolve_database_url
 from backend.geo.geocoding import geocodificar_direccion
 from backend.rag.query_engine import build_context, retrieve_relevant_chunks_with_rerank
 
-#### CONFIGURACIÓN
+#### CONFIGURATION
 logger = logging.getLogger("geoyield_agent")
 
 load_dotenv()
@@ -54,13 +54,13 @@ GEODATA_BASEURL = resolve_database_url()
 engine = create_engine(resolve_database_url())
 
 #### STATE VARIABLE
-# La clase predefinida MessageState contiene una lista de mensajes bajo la key 'messages' y el reducer 'add_messages' que añade un mensaje al final de la cola, usado
-# por langChain para operar con la salida de un nodo (añade el mensaje de salida a lista)
-# cada mensaje tiene un campo 'id'. Si se añade un mensaje on un id ya existente, se reescribe el mensaje. Un mensaje se puede borrar de la lisa con
-# 'RemoveMessasge(id)'
+# The predefined MessageState class holds a list of messages under the 'messages' key and the 'add_messages' reducer, which appends a message to the end of the queue and is used
+# by LangChain to operate on a node's output (it adds the output message to the list).
+# Each message has an 'id' field. If a message is added with an id that already exists, the message is overwritten. A message can be removed from the list with
+# 'RemoveMessage(id)'
 
-# se deriva la clase MessageState para introducir la key summary, que contiene un resumen de mensajes. Se usa para poder matener el contexto sin aumentar
-# demasiado el númeoro de tokens
+# The MessageState class is subclassed to introduce the 'summary' key, which holds a summary of messages. It is used to keep the context without increasing
+# the number of tokens too much
 
 
 class State(MessagesState):
@@ -70,15 +70,15 @@ class State(MessagesState):
 #### TOOLS DEFINITION
 def get_opportunity_score(dirección: str) -> float:
     """
-    devuelve un score para una dirección en la ciudad de Barcelona
-    llama a la función geocodfican_direccion, que devuelve el código de distrito, entre otros datos y con ello
-    se ejecuta la vista en 'district_scorecard' para retornar un opportunity_score
+    Returns a score for an address in the city of Barcelona.
+    Calls the geocodificar_direccion function, which returns the district code among other data, and with it
+    the 'district_scorecard' view is queried to return an opportunity_score.
 
     Args:
-        un string representando un dirección en la ciudad de Barcelona
+        a string representing an address in the city of Barcelona
 
     Returns:
-        un float con el score (valor entre 0 y 1) o None si no se puede procesar
+        a float with the score (value between 0 and 1) or None if it cannot be processed
     """
     res = geocodificar_direccion(dirección)
     if res is not None:
@@ -105,10 +105,10 @@ def get_opportunity_score(dirección: str) -> float:
 
 def regulations_query(query: str) -> str:
     """
-    RAG que proporciona información sobre aspectos regulatorios y legales.
+    RAG that provides information on regulatory and legal aspects.
 
     Args:
-        query (str): Consulta en lenguaje natural.
+        query (str): Natural-language query.
 
     """
     documents = []
@@ -128,7 +128,7 @@ def summarize_conversation(state: State):
         else:
             summary_message = "Crea un resumen teniendo en cuenta los mensajes anteriores:"
 
-        # el modelo, sin tools, es llamado para generar el resumen
+        # the model, without tools, is called to generate the summary
         messages = state["messages"] + [HumanMessage(content=summary_message)]
         response = llm.invoke(messages)
 
@@ -139,8 +139,8 @@ def summarize_conversation(state: State):
 
 
 #### TOOL BINDING
-# se ligan las tools que el modelo razona sobre si debe usar para obtener información
-# summarize_conversation se dispara de forma determinista mediante un 'router' en función del número de mensajes el contexto
+# the tools are bound so the model can reason about whether to use them to obtain information
+# summarize_conversation is triggered deterministically by a 'router' based on the number of messages in the context
 tools = [get_opportunity_score, regulations_query]
 llm = ChatGoogleGenerativeAI(
     model=GENERATION_MODEL,
@@ -164,12 +164,12 @@ sys_msg = SystemMessage(
 
 def assistant(state: State):
     """
-    Función principal del asistente, que recibe un estado de mensajes y devuelve una respuesta generada por el modelo de lenguaje.
+    Main function of the assistant: receives a message state and returns a response generated by the language model.
 
     Args:
-        state (MessagesState): Estado de mensajes que contiene la conversación actual.
-        max_num_num_messages: cuando se supera este número de mensajes en state['messages'] los primeros se sustituyen por un resumen
-        num_messages_to_summarize: se resumen los primeros 'num_messages_to_summarize'; debe ser menor que 'max_num_messages'
+        state (MessagesState): Message state containing the current conversation.
+        max_num_num_messages: when this number of messages in state['messages'] is exceeded, the first ones are replaced by a summary
+        num_messages_to_summarize: the first 'num_messages_to_summarize' messages are summarized; must be less than 'max_num_messages'
     """
 
     summary = state.get("summary", "")
@@ -183,48 +183,48 @@ def assistant(state: State):
 
 
 #### CREATE AND COMPILE GRAPH WITH MEMORY
-# router que decide si se debe crear un resumen antes de ir al final
+# router that decides whether a summary should be created before going to the end
 def summarize_check(state: State) -> Literal["summarize_conversation", END]:
-    """Retorna si el próximo nodo es END o summarize_conversation"""
+    """Returns whether the next node is END or summarize_conversation"""
 
     if len(state["messages"]) > MAX_NUM_MESSAGES:
         return "summarize_conversation"
     return END
 
 
-# Memoria persistente en PostgreSQL
+# Persistent memory in PostgreSQL
 checkpointer_context = PostgresSaver.from_conn_string(resolve_database_url())
 checkpointer = checkpointer_context.__enter__()
 checkpointer.setup()
 
-# Grafo
+# Graph
 builder = StateGraph(MessagesState)
 
-# Definición de los nodos
+# Node definitions
 builder.add_node("assistant", assistant)
 builder.add_node("tools", ToolNode(tools))
 builder.add_node("summarize", summarize_conversation)
 
-# Definición de los conectores (edges) entre nodos
+# Definition of the connectors (edges) between nodes
 builder.add_edge(START, "assistant")
-# este conector enruta a las tools si el último mensaje de assistant es un tool call o en dirección al final en otro caso
+# this connector routes to the tools if the last assistant message is a tool call, and towards the end otherwise
 builder.add_conditional_edges("assistant", tools_condition, {"tools": "tools", "__end__": "summarize"})
 builder.add_edge("tools", "assistant")
 builder.add_edge("summarize", END)
 react_graph = builder.compile(checkpointer=checkpointer)
 
 
-#### FUNCIÓN DE LLAMADA AL ASISTENTE
+#### ASSISTANT CALL FUNCTION
 def request(content: str, thread: str) -> str:
     """ "
-    Entra la última petición del usuario en el hilo de conversación den el chat al asistente y devuleve respuesta
+    Sends the user's latest request in the conversation thread to the chat assistant and returns the response
 
     Args:
-        content: texto de la petición
-        thread: identificador del hilo de conversación
+        content: request text
+        thread: conversation thread identifier
 
     Returns:
-        un texto con la respuesta del asistente
+        a text with the assistant's response
     """
     messages = [{"role": "user", "content": {content}}]
     configurable = {"thread_id": thread}

@@ -28,7 +28,7 @@ _DOT_LEADER_RE = re.compile(r"(?:\.\s?){5,}")
 
 # Universal Boilerplate Patterns (Page numbers, URLs, ISSNs)
 _GENERIC_NOISE_LINE_RES = [
-    re.compile(r"^\d{1,6}$"),  # número de página suelto
+    re.compile(r"^\d{1,6}$"),  # bare page number
     re.compile(r"^Página\s+\d+$", re.IGNORECASE),
     re.compile(r"^https?://\S+$"),
     re.compile(r"^ISSN\s+[\d-]+X?$", re.IGNORECASE),
@@ -85,7 +85,7 @@ def parse_articulo_general(text: str) -> list[ArticuloGeneral]:
 
         # If we see dot leaders, it's an index entry, not the actual law. Skip it.
         if _DOT_LEADER_RE.search(ventana):
-            continue  # entrada de índice/tabla de contenidos, no un artículo real
+            continue  # index/table-of-contents entry, not a real article
         starts.append((match.start(), match, resto))
 
     chunks = []
