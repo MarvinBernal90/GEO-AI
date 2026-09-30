@@ -1,11 +1,11 @@
 name: Integration
 
 # ==============================================================================
-# WORKFLOW DE INTEGRACIÓN CONTINUA (CI)
+# CONTINUOUS INTEGRATION (CI) WORKFLOW
 # ==============================================================================
-# Se ejecuta en cada Pull Request para validar que el nuevo código no rompe 
-# la funcionalidad existente. Actúa como la principal barrera de calidad antes 
-# de permitir una fusión (merge) hacia 'develop' o 'main'.
+# Runs on every Pull Request to validate that the new code does not break
+# existing functionality. Acts as the main quality gate before allowing a
+# merge into 'develop' or 'main'.
 
 on:
   workflow_dispatch:
@@ -26,7 +26,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: Install dependencies
         run: |
@@ -34,22 +34,22 @@ jobs:
           pip install -r backend/requirements.txt
 
       # ------------------------------------------------------------------
-      # EJECUCIÓN DE PRUEBAS Y MÉTRICAS DE COBERTURA
+      # TEST EXECUTION AND COVERAGE METRICS
       # ------------------------------------------------------------------
       - name: Run tests and capture logs
         id: tests
-        # Se establece en 'true' deliberadamente. Si las pruebas fallan, el 
-        # pipeline no se detiene de inmediato. Esto garantiza que el siguiente 
-        # paso (subida de artefactos) se ejecute siempre para preservar los logs.
-        continue-on-error: true  
+        # Deliberately set to 'true'. If the tests fail, the pipeline does not
+        # stop immediately. This guarantees that the next step (artifact
+        # upload) always runs so the logs are preserved.
+        continue-on-error: true
         run: |
           mkdir -p test-results
-          # Se inyecta PYTHONPATH=. para resolver importaciones absolutas.
-          # Se genera reporte de cobertura (--cov) y logs XML para análisis estático.
+          # PYTHONPATH=. is injected to resolve absolute imports.
+          # A coverage report (--cov) and XML logs are generated for static analysis.
           PYTHONPATH=. pytest tests/unit_tests/ --capture=tee-sys --cov=backend --cov-report=term --cov-report=html --junitxml=test-results/results.xml > test-results/results.log
 
       # ------------------------------------------------------------------
-      # PERSISTENCIA DE ARTEFACTOS PARA DEPURACIÓN (DEBUGGING)
+      # ARTIFACT PERSISTENCE FOR DEBUGGING
       # ------------------------------------------------------------------
       - name: Upload Test Results Artifact
         uses: actions/upload-artifact@v4
@@ -58,14 +58,14 @@ jobs:
           path: test-results/
 
       # ------------------------------------------------------------------
-      # VALIDACIÓN FINAL DE ESTADO (QUALITY GATE)
+      # FINAL STATUS VALIDATION (QUALITY GATE)
       # ------------------------------------------------------------------
       - name: Fail the job if tests failed
         if: steps.tests.outcome == 'failure'
         run: |
-          # Evaluamos explícitamente el resultado del paso de pruebas.
-          # Si hubo fallo, forzamos un código de salida 1 para marcar el PR 
-          # en rojo e impedir la integración del código defectuoso.
+          # We explicitly evaluate the result of the test step.
+          # If it failed, we force exit code 1 to mark the PR red
+          # and prevent the defective code from being integrated.
           echo "La suite de pruebas unitarias o de modelo ha fallado. Revisa el artefacto 'pytest-results' para ver los logs."
           exit 1
 
@@ -91,7 +91,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v5
         with:
-          node-version: '22'
+          node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -103,3 +103,36 @@ jobs:
 
       - name: Check formatting
         run: npm run format:check
+
+  # ==============================================================================
+  # BACKEND LINT AND FORMATTING
+  # ==============================================================================
+  # Runs in parallel with the rest of the jobs. Only installs Ruff (requirements-dev.txt),
+  # not the heavy backend dependencies (torch, sentence-transformers...).
+  # Fails the PR if `ruff check` finds errors or if `ruff format` would change
+  # any file. The configuration lives in pyproject.toml.
+  backend-lint:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Install Ruff
+        run: pip install -r backend/requirements-dev.txt
+
+      - name: Lint
+        run: ruff check backend
+
+      - name: Check formatting
+        run: ruff format --check backend

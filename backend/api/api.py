@@ -52,11 +52,7 @@ app = FastAPI(
 # Was hardcoded to the Vite localhost ports, which made it impossible for a
 # deployed frontend to call the API or ship its logs.
 _DEFAULT_ORIGINS = "http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173"
-CORS_ORIGINS = [
-    origin.strip()
-    for origin in os.getenv("CORS_ORIGINS", _DEFAULT_ORIGINS).split(",")
-    if origin.strip()
-]
+CORS_ORIGINS = [origin.strip() for origin in os.getenv("CORS_ORIGINS", _DEFAULT_ORIGINS).split(",") if origin.strip()]
 
 app.add_middleware(
     CORSMiddleware,
@@ -143,7 +139,7 @@ def metrics_endpoint() -> str:
     Returns:
         str: Text string containing the total processed requests.
     """
-    return f'total_requests {metrics["total_requests"]}\n'
+    return f"total_requests {metrics['total_requests']}\n"
 
 
 @app.middleware("http")

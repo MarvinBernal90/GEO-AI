@@ -11,8 +11,9 @@ generates the final answer using the LLM (Gemini via Adapter).
 """
 
 import os
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Sequence
+from typing import Any
 
 from sentence_transformers import CrossEncoder
 from sqlalchemy.orm import Session
@@ -49,6 +50,7 @@ Esta respuesta es orientativa, no un dictamen legal vinculante — recomienda si
 @dataclass
 class RetrievedChunk:
     """DTO for chunks successfully retrieved from the Vector Database."""
+
     numero_articulo: str
     titulo: str
     contenido: str
@@ -57,10 +59,7 @@ class RetrievedChunk:
 
 
 def _query_chunks(
-    session: Session,
-    query_embedding: list[float],
-    top_k: int,
-    zona_filter: str | bool | None
+    session: Session, query_embedding: list[float], top_k: int, zona_filter: str | bool | None
 ) -> Sequence[Any]:
     """
     Executes the vector similarity search in PostGIS.
@@ -127,20 +126,21 @@ def retrieve_relevant_chunks(
             titulo=r.titulo,
             contenido=r.contenido,
             distancia=r.distancia,
-            fuente_legal=r.fuente_legal
+            fuente_legal=r.fuente_legal,
         )
         for r in results
     ]
 
 
-def retrieve_relevant_chunks_with_rerank(session: Session,
-                                         query: str,
-                                         embed_fn: EmbeddingFunction = embed_texts,
-                                         top_k: int = 10,
-                                         zona_pgm: str | None = None,
-                                         cross_encoder_model: str = RERANK_MODEL,
-                                         final_top_k: int = 4) -> list[RetrievedChunk]:
-
+def retrieve_relevant_chunks_with_rerank(
+    session: Session,
+    query: str,
+    embed_fn: EmbeddingFunction = embed_texts,
+    top_k: int = 10,
+    zona_pgm: str | None = None,
+    cross_encoder_model: str = RERANK_MODEL,
+    final_top_k: int = 4,
+) -> list[RetrievedChunk]:
     """
     Reranks the list of chunks obtained from retrieve_relevant_chunks using a
     cross-encoder model, for higher-precision relevance ordering than raw
@@ -163,19 +163,18 @@ def retrieve_relevant_chunks_with_rerank(session: Session,
 
     model = CrossEncoder(cross_encoder_model)
 
-    texts = [f'{c.numero_articulo}||{c.titulo}||{c.contenido}||{c.fuente_legal}' for c in chunks]
+    texts = [f"{c.numero_articulo}||{c.titulo}||{c.contenido}||{c.fuente_legal}" for c in chunks]
 
     ranks = model.rank(query, texts, final_top_k)
 
     # corpus_id is the index into the original list of RetrievedChunks
-    return [chunks[r['corpus_id']] for r in ranks]
+    return [chunks[r["corpus_id"]] for r in ranks]
 
 
 def build_context(chunks: list[RetrievedChunk]) -> str:
     """Compiles the retrieved DTOs into a single prompt block for the LLM."""
     return "\n\n".join(
-        f"--- {c.fuente_legal}, Artículo {c.numero_articulo}: {c.titulo} ---\n{c.contenido}"
-        for c in chunks
+        f"--- {c.fuente_legal}, Artículo {c.numero_articulo}: {c.titulo} ---\n{c.contenido}" for c in chunks
     )
 
 
@@ -194,18 +193,13 @@ def generate_answer(
     Passes the strict system instructions, the retrieved legal context, and
     the user's question to the LLM Adapter.
     """
-    chunks = retrieve_relevant_chunks(
-        session, question, embed_fn=embed_fn, top_k=top_k, zona_pgm=zona_pgm
-    )
+    chunks = retrieve_relevant_chunks(session, question, embed_fn=embed_fn, top_k=top_k, zona_pgm=zona_pgm)
 
     # Fast-fail if the database is empty or no relevant vectors are found
     if not chunks:
         # Known Bug (Technical Debt): This fallback is hardcoded in Catalan,
         # violating the dynamic language rule defined in the SYSTEM_PROMPT.
-        return {
-            "respuesta": "No hi ha normativa carregada a la base de dades encara.",
-            "chunks_recuperados": []
-        }
+        return {"respuesta": "No hi ha normativa carregada a la base de dades encara.", "chunks_recuperados": []}
 
     context = build_context(chunks)
     user_message = f"CONTEXT NORMATIU:\n{context}\n\nPREGUNTA: {question}"
@@ -213,6 +207,7 @@ def generate_answer(
     # Lazy load the Adapter to prevent cyclic dependencies or unnecessary imports
     if llm_client is None:
         from backend.rag.gemini_adapter import GeminiAsAnthropicAdapter
+
         llm_client = GeminiAsAnthropicAdapter()
 
     response = llm_client.messages.create(
@@ -222,7 +217,4 @@ def generate_answer(
         messages=[{"role": "user", "content": user_message}],
     )
 
-    return {
-        "respuesta": response.content[0].text,
-        "chunks_recuperados": chunks
-    }
+    return {"respuesta": response.content[0].text, "chunks_recuperados": chunks}

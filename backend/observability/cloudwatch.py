@@ -42,10 +42,7 @@ def build_cloudwatch_handler() -> logging.Handler | None:
         return None
 
     if not group:
-        _fallback.warning(
-            "LOG_CLOUDWATCH_ENABLED=true but LOG_CLOUDWATCH_GROUP is empty; "
-            "falling back to stdout only."
-        )
+        _fallback.warning("LOG_CLOUDWATCH_ENABLED=true but LOG_CLOUDWATCH_GROUP is empty; falling back to stdout only.")
         return None
 
     # boto3 and watchtower are optional dependencies.
@@ -84,12 +81,12 @@ def build_cloudwatch_handler() -> logging.Handler | None:
         )
         _fallback.info(
             "CloudWatch shipping enabled (group=%s, stream=%s, region=%s).",
-            group, stream, region or "environment default",
+            group,
+            stream,
+            region or "environment default",
         )
         return handler
 
     except Exception:
-        _fallback.exception(
-            "Could not initialise the CloudWatch handler; falling back to stdout only."
-        )
+        _fallback.exception("Could not initialise the CloudWatch handler; falling back to stdout only.")
         return None

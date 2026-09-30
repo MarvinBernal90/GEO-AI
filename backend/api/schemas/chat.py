@@ -16,8 +16,8 @@ class ChatRequest(BaseModel):
     # preventing injection attempts or malformed requests.
     model_config = ConfigDict(extra="forbid")
 
-    # Cost Defense Strategy: 
+    # Cost Defense Strategy:
     # Validates input length before making expensive/slow network calls to the LLM.
-    # Discards empty or accidental keystrokes (min_length=3) at the routing layer 
+    # Discards empty or accidental keystrokes (min_length=3) at the routing layer
     # (HTTP 422 Unprocessable Entity) without invoking the business logic.
     mensaje: str = Field(..., min_length=3)

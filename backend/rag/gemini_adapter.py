@@ -4,10 +4,10 @@ RAG PIPELINE: LLM ADAPTER PATTERN (GEMINI AS ANTHROPIC)
 ==============================================================================
 File: backend/rag/gemini_adapter.py
 
-This module implements the Gang of Four (GoF) 'Adapter' Design Pattern. 
-The core RAG engine was originally built expecting the Anthropic (Claude) API 
-interface. To switch to Google Gemini (to utilize the free tier during the MVP) 
-without rewriting the core engine, this class wraps the Gemini SDK so it 
+This module implements the Gang of Four (GoF) 'Adapter' Design Pattern.
+The core RAG engine was originally built expecting the Anthropic (Claude) API
+interface. To switch to Google Gemini (to utilize the free tier during the MVP)
+without rewriting the core engine, this class wraps the Gemini SDK so it
 perfectly mimics the Anthropic SDK signatures.
 """
 
@@ -18,15 +18,16 @@ from backend.observability import get_logger
 
 logger = get_logger("rag.gemini_adapter")
 
-# Resilience Settings: Cloud LLMs often throw transient 5xx errors due to quota 
+# Resilience Settings: Cloud LLMs often throw transient 5xx errors due to quota
 # or server load. We implement a simple retry mechanism before failing.
 MAX_REINTENTOS = 2
 ESPERA_ENTRE_REINTENTOS_SEGUNDOS = 2
 
+
 # ------------------------------------------------------------------------------
 # MOCK ANTHROPIC CLASSES
 # ------------------------------------------------------------------------------
-# These classes mock the exact data structure returned by the official 
+# These classes mock the exact data structure returned by the official
 # Anthropic Python SDK: response.content[0].text
 class _FakeContentBlock:
     def __init__(self, text: str):
@@ -73,8 +74,8 @@ class GeminiAsAnthropicAdapter:
                 )
                 time.sleep(ESPERA_ENTRE_REINTENTOS_SEGUNDOS)
 
-        # Truncation Detection: If the LLM stopped because it hit `max_tokens` 
-        # (FinishReason.MAX_TOKENS) instead of naturally finishing (FinishReason.STOP), 
+        # Truncation Detection: If the LLM stopped because it hit `max_tokens`
+        # (FinishReason.MAX_TOKENS) instead of naturally finishing (FinishReason.STOP),
         # we log a warning so the developer knows the context window is too small.
         finish_reason = response.candidates[0].finish_reason if response.candidates else None
         if finish_reason is not None and finish_reason != types.FinishReason.STOP:
@@ -89,9 +90,9 @@ class GeminiAsAnthropicAdapter:
     def create_stream(self, model: str, max_tokens: int, system: str, messages: list[dict]):
         """
         Streaming generation (Server-Sent Events).
-        
-        Design Note: We intentionally omit the Retry logic here. 
-        If a stream fails halfway, retrying would restart the generation, 
+
+        Design Note: We intentionally omit the Retry logic here.
+        If a stream fails halfway, retrying would restart the generation,
         sending duplicated or conflicting tokens to the frontend client.
         """
         from google.genai import types

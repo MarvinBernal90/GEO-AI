@@ -6,9 +6,9 @@ File: backend/etl/competitors.py
 
 This module extracts the raw commercial census data from Open Data BCN,
 cleans it, and builds the DataFrames for the dimensions (Districts, Neighborhoods)
-and the main fact table (Competitors). 
+and the main fact table (Competitors).
 
-It translates the experimental logic from `notebooks/02_eda_census_bcn.ipynb` 
+It translates the experimental logic from `notebooks/02_eda_census_bcn.ipynb`
 into production-ready ETL functions.
 """
 
@@ -29,12 +29,12 @@ CRITICAL_COLUMNS = ["Codi_Districte", "Nom_Districte", "Latitud", "Longitud", "N
 # ------------------------------------------------------------------------------
 # ARCHITECTURAL DECISION: STATIC DIMENSION AVOIDING FK VIOLATIONS
 # ------------------------------------------------------------------------------
-# BUG FIX LOG: Initially, I extracted the 10 districts dynamically from the 
-# raw census CSV. However, if a partial or filtered CSV was loaded (e.g., missing 
-# District 7 data), the 'districts' table wouldn't create District 7. 
-# Consequently, the 'income' and 'mobility' ETLs crashed with a Foreign Key 
+# BUG FIX LOG: Initially, I extracted the 10 districts dynamically from the
+# raw census CSV. However, if a partial or filtered CSV was loaded (e.g., missing
+# District 7 data), the 'districts' table wouldn't create District 7.
+# Consequently, the 'income' and 'mobility' ETLs crashed with a Foreign Key
 # constraint violation when trying to insert data for District 7.
-# To ensure referential integrity, static political borders (like the 10 official 
+# To ensure referential integrity, static political borders (like the 10 official
 # districts) are now hardcoded as a source of truth.
 BARCELONA_DISTRICTS = {
     1: "Ciutat Vella",
@@ -53,10 +53,10 @@ BARCELONA_DISTRICTS = {
 def read_raw_census(path) -> pd.DataFrame:
     """
     Reads the raw CSV file.
-    
-    Data Engineering Note: 
-    'utf-8-sig' is strictly required here. The original government CSV file 
-    contains a hidden Byte Order Mark (BOM). Standard 'utf-8' reads the first 
+
+    Data Engineering Note:
+    'utf-8-sig' is strictly required here. The original government CSV file
+    contains a hidden Byte Order Mark (BOM). Standard 'utf-8' reads the first
     column as '\\ufeffID_Global', which causes a KeyError in the pipeline.
     """
     return pd.read_csv(path, low_memory=False, encoding="utf-8-sig")
@@ -65,16 +65,18 @@ def read_raw_census(path) -> pd.DataFrame:
 def build_districts(raw_census_df: pd.DataFrame | None = None) -> pd.DataFrame:
     """
     Generates the 'districts' dimension table.
-    It relies entirely on the hardcoded BARCELONA_DISTRICTS dictionary to 
+    It relies entirely on the hardcoded BARCELONA_DISTRICTS dictionary to
     prevent missing Foreign Keys in downstream ETLs.
     """
-    return pd.DataFrame(
-        [{"codi_districte": codi, "nom_districte": nom} for codi, nom in BARCELONA_DISTRICTS.items()]
-    ).sort_values("codi_districte").reset_index(drop=True)
+    return (
+        pd.DataFrame([{"codi_districte": codi, "nom_districte": nom} for codi, nom in BARCELONA_DISTRICTS.items()])
+        .sort_values("codi_districte")
+        .reset_index(drop=True)
+    )
 
 
 def build_neighborhoods(raw_census_df: pd.DataFrame) -> pd.DataFrame:
-    """"
+    """ "
     Extracts unique neighborhoods (barrios) dynamically from the census file.
     """
     neighborhoods = (
@@ -96,9 +98,9 @@ def build_neighborhoods(raw_census_df: pd.DataFrame) -> pd.DataFrame:
 
 def build_competitors(raw_census_df: pd.DataFrame) -> pd.DataFrame:
     """
-    Filters the 68,000+ raw commercial rows down to the relevant hospitality 
+    Filters the 68,000+ raw commercial rows down to the relevant hospitality
     competitors. It drops ghost locations and normalizes column names for PostgreSQL.
-    
+
     Note: Spatial geometry (PostGIS WKTElement) is intentionally NOT handled here.
     It is handled in `load_to_db.py` to keep this ETL strictly focused on Pandas.
     """
