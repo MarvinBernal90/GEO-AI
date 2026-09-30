@@ -67,9 +67,6 @@ jobs:
           # Si hubo fallo, forzamos un código de salida 1 para marcar el PR 
           # en rojo e impedir la integración del código defectuoso.
           echo "La suite de pruebas unitarias o de modelo ha fallado. Revisa el artefacto 'pytest-results' para ver los logs."
-<<<<<<< Updated upstream
-          exit 1
-=======
           exit 1
 
   # ==============================================================================
@@ -139,7 +136,3 @@ jobs:
 
       - name: Check formatting
         run: ruff format --check backend
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
