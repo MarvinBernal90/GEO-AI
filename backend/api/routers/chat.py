@@ -8,10 +8,10 @@ The master endpoint for the conversational chat (`/api/chat/informe/stream`).
 Acts as a State Machine connecting NLU, GIS, and RAG into a single SSE stream.
 
 Architectural Note:
-This is NOT an autonomous agent. It translates free text into structured parameters 
-and routes them through the pre-existing, tested pipeline. 
-It strictly enforces Human-in-the-Loop: If intent or geolocation cannot be resolved 
-with certainty, it yields an 'aclaracion' event to trigger the manual UI form, 
+This is NOT an autonomous agent. It translates free text into structured parameters
+and routes them through the pre-existing, tested pipeline.
+It strictly enforces Human-in-the-Loop: If intent or geolocation cannot be resolved
+with certainty, it yields an 'aclaracion' event to trigger the manual UI form,
 never guessing.
 """
 
@@ -127,6 +127,7 @@ def _procesar_chat(mensaje: str, db: Session):
 @router.post("/chat/informe/stream")
 def chat_informe_stream(payload: ChatRequest, db: Session = Depends(get_session)):
     """SSE Endpoint. Serializes the generator chunks into standard SSE format."""
+
     def eventos():
         try:
             for evento in _procesar_chat(payload.mensaje, db):

@@ -5,12 +5,12 @@ GIS INTEGRATION: AMB IDENTIFY SERVICE (URBAN ZONING)
 File: backend/geo/amb_identify.py
 
 Wrapper for the official AMB (Área Metropolitana de Barcelona) Identify service.
-Performs Point-in-Polygon intersection to translate spatial coordinates (Lat/Lon) 
+Performs Point-in-Polygon intersection to translate spatial coordinates (Lat/Lon)
 into the official PGM Urban Zoning code (CLAU_URB).
 
 Security by Design (Allow-listing):
-Only CLAU_URB codes that have verified legal text ingested in the RAG database 
-are accepted. Any other code (roads, parks, undeveloped land) is automatically 
+Only CLAU_URB codes that have verified legal text ingested in the RAG database
+are accepted. Any other code (roads, parks, undeveloped land) is automatically
 discarded.
 """
 
@@ -22,12 +22,12 @@ from backend.observability import get_logger
 
 logger = get_logger("geo.amb_identify")
 
-# Note: Using the live MapServer instead of the cached _25831 to ensure 
+# Note: Using the live MapServer instead of the cached _25831 to ensure
 # we query the most up-to-date legal geometries.
 AMB_IDENTIFY_URL = "https://geoportal.amb.cat/geoserveis/rest/services/pla_general_metropolita_1976/MapServer/identify"
 
-# Network Resilience Config: 
-# Public government APIs can be slow or unstable. Implementing a retry policy 
+# Network Resilience Config:
+# Public government APIs can be slow or unstable. Implementing a retry policy
 # to survive transient network failures without crashing the user request.
 MAX_REINTENTOS = 2
 ESPERA_ENTRE_REINTENTOS_SEGUNDOS = 1
@@ -50,8 +50,8 @@ CLAU_URB_A_ZONA_PGM = {
 
 def _extraer_zona_de_resultados(resultados: list[dict]) -> dict | None:
     """
-    Iterates through the Point-in-Polygon results and returns the first 
-    CLAU_URB code that exists in our Allow-list. 
+    Iterates through the Point-in-Polygon results and returns the first
+    CLAU_URB code that exists in our Allow-list.
     Separated from the network call to allow isolated Unit Testing without HTTP.
     """
     for resultado in resultados:
@@ -73,9 +73,9 @@ def identificar_zona_pgm(lat: float, lon: float) -> dict | None:
     params = {
         "geometry": f'{{"x":{lon},"y":{lat}}}',
         "geometryType": "esriGeometryPoint",
-        "sr": 4326, # WGS84 Spatial Reference
+        "sr": 4326,  # WGS84 Spatial Reference
         "layers": "all",
-        "tolerance": 2, # Pixel tolerance for the intersection
+        "tolerance": 2,  # Pixel tolerance for the intersection
         "mapExtent": f"{lon - 0.01},{lat - 0.01},{lon + 0.01},{lat + 0.01}",
         "imageDisplay": "400,400,96",
         "returnGeometry": "false",

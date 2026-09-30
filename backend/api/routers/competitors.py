@@ -25,7 +25,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from backend.api.deps import get_session
-from backend.api.schemas.competitors import CentroOut, CompetidorOut, CompetidoresResponse
+from backend.api.schemas.competitors import CentroOut, CompetidoresResponse, CompetidorOut
 from backend.observability import get_logger, log_event
 
 logger = get_logger("api.competidores")
@@ -37,7 +37,8 @@ router = APIRouter(prefix="/api", tags=["competitors"])
 def list_competitors(
     codi_districte: int = Query(..., ge=1, le=10),
     lat: float | None = Query(
-        None, description="If provided alongside lon, searches by radius around this point instead of the whole district."
+        None,
+        description="If provided alongside lon, searches by radius around this point instead of the whole district.",
     ),
     lon: float | None = Query(None),
     radio_metros: int = Query(500, ge=50, le=5000),
@@ -54,37 +55,48 @@ def list_competitors(
 def _search_by_district(db: Session, codi_districte: int, limit: int) -> CompetidoresResponse:
     # Dynamic SQL: We calculate the map camera's centroid on the fly.
     # We extract X and Y using native PostGIS functions.
-    centro_row = db.execute(
-        text(
-            """
+    centro_row = (
+        db.execute(
+            text(
+                """
             SELECT AVG(ST_Y(geom::geometry)) AS lat, AVG(ST_X(geom::geometry)) AS lng, COUNT(*) AS total
             FROM competitors
             WHERE codi_districte = :codi
             """
-        ),
-        {"codi": codi_districte},
-    ).mappings().first()
+            ),
+            {"codi": codi_districte},
+        )
+        .mappings()
+        .first()
+    )
 
     if centro_row is None or centro_row["total"] == 0:
         # A district with no competitors loaded is a data gap, not a normal
         # result: the map silently renders empty for the user.
         log_event(
-            logger, "WARNING", "No competitors found for district",
-            event="competidores.vacio", codi_districte=codi_districte,
+            logger,
+            "WARNING",
+            "No competitors found for district",
+            event="competidores.vacio",
+            codi_districte=codi_districte,
         )
         return CompetidoresResponse(centro=None, total=0, competidores=[], modo="distrito")
 
-    filas = db.execute(
-        text(
-            """
+    filas = (
+        db.execute(
+            text(
+                """
             SELECT id_global, nom_activitat, ST_Y(geom::geometry) AS lat, ST_X(geom::geometry) AS lng
             FROM competitors
             WHERE codi_districte = :codi
             LIMIT :limit
             """
-        ),
-        {"codi": codi_districte, "limit": limit},
-    ).mappings().all()
+            ),
+            {"codi": codi_districte, "limit": limit},
+        )
+        .mappings()
+        .all()
+    )
 
     return CompetidoresResponse(
         centro=CentroOut(lat=centro_row["lat"], lng=centro_row["lng"]),
@@ -97,23 +109,31 @@ def _search_by_district(db: Session, codi_districte: int, limit: int) -> Competi
 def _search_by_radius(db: Session, lat: float, lon: float, radio_metros: int, limit: int) -> CompetidoresResponse:
     punto = f"POINT({lon} {lat})"
 
-    total_row = db.execute(
-        text("SELECT COUNT(*) AS total FROM competitors WHERE ST_DWithin(geom, ST_GeogFromText(:punto), :radio)"),
-        {"punto": punto, "radio": radio_metros},
-    ).mappings().first()
+    total_row = (
+        db.execute(
+            text("SELECT COUNT(*) AS total FROM competitors WHERE ST_DWithin(geom, ST_GeogFromText(:punto), :radio)"),
+            {"punto": punto, "radio": radio_metros},
+        )
+        .mappings()
+        .first()
+    )
     total = total_row["total"] if total_row else 0
 
-    filas = db.execute(
-        text(
-            """
+    filas = (
+        db.execute(
+            text(
+                """
             SELECT id_global, nom_activitat, ST_Y(geom::geometry) AS lat, ST_X(geom::geometry) AS lng
             FROM competitors
             WHERE ST_DWithin(geom, ST_GeogFromText(:punto), :radio)
             LIMIT :limit
             """
-        ),
-        {"punto": punto, "radio": radio_metros, "limit": limit},
-    ).mappings().all()
+            ),
+            {"punto": punto, "radio": radio_metros, "limit": limit},
+        )
+        .mappings()
+        .all()
+    )
 
     return CompetidoresResponse(
         centro=CentroOut(lat=lat, lng=lon),

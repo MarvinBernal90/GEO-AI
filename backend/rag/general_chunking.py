@@ -4,9 +4,9 @@ RAG PIPELINE: GENERALIZED LEGAL CHUNKING (NLP)
 ==============================================================================
 File: backend/rag/general_chunking.py
 
-Parses National (BOE) and Regional (DOGC) laws. 
-Unlike the PGM parser which is highly specialized, this module is built using 
-Heuristics to automatically adapt to new document structures WITHOUT requiring 
+Parses National (BOE) and Regional (DOGC) laws.
+Unlike the PGM parser which is highly specialized, this module is built using
+Heuristics to automatically adapt to new document structures WITHOUT requiring
 hardcoded per-institution configuration rules.
 """
 
@@ -22,7 +22,7 @@ _ARTICULO_HEADER_RE = re.compile(
 )
 
 # Heuristic 2: Typography Profiling (Table of Contents filtering)
-# Detects "dot leaders" (e.g., "Article 1 . . . . . . . 14"), a universal convention 
+# Detects "dot leaders" (e.g., "Article 1 . . . . . . . 14"), a universal convention
 # in printed PDFs across all institutions, effectively filtering out index pages.
 _DOT_LEADER_RE = re.compile(r"(?:\.\s?){5,}")
 
@@ -49,8 +49,8 @@ class ArticuloGeneral:
 def _strip_repeated_lines(text: str) -> str:
     """
     Heuristic 3: Frequency Analysis for Header/Footer Detection.
-    Instead of hardcoding a list of known footers per institution, this algorithm 
-    counts line frequencies. Any string that repeats 3+ times in a document is 
+    Instead of hardcoding a list of known footers per institution, this algorithm
+    counts line frequencies. Any string that repeats 3+ times in a document is
     mathematically assumed to be PDF boilerplate and is stripped out.
     """
     lines = text.splitlines()
@@ -80,7 +80,7 @@ def parse_articulo_general(text: str) -> list[ArticuloGeneral]:
         resto = match.group("resto").strip()
 
         # We check the next 5 lines to catch long index titles before the dot leader
-        tail_lines = text[match.end():match.end() + 500].splitlines()[:5]
+        tail_lines = text[match.end() : match.end() + 500].splitlines()[:5]
         ventana = " ".join([resto, *tail_lines])
 
         # If we see dot leaders, it's an index entry, not the actual law. Skip it.
@@ -89,9 +89,9 @@ def parse_articulo_general(text: str) -> list[ArticuloGeneral]:
         starts.append((match.start(), match, resto))
 
     chunks = []
-    for i, (pos, match, resto) in enumerate(starts):
+    for i, (_pos, match, resto) in enumerate(starts):
         end = starts[i + 1][0] if i + 1 < len(starts) else len(text)
-        block = text[match.end():end]
+        block = text[match.end() : end]
 
         if resto:
             # Inline Title format (BOE)
@@ -103,9 +103,7 @@ def parse_articulo_general(text: str) -> list[ArticuloGeneral]:
             titulo = lines[0].strip() if lines else ""
             contenido = "\n".join(lines[1:]).strip()
 
-        chunks.append(
-            ArticuloGeneral(numero_articulo=match.group("numero"), titulo=titulo, contenido=contenido)
-        )
+        chunks.append(ArticuloGeneral(numero_articulo=match.group("numero"), titulo=titulo, contenido=contenido))
 
     return _dedupe_keeping_longest(chunks)
 
@@ -113,10 +111,10 @@ def parse_articulo_general(text: str) -> list[ArticuloGeneral]:
 def _dedupe_keeping_longest(chunks: list[ArticuloGeneral]) -> list[ArticuloGeneral]:
     """
     Defensive Programming: Conflict Resolution.
-    PDF parsing is inherently messy. If a spurious index entry slips through 
-    and shares an ID with the real article, it will crash the Database Upsert 
-    ("ON CONFLICT DO UPDATE command cannot affect row a second time"). 
-    This acts as a safety net: if two chunks share the same 'numero_articulo', 
+    PDF parsing is inherently messy. If a spurious index entry slips through
+    and shares an ID with the real article, it will crash the Database Upsert
+    ("ON CONFLICT DO UPDATE command cannot affect row a second time").
+    This acts as a safety net: if two chunks share the same 'numero_articulo',
     we keep the longest one, assuming it's the actual text and not an index stub.
     """
     mejores: dict[str, ArticuloGeneral] = {}

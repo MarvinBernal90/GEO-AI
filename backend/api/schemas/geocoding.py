@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class GeocodificacionResponse(BaseModel):
-    # Security: Prevents internal data leaks if upstream dictionaries contain 
+    # Security: Prevents internal data leaks if upstream dictionaries contain
     # extra unmapped fields.
     model_config = ConfigDict(extra="forbid")
 
@@ -20,7 +20,7 @@ class GeocodificacionResponse(BaseModel):
     lat: float
     lon: float
 
-    # Graceful Degradation: These fields are explicitly nullable to allow 
+    # Graceful Degradation: These fields are explicitly nullable to allow
     # partial success states if the AI or GIS engine cannot resolve them.
     codi_districte: int | None = Field(
         default=None, description="Distrito sugerido a partir de la dirección, o null si no se pudo determinar."

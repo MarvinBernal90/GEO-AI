@@ -152,6 +152,20 @@ DB_HOST_OVERRIDE=localhost uvicorn backend.api.api:app --reload --port 8000
 
 Comprueba que responde en `http://localhost:8000/health` y `http://localhost:8000/ready`. La documentación interactiva de todos los endpoints está en `http://localhost:8000/docs` (generada automáticamente por FastAPI).
 
+#### Lint y formato del backend
+
+El backend usa [Ruff](https://docs.astral.sh/ruff/) como linter, formateador y ordenador de imports. La configuración está en [`pyproject.toml`](pyproject.toml) y hoy se aplica solo a `backend/`. Desde la raíz del repositorio:
+
+```bash
+pip install -r backend/requirements-dev.txt   # instala Ruff (solo desarrollo, no va a la imagen de producción)
+ruff check backend          # analiza el código
+ruff check backend --fix    # aplica las correcciones automáticas seguras
+ruff format backend         # formatea
+ruff format --check backend # comprueba el formato sin modificar archivos
+```
+
+El job `backend-lint` de `.github/workflows/integrate.yml` ejecuta `ruff check` y `ruff format --check` en cada Pull Request.
+
 ### Levantar el frontend
 
 ```bash

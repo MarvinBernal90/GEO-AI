@@ -63,9 +63,10 @@ def obtener_articulo(
         )
 
     # We use a raw SQL query here for speed and simplicity, matching the composite key
-    row = db.execute(
-        text(
-            """
+    row = (
+        db.execute(
+            text(
+                """
             SELECT
                 fuente_legal,
                 numero_articulo,
@@ -75,20 +76,27 @@ def obtener_articulo(
             WHERE fuente_legal = :fuente
               AND numero_articulo = :numero
             """
-        ),
-        {
-            "fuente": fuente,
-            "numero": numero,
-        },
-    ).mappings().first()
+            ),
+            {
+                "fuente": fuente,
+                "numero": numero,
+            },
+        )
+        .mappings()
+        .first()
+    )
 
     if row is None:
         # An article cited by a report that cannot then be retrieved points to
         # a hallucinated citation or a stale legal corpus, so it is worth a
         # signal rather than a silent 404.
         log_event(
-            logger, "WARNING", "Cited legal article not found",
-            event="articulo.no_encontrado", fuente_legal=fuente, numero_articulo=numero,
+            logger,
+            "WARNING",
+            "Cited legal article not found",
+            event="articulo.no_encontrado",
+            fuente_legal=fuente,
+            numero_articulo=numero,
         )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
