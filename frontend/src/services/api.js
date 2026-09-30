@@ -12,7 +12,7 @@ import { createLogger, generateTraceId } from './logger'
  */
 
 /**
-* Base API URL derived from Vite's environment variables.
+ * Base API URL derived from Vite's environment variables.
  * @constant {string}
  */
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
@@ -256,7 +256,7 @@ export async function chatInformeStream(mensaje, callbacks = {}) {
           else if (evento.type === 'token') onToken?.(evento.text)
           else if (evento.type === 'done') onDone?.(evento)
           else if (evento.type === 'error') onError?.(evento.detail)
-        } catch (e) {
+        } catch {
           console.warn('Error parseando bloque SSE del chat:', bloque)
         }
       }

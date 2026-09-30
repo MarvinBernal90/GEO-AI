@@ -10,7 +10,7 @@
  * Replaces the legacy tailwind.config.js file. Vite processes this directly 
  * and injects the utility classes dynamically.
  */
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* 
  * Semantic Design Tokens:
@@ -19,9 +19,9 @@
  * abandoning generic names to match the business domain.
  */
 @theme {
-  --font-display: "Fraunces", serif;
-  --font-body: "IBM Plex Sans", sans-serif;
-  --font-mono: "IBM Plex Mono", monospace;
+  --font-display: 'Fraunces', serif;
+  --font-body: 'IBM Plex Sans', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
 
   --color-ink: #152238;
   --color-ink-light: #24334f;

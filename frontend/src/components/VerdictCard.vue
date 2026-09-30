@@ -70,19 +70,27 @@ const datos = computed(() => props.informe.datos_distrito ?? {})
     <dl class="grid grid-cols-2 gap-x-4 gap-y-3 px-6 py-4 text-sm sm:grid-cols-4">
       <div>
         <dt class="text-[11px] tracking-wide text-ink/45 uppercase">Renta media</dt>
-        <dd class="font-mono font-medium">{{ datos.renta_media != null ? formatoMoneda.format(datos.renta_media) : '—' }}</dd>
+        <dd class="font-mono font-medium">
+          {{ datos.renta_media != null ? formatoMoneda.format(datos.renta_media) : '—' }}
+        </dd>
       </div>
       <div>
         <dt class="text-[11px] tracking-wide text-ink/45 uppercase">Afluencia diaria</dt>
-        <dd class="font-mono font-medium">{{ datos.daily_foot_traffic != null ? formatoNumero.format(datos.daily_foot_traffic) : '—' }}</dd>
+        <dd class="font-mono font-medium">
+          {{ datos.daily_foot_traffic != null ? formatoNumero.format(datos.daily_foot_traffic) : '—' }}
+        </dd>
       </div>
       <div>
         <dt class="text-[11px] tracking-wide text-ink/45 uppercase">Competidores</dt>
-        <dd class="font-mono font-medium">{{ datos.total_competitors != null ? formatoNumero.format(datos.total_competitors) : '—' }}</dd>
+        <dd class="font-mono font-medium">
+          {{ datos.total_competitors != null ? formatoNumero.format(datos.total_competitors) : '—' }}
+        </dd>
       </div>
       <div>
         <dt class="text-[11px] tracking-wide text-ink/45 uppercase">Índice de oportunidad</dt>
-        <dd class="font-mono font-medium">{{ datos.opportunity_score != null ? `${datos.opportunity_score} / 100` : '—' }}</dd>
+        <dd class="font-mono font-medium">
+          {{ datos.opportunity_score != null ? `${datos.opportunity_score} / 100` : '—' }}
+        </dd>
       </div>
     </dl>
   </div>

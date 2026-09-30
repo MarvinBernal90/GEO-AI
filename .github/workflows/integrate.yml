@@ -68,3 +68,38 @@ jobs:
           # en rojo e impedir la integración del código defectuoso.
           echo "La suite de pruebas unitarias o de modelo ha fallado. Revisa el artefacto 'pytest-results' para ver los logs."
           exit 1
+
+  # ==============================================================================
+  # FRONTEND LINT AND FORMATTING
+  # ==============================================================================
+  # Runs in parallel with the Python job. Fails the PR if ESLint finds errors or
+  # if any file does not comply with Prettier formatting.
+  frontend-lint:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
