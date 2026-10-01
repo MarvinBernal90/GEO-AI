@@ -7,11 +7,20 @@ from sqlalchemy.orm import Session
 from backend.db.connection import resolve_database_url
 from backend.db.models import DistrictMobility
 from backend.etl import config
+import time
 
 # Structured logging system
 from backend.observability import configure_logging, get_logger
 
 logger = get_logger("etl.mitma")
+
+PROGRESS = {
+    "status": "idle",
+    "progress": 0,
+    "start_time": None,
+    "elapsed": 0,
+    "message": ""
+}
 
 
 def process_mitma_data() -> pd.DataFrame:
@@ -44,8 +53,11 @@ def process_mitma_data() -> pd.DataFrame:
 
     # Size of chunk
     chunk_size = 2_000_000
+    num_files = len(config.PATHS_MITMA_MOBILITY)
 
-    for path in config.PATHS_MITMA_MOBILITY:
+    for file_idx, path in enumerate(config.PATHS_MITMA_MOBILITY):
+        PROGRESS["progress"] = int((file_idx / num_files) * 80)
+        PROGRESS["message"] = f"Procesando archivo {file_idx + 1}/{num_files}: {path.name}"
         file_size_mb = path.stat().st_size / (1024 * 1024)
         logger.info(f"Processing file: {path.name} (Size: {file_size_mb:.1f} MB)")
 
@@ -77,7 +89,7 @@ def process_mitma_data() -> pd.DataFrame:
         # Consolidate the segments of this file
         logger.info(f"  -> {path.name}: Consolidando datos del archivo...")
         trips_in_with_age = pd.concat(trips_in_chunks).groupby(["destino", "edad"], as_index=False)["viajes"].sum()
-        
+
         trips_in = trips_in_with_age.groupby("destino", as_index=False)["viajes"].sum()
         trips_in.rename(columns={"destino": "distrito_id", "viajes": "viajes_in"}, inplace=True)
 
@@ -95,6 +107,8 @@ def process_mitma_data() -> pd.DataFrame:
     if not all_trips:
         raise ValueError("No se encontraron archivos CSV de MITMA para procesar.")
 
+    PROGRESS["progress"] = 80
+    PROGRESS["message"] = "Consolidando fechas y cruzando con población..."
     # Consolidate all dates
     logger.info("Consolidando fechas y cruzando con población...")
     df_all_totals = pd.concat([t["totals"] for t in all_trips])
@@ -105,7 +119,7 @@ def process_mitma_data() -> pd.DataFrame:
     df_grouped = df_all_totals.groupby("distrito_id", as_index=False)[["viajes_in", "viajes_out"]].sum()
     df_grouped["viajes_in_promedio"] = df_grouped["viajes_in"] / num_dias
     df_grouped["viajes_out_promedio"] = df_grouped["viajes_out"] / num_dias
-    
+
     # Calculate the predominant age by district
     df_ages_sum = df_all_ages.groupby(["distrito_id", "edad"], as_index=False)["viajes"].sum()
     pred_age = df_ages_sum.loc[df_ages_sum.groupby("distrito_id")["viajes"].idxmax()][["distrito_id", "edad"]]
@@ -165,13 +179,23 @@ def _upsert_mobility(session: Session, df: pd.DataFrame) -> None:
 def run_etl():
     """Main function that performs the three steps: Extract, Transform, Load."""
     logger.info("Starting the Mobility (MITMA) ETL process with multiple files and population...")
+    PROGRESS["status"] = "running"
+    PROGRESS["progress"] = 0
+    PROGRESS["start_time"] = time.time()
+    PROGRESS["message"] = "Iniciando proceso ETL MITMA..."
 
     # 1. Extract and Transform
     try:
         mobility_df = process_mitma_data()
         logger.info("Pandas cleanup and aggregation completed successfully.")
+        
+        PROGRESS["progress"] = 90
+        PROGRESS["message"] = "Volcando a PostgreSQL..."
     except Exception as e:
         logger.error(f"Error during extraction and cleaning: {e}")
+        PROGRESS["status"] = "error"
+        PROGRESS["message"] = f"Error: {e}"
+        PROGRESS["elapsed"] = time.time() - PROGRESS["start_time"]
         return
 
     # 2. Connect to Database
@@ -184,11 +208,21 @@ def run_etl():
 
     # 3. Load to Database
     logger.info("Starting data dump to PostgreSQL...")
-    with Session(engine) as session:
-        _upsert_mobility(session, mobility_df)
-        session.commit()
+    try:
+        with Session(engine) as session:
+            _upsert_mobility(session, mobility_df)
+            session.commit()
 
-    logger.info("MITMA's ETL process was successfully completed.")
+        logger.info("MITMA's ETL process was successfully completed.")
+        PROGRESS["status"] = "completed"
+        PROGRESS["progress"] = 100
+        PROGRESS["message"] = "Proceso ETL terminado con éxito."
+    except Exception as e:
+        logger.error(f"Error during database dump: {e}")
+        PROGRESS["status"] = "error"
+        PROGRESS["message"] = f"DB Error: {e}"
+    finally:
+        PROGRESS["elapsed"] = time.time() - PROGRESS["start_time"]
 
 
 if __name__ == "__main__":
