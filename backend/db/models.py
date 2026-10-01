@@ -80,6 +80,7 @@ class DistrictMobility(Base):
     codi_districte: Mapped[int] = mapped_column(SmallInteger, ForeignKey("districts.codi_districte"), primary_key=True)
     daily_foot_traffic: Mapped[float] = mapped_column(Numeric(14, 2), nullable=False)
     total_trips: Mapped[int | None] = mapped_column(nullable=True)
+    predominant_age: Mapped[str | None] = mapped_column(String(20), nullable=True)
     fecha: Mapped[date | None] = mapped_column(Date)
     loaded_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
