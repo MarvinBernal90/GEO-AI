@@ -21,7 +21,8 @@ from backend.db.models import LegalChunk
 from backend.rag.embeddings import EmbeddingFunction, embed_texts
 
 # Allows seamless upgrades to newer Gemini models via environment variables
-DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+# DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 # Cross-encoder used to rerank retrieved chunks -- see
 # retrieve_relevant_chunks_with_rerank below.

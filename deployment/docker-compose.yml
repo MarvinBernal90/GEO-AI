@@ -92,8 +92,8 @@ services:
     ports:
       - "8080:8000"
     volumes:
-      # Montamos la carpeta data local dentro del contenedor 
-      # para que la API pueda acceder a los CSVs en Fase 1 (hasta que se migre a S3)
+      # Mount the local data folder inside the container 
+      # so that the API can access the CSV files in Phase 1 (until they are migrated to S3)
       - ../data:/app/data
     # No log volume any more: logs go to stdout as JSON (one line per event),
     # which is what both `docker compose logs` and the ECS awslogs/FireLens
