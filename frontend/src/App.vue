@@ -39,14 +39,14 @@ async function onTriggerETL() {
 
   try {
     await dispararEtlMitma()
-    
+
     if (etlInterval) clearInterval(etlInterval)
     etlInterval = setInterval(async () => {
       try {
         const state = await getEtlMitmaProgress()
         etlProgress.value = state.progress
         etlElapsed.value = Math.floor(state.elapsed)
-        
+
         if (state.status === 'completed' || state.status === 'error') {
           clearInterval(etlInterval)
           etlStatus.value = state.status === 'completed' ? 'success' : 'error'
@@ -229,33 +229,37 @@ async function onEnviarChat() {
           legal vigente con datos socioeconómicos reales.
         </p>
 
-          <div class="flex flex-col gap-3">
-            <div class="flex items-center gap-4">
-              <button
-                class="rounded border border-brass/50 px-3 py-1.5 text-xs font-medium text-brass transition hover:bg-brass/10 disabled:opacity-50 disabled:cursor-not-allowed"
-                :disabled="etlStatus === 'running'"
-                @click="onTriggerETL"
-              >
-                Actualizar Datos MITMA (ETL)
-              </button>
-              
-              <span v-if="etlStatus === 'success'" class="text-xs text-[#065f46] bg-[#d1fae5] px-2 py-1 rounded animate-fade-in">✅ Completado ({{ etlElapsed }}s)</span>
-              <span v-if="etlStatus === 'error'" class="text-xs text-rojo animate-fade-in">❌ Error en ETL</span>
+        <div class="flex flex-col gap-3">
+          <div class="flex items-center gap-4">
+            <button
+              class="rounded border border-brass/50 px-3 py-1.5 text-xs font-medium text-brass transition hover:bg-brass/10 disabled:opacity-50 disabled:cursor-not-allowed"
+              :disabled="etlStatus === 'running'"
+              @click="onTriggerETL"
+            >
+              Actualizar Datos MITMA (ETL)
+            </button>
+
+            <span
+              v-if="etlStatus === 'success'"
+              class="text-xs text-[#065f46] bg-[#d1fae5] px-2 py-1 rounded animate-fade-in"
+              >✅ Completado ({{ etlElapsed }}s)</span
+            >
+            <span v-if="etlStatus === 'error'" class="text-xs text-rojo animate-fade-in">❌ Error en ETL</span>
+          </div>
+
+          <div v-if="etlStatus === 'running'" class="w-full max-w-xs animate-fade-in">
+            <div class="flex justify-between text-[10px] text-paper/70 mb-1">
+              <span>Procesando datos (~{{ etlElapsed }}s)</span>
+              <span>{{ etlProgress }}%</span>
             </div>
-            
-            <div v-if="etlStatus === 'running'" class="w-full max-w-xs animate-fade-in">
-              <div class="flex justify-between text-[10px] text-paper/70 mb-1">
-                <span>Procesando datos (~{{ etlElapsed }}s)</span>
-                <span>{{ etlProgress }}%</span>
-              </div>
-              <div class="h-1.5 w-full bg-paper/10 rounded-full overflow-hidden">
-                <div 
-                  class="h-full bg-brass transition-all duration-500 ease-out" 
-                  :style="{ width: `${etlProgress}%` }"
-                ></div>
-              </div>
+            <div class="h-1.5 w-full bg-paper/10 rounded-full overflow-hidden">
+              <div
+                class="h-full bg-brass transition-all duration-500 ease-out"
+                :style="{ width: `${etlProgress}%` }"
+              ></div>
             </div>
           </div>
+        </div>
       </header>
 
       <section class="mb-8 rounded-xl border border-paper/15 bg-ink-light/50 p-6 shadow-lg backdrop-blur-sm">

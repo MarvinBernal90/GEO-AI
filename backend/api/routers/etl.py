@@ -22,6 +22,7 @@ def trigger_mitma_etl(background_tasks: BackgroundTasks):
     background_tasks.add_task(run_etl)
     return {"status": "success", "message": "ETL process started in background."}
 
+
 @router.get("/mitma/progress")
 def get_mitma_etl_progress():
     if PROGRESS["start_time"] and PROGRESS["status"] == "running":
