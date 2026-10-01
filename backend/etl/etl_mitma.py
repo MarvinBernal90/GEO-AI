@@ -1,3 +1,5 @@
+import time
+
 import pandas as pd
 from sqlalchemy import create_engine
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -7,8 +9,6 @@ from sqlalchemy.orm import Session
 from backend.db.connection import resolve_database_url
 from backend.db.models import DistrictMobility
 from backend.etl import config
-import time
-
 # Structured logging system
 from backend.observability import configure_logging, get_logger
 
@@ -188,7 +188,7 @@ def run_etl():
     try:
         mobility_df = process_mitma_data()
         logger.info("Pandas cleanup and aggregation completed successfully.")
-        
+
         PROGRESS["progress"] = 90
         PROGRESS["message"] = "Volcando a PostgreSQL..."
     except Exception as e:

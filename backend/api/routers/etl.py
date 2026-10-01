@@ -1,7 +1,8 @@
-from fastapi import APIRouter, BackgroundTasks
 import time
 
-from backend.etl.etl_mitma import run_etl, PROGRESS
+from fastapi import APIRouter, BackgroundTasks
+
+from backend.etl.etl_mitma import PROGRESS, run_etl
 from backend.observability import get_logger
 
 logger = get_logger("api.routers.etl")
@@ -16,7 +17,7 @@ def trigger_mitma_etl(background_tasks: BackgroundTasks):
     """
     if PROGRESS["status"] == "running":
         return {"status": "error", "message": "ETL already running"}
-    
+
     logger.info("API Request received to trigger MITMA ETL.")
     background_tasks.add_task(run_etl)
     return {"status": "success", "message": "ETL process started in background."}

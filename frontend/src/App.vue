@@ -58,8 +58,8 @@ async function onTriggerETL() {
         console.error('Error polling ETL progress:', err)
       }
     }, 2000)
-    
   } catch (err) {
+    console.error('Failed to start ETL:', err)
     etlStatus.value = 'error'
     setTimeout(() => {
       etlStatus.value = null
