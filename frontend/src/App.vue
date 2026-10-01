@@ -33,10 +33,14 @@ async function onTriggerETL() {
   try {
     await dispararEtlMitma()
     etlStatus.value = 'Proceso terminado'
-    setTimeout(() => { etlStatus.value = null }, 5000)
+    setTimeout(() => {
+      etlStatus.value = null
+    }, 5000)
   } catch (err) {
     etlStatus.value = 'Error: ' + err.message
-    setTimeout(() => { etlStatus.value = null }, 5000)
+    setTimeout(() => {
+      etlStatus.value = null
+    }, 5000)
   }
 }
 
@@ -201,9 +205,9 @@ async function onEnviarChat() {
           Selecciona un distrito y una zona urbanística de Barcelona para generar un informe que cruza la normativa
           legal vigente con datos socioeconómicos reales.
         </p>
-        
+
         <div class="mt-6 flex items-center justify-center sm:justify-start gap-4">
-          <button 
+          <button
             class="rounded border border-brass/50 px-3 py-1.5 text-xs font-medium text-brass transition hover:bg-brass/10"
             @click="onTriggerETL"
           >

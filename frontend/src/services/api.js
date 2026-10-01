@@ -121,7 +121,7 @@ export async function geocodificarDireccion(direccion) {
  */
 export async function dispararEtlMitma() {
   return request('dispararEtlMitma', `${API_BASE_URL}/api/etl/mitma`, {
-    method: 'POST'
+    method: 'POST',
   })
 }
 

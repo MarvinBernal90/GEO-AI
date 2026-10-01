@@ -94,7 +94,9 @@ const datos = computed(() => props.informe.datos_distrito ?? {})
       </div>
       <div>
         <dt class="text-[11px] tracking-wide text-ink/45 uppercase">Viajes (Mitma)</dt>
-        <dd class="font-mono font-medium">{{ datos.viajes_intraprovinciales != null ? formatoNumero.format(datos.viajes_intraprovinciales) : '—' }}</dd>
+        <dd class="font-mono font-medium">
+          {{ datos.viajes_intraprovinciales != null ? formatoNumero.format(datos.viajes_intraprovinciales) : '—' }}
+        </dd>
       </div>
     </dl>
   </div>

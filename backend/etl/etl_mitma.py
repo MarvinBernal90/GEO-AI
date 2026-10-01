@@ -29,7 +29,7 @@ def process_mitma_data() -> pd.DataFrame:
         sep="|",
         header=None,
         names=["ID", "poblacion"],
-        dtype={"ID": str, "poblacion": float}
+        dtype={"ID": str, "poblacion": float},
     )
 
     # List the districts of Barcelona (INE code: 08019)
@@ -54,12 +54,11 @@ def process_mitma_data() -> pd.DataFrame:
 
         # Leemos el archivo poco a poco (en chunks)
         csv_iterator = pd.read_csv(
-            path, sep="|", dtype={"destino": str, "origen": str},
-            compression='infer', chunksize=chunk_size
+            path, sep="|", dtype={"destino": str, "origen": str}, compression="infer", chunksize=chunk_size
         )
 
         for i, chunk in enumerate(csv_iterator):
-            logger.info(f"  -> {path.name}: Leyendo bloque {i+1} (~{chunk_size * (i+1):,} filas...)")
+            logger.info(f"  -> {path.name}: Leyendo bloque {i + 1} (~{chunk_size * (i + 1):,} filas...)")
 
             # Limpieza: eliminar filas con nulos en las columnas clave
             chunk = chunk.dropna(subset=["origen", "destino", "viajes"])
@@ -107,13 +106,14 @@ def process_mitma_data() -> pd.DataFrame:
     df_final["viajes_out_promedio"] = df_final["viajes_out_promedio"].fillna(0)
 
     # Población Flotante: Población residente + Los que entran - Los que salen
-    df_final["poblacion_flotante"] = df_final["poblacion"] + df_final["viajes_in_promedio"] - df_final["viajes_out_promedio"]
+    df_final["poblacion_flotante"] = (
+        df_final["poblacion"] + df_final["viajes_in_promedio"] - df_final["viajes_out_promedio"]
+    )
 
     # Calculamos el daily_foot_traffic (índice de afluencia respecto a la población base)
     # Ejemplo: Si hay 110 flotantes y 100 residentes -> índice de 1.10
     df_final["daily_foot_traffic"] = df_final.apply(
-        lambda row: row["poblacion_flotante"] / row["poblacion"] if row["poblacion"] > 0 else 0,
-        axis=1
+        lambda row: row["poblacion_flotante"] / row["poblacion"] if row["poblacion"] > 0 else 0, axis=1
     )
 
     # 6. Preparar DataFrame para la base de datos (extraer el codi_districte, ej. de 0801901 -> 1)
@@ -143,9 +143,7 @@ def _upsert_mobility(session: Session, df: pd.DataFrame) -> None:
     stmt = pg_insert(DistrictMobility).values(records)
 
     # Todo lo que no sea la Primary Key ('codi_districte') se actualiza en caso de conflicto
-    update_columns = {
-        col: getattr(stmt.excluded, col) for col in df.columns if col != "codi_districte"
-    }
+    update_columns = {col: getattr(stmt.excluded, col) for col in df.columns if col != "codi_districte"}
     stmt = stmt.on_conflict_do_update(index_elements=["codi_districte"], set_=update_columns)
 
     session.execute(stmt)
@@ -166,6 +164,7 @@ def run_etl():
 
     # 2. Connect to Database
     from dotenv import load_dotenv
+
     load_dotenv()  # ¡IMPORTANTE! Lee las variables del archivo .env local
 
     url = resolve_database_url()
@@ -178,6 +177,7 @@ def run_etl():
         session.commit()
 
     logger.info("MITMA's ETL process was successfully completed.")
+
 
 if __name__ == "__main__":
     configure_logging()

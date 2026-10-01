@@ -83,17 +83,21 @@ def get_opportunity_score(dirección: str) -> float:
     res = geocodificar_direccion(dirección)
     if res is not None:
         with Session(engine) as session:
-            row = session.execute(
-                text(
-                    "SELECT ds.codi_districte, ds.nom_districte, ds.renta_media, ds.daily_foot_traffic, "
-                    "ds.total_competitors, ds.opportunity_score, "
-                    "dm.total_trips AS viajes_intraprovinciales "
-                    "FROM district_scorecard ds "
-                    "LEFT JOIN district_mobility dm ON ds.codi_districte = dm.codi_districte "
-                    "WHERE ds.codi_districte = :codi"
-                ),
-                {"codi": res['codi_districte']},
-            ).mappings().first()
+            row = (
+                session.execute(
+                    text(
+                        "SELECT ds.codi_districte, ds.nom_districte, ds.renta_media, ds.daily_foot_traffic, "
+                        "ds.total_competitors, ds.opportunity_score, "
+                        "dm.total_trips AS viajes_intraprovinciales "
+                        "FROM district_scorecard ds "
+                        "LEFT JOIN district_mobility dm ON ds.codi_districte = dm.codi_districte "
+                        "WHERE ds.codi_districte = :codi"
+                    ),
+                    {"codi": res["codi_districte"]},
+                )
+                .mappings()
+                .first()
+            )
 
         if row is None:
             logger.warning("No hay datos en district_scorecard para el distrito %s", res["codi_districte"])

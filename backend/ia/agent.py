@@ -166,17 +166,21 @@ def _crear_nodos_paralelos(
 
     def datos_socioeconomicos(state: ViabilityState) -> dict[str, Any]:
         with Session(session.get_bind()) as node_session:
-            row = node_session.execute(
-                text(
-                    "SELECT ds.codi_districte, ds.nom_districte, ds.renta_media, ds.daily_foot_traffic, "
-                    "ds.total_competitors, ds.opportunity_score, "
-                    "dm.total_trips AS viajes_intraprovinciales "
-                    "FROM district_scorecard ds "
-                    "LEFT JOIN district_mobility dm ON ds.codi_districte = dm.codi_districte "
-                    "WHERE ds.codi_districte = :codi"
-                ),
-                {"codi": state["codi_districte"]},
-            ).mappings().first()
+            row = (
+                node_session.execute(
+                    text(
+                        "SELECT ds.codi_districte, ds.nom_districte, ds.renta_media, ds.daily_foot_traffic, "
+                        "ds.total_competitors, ds.opportunity_score, "
+                        "dm.total_trips AS viajes_intraprovinciales "
+                        "FROM district_scorecard ds "
+                        "LEFT JOIN district_mobility dm ON ds.codi_districte = dm.codi_districte "
+                        "WHERE ds.codi_districte = :codi"
+                    ),
+                    {"codi": state["codi_districte"]},
+                )
+                .mappings()
+                .first()
+            )
 
         if row is None:
             logger.warning("No data found in district_scorecard for district %s", state["codi_districte"])
