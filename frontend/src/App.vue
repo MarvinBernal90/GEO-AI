@@ -196,12 +196,10 @@ async function onEnviarChat() {
     <div class="mx-auto max-w-4xl px-4 py-12 sm:px-6 sm:py-16">
       <header class="mb-10 text-center sm:text-left">
         <p class="mb-2 font-mono text-xs font-bold tracking-[0.2em] text-brass uppercase">Geo-Yield-AI</p>
-        <h1 class="font-display text-3xl font-semibold text-paper sm:text-5xl">
-          Dossier de viabilidad de hostelería
-        </h1>
+        <h1 class="font-display text-3xl font-semibold text-paper sm:text-5xl">Dossier de viabilidad de hostelería</h1>
         <p class="mt-4 text-sm leading-relaxed text-paper/70 sm:max-w-2xl sm:text-base">
-          Selecciona un distrito y una zona urbanística de Barcelona para generar un informe
-          que cruza la normativa legal vigente con datos socioeconómicos reales.
+          Selecciona un distrito y una zona urbanística de Barcelona para generar un informe que cruza la normativa
+          legal vigente con datos socioeconómicos reales.
         </p>
         
         <div class="mt-6 flex items-center justify-center sm:justify-start gap-4">
@@ -229,9 +227,9 @@ async function onEnviarChat() {
           />
           <button
             type="button"
-            @click="onEnviarChat"
             :disabled="procesandoChat || !mensajeChat.trim()"
             class="shrink-0 rounded bg-brass px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-brass/90 disabled:cursor-not-allowed disabled:opacity-40"
+            @click="onEnviarChat"
           >
             {{ procesandoChat ? 'Analizando…' : 'Enviar' }}
           </button>
@@ -252,21 +250,27 @@ async function onEnviarChat() {
         />
       </section>
 
-      <div v-if="error" class="mb-8 flex items-center gap-3 rounded-lg border border-rojo/40 bg-rojo/10 px-5 py-4 text-sm text-paper shadow-sm">
+      <div
+        v-if="error"
+        class="mb-8 flex items-center gap-3 rounded-lg border border-rojo/40 bg-rojo/10 px-5 py-4 text-sm text-paper shadow-sm"
+      >
         {{ error }}
       </div>
 
-      <div v-if="cargando && !tieneResultados" class="flex items-center justify-center gap-3 py-12 text-sm text-paper/60">
+      <div
+        v-if="cargando && !tieneResultados"
+        class="flex items-center justify-center gap-3 py-12 text-sm text-paper/60"
+      >
         <span class="h-2.5 w-2.5 animate-ping rounded-full bg-brass" />
         Consultando la normativa y analizando datos del distrito...
       </div>
 
       <section v-if="tieneResultados" class="space-y-6 animate-fade-in">
-        <VerdictCard
-          v-if="semaforo"
-          :informe="{ semaforo, resumen, datos_distrito: datosDistrito || {} }"
-        />
-        <div v-else class="flex items-center gap-3 rounded-xl border border-paper/15 bg-paper px-6 py-5 text-sm text-ink/60 shadow-sm">
+        <VerdictCard v-if="semaforo" :informe="{ semaforo, resumen, datos_distrito: datosDistrito || {} }" />
+        <div
+          v-else
+          class="flex items-center gap-3 rounded-xl border border-paper/15 bg-paper px-6 py-5 text-sm text-ink/60 shadow-sm"
+        >
           <span class="h-2 w-2 animate-ping rounded-full bg-brass" />
           Generando el veredicto…
         </div>
@@ -295,8 +299,14 @@ async function onEnviarChat() {
 
 <style>
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .animate-fade-in {
   animation: fadeIn 0.4s ease-out forwards;

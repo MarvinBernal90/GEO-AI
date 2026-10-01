@@ -23,8 +23,8 @@ const props = defineProps({
 
 const emit = defineEmits(['ver-articulo'])
 // Defensive Computing (Streaming Data Safety):
-// Since the report arrives via SSE Streaming, the 'articulos_citados' array 
-// might be undefined during the first few chunks. Directly checking .length 
+// Since the report arrives via SSE Streaming, the 'articulos_citados' array
+// might be undefined during the first few chunks. Directly checking .length
 // would crash the Vue Virtual DOM.
 const tieneArticulos = computed(() => {
   return Array.isArray(props.informe.articulos_citados) && props.informe.articulos_citados.length > 0
@@ -44,9 +44,7 @@ const tieneArticulos = computed(() => {
     <!-- Message Bubble -->
     <div class="flex-1 space-y-4 rounded-2xl rounded-tl-sm border border-paper/10 bg-ink-light px-5 py-4 shadow-sm">
       <header>
-        <p class="mb-1.5 font-mono text-[10px] font-semibold tracking-widest text-brass uppercase">
-          Fundamento legal
-        </p>
+        <p class="mb-1.5 font-mono text-[10px] font-semibold tracking-widest text-brass uppercase">Fundamento legal</p>
         <p class="text-sm leading-relaxed whitespace-pre-line text-paper/90">
           {{ informe.respuesta_legal }}
         </p>
@@ -58,9 +56,9 @@ const tieneArticulos = computed(() => {
           v-for="articulo in informe.articulos_citados"
           :key="`${articulo.fuente_legal}-${articulo.numero_articulo}`"
           type="button"
-          @click="emit('ver-articulo', articulo)"
           class="flex items-center gap-1.5 rounded-full border border-brass/30 bg-brass/10 px-3 py-1 font-mono text-xs text-brass transition-all hover:bg-brass hover:text-ink hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brass"
           title="Abrir visor de normativa"
+          @click="emit('ver-articulo', articulo)"
         >
           Art. {{ articulo.numero_articulo }}
         </button>

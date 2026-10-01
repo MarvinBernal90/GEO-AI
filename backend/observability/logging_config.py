@@ -9,7 +9,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from backend.observability.context import get_trace_id
 
@@ -22,9 +22,21 @@ FRONTEND_LOGGER_NAME = "geoyield.frontend"
 # personal data.
 REDACT_KEYS = frozenset(
     {
-        "direccion", "address", "email", "password", "passwd", "secret",
-        "token", "authorization", "api_key", "apikey", "access_key",
-        "secret_key", "database_url", "gemini_api_key", "anthropic_api_key",
+        "direccion",
+        "address",
+        "email",
+        "password",
+        "passwd",
+        "secret",
+        "token",
+        "authorization",
+        "api_key",
+        "apikey",
+        "access_key",
+        "secret_key",
+        "database_url",
+        "gemini_api_key",
+        "anthropic_api_key",
     }
 )
 
@@ -32,8 +44,17 @@ REDACTED = "[REDACTED]"
 
 # Libraries that emit a line per HTTP request or per signed AWS call.
 NOISY_LOGGERS = (
-    "httpx", "httpx2", "httpcore", "urllib3", "asyncio", "botocore", "boto3",
-    "s3transfer", "watchtower", "sentence_transformers", "sqlalchemy.engine",
+    "httpx",
+    "httpx2",
+    "httpcore",
+    "urllib3",
+    "asyncio",
+    "botocore",
+    "boto3",
+    "s3transfer",
+    "watchtower",
+    "sentence_transformers",
+    "sqlalchemy.engine",
 )
 
 # CloudWatch allows 256 KB per event; stay well below it.
@@ -41,10 +62,29 @@ MAX_MESSAGE_CHARS = 16_000
 
 _STANDARD_RECORD_ATTRS = frozenset(
     {
-        "args", "asctime", "created", "exc_info", "exc_text", "filename",
-        "funcName", "levelname", "levelno", "lineno", "module", "msecs",
-        "message", "msg", "name", "pathname", "process", "processName",
-        "relativeCreated", "stack_info", "taskName", "thread", "threadName",
+        "args",
+        "asctime",
+        "created",
+        "exc_info",
+        "exc_text",
+        "filename",
+        "funcName",
+        "levelname",
+        "levelno",
+        "lineno",
+        "module",
+        "msecs",
+        "message",
+        "msg",
+        "name",
+        "pathname",
+        "process",
+        "processName",
+        "relativeCreated",
+        "stack_info",
+        "taskName",
+        "thread",
+        "threadName",
     }
 )
 
@@ -52,8 +92,19 @@ _STANDARD_RECORD_ATTRS = frozenset(
 # queries stable; anything else is nested under "context".
 RESERVED_KEYS = frozenset(
     {
-        "timestamp", "level", "service", "env", "version", "logger", "message",
-        "trace_id", "session_id", "event", "duration_ms", "error", "context",
+        "timestamp",
+        "level",
+        "service",
+        "env",
+        "version",
+        "logger",
+        "message",
+        "trace_id",
+        "session_id",
+        "event",
+        "duration_ms",
+        "error",
+        "context",
     }
 )
 
@@ -104,11 +155,7 @@ def redact(value, _depth: int = 0):
 
     if isinstance(value, dict):
         return {
-            key: (
-                REDACTED
-                if isinstance(key, str) and key.lower() in REDACT_KEYS
-                else redact(subvalue, _depth + 1)
-            )
+            key: (REDACTED if isinstance(key, str) and key.lower() in REDACT_KEYS else redact(subvalue, _depth + 1))
             for key, subvalue in value.items()
         }
 
@@ -146,9 +193,9 @@ class JsonFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         # Browser events keep the client's timestamp, not the receive time.
-        timestamp = getattr(record, "timestamp", None) or datetime.fromtimestamp(
-            record.created, tz=timezone.utc
-        ).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+        timestamp = getattr(record, "timestamp", None) or datetime.fromtimestamp(record.created, tz=UTC).isoformat(
+            timespec="milliseconds"
+        ).replace("+00:00", "Z")
 
         payload = {
             "timestamp": timestamp,

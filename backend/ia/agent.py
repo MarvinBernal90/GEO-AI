@@ -5,23 +5,23 @@ AI ORCHESTRATOR: LANGGRAPH AGENT (VIABILITY)
 File: backend/ia/agent.py
 
 This module implements a Directed Acyclic Graph (DAG) using LangGraph.
-It acts as the central orchestrator, executing parallel queries to gather 
-both Phase 1 (GIS/Socioeconomic Data) and Phase 2 (Legal RAG) information. 
+It acts as the central orchestrator, executing parallel queries to gather
+both Phase 1 (GIS/Socioeconomic Data) and Phase 2 (Legal RAG) information.
 Finally, it passes both contexts to the LLM to synthesize a final business verdict.
 """
 
 import re
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
-from typing import Any, Callable, Iterator, Literal, NotRequired, TypedDict
+from typing import Any, Literal, NotRequired, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from backend.observability import get_logger
 from backend.rag.embeddings import EmbeddingFunction, embed_texts
 from backend.rag.query_engine import DEFAULT_MODEL, generate_answer
-
-from backend.observability import get_logger
 
 logger = get_logger("ia.agent")
 
@@ -40,9 +40,7 @@ ZONA_PGM_NOMBRES = {
 
 def zonas_pgm_disponibles(session: Session) -> list[str]:
     """Dynamically fetches available zones from the database (Phase 2 constraint)."""
-    rows = session.execute(
-        text("SELECT DISTINCT zona_pgm FROM legal_chunks WHERE zona_pgm IS NOT NULL")
-    ).all()
+    rows = session.execute(text("SELECT DISTINCT zona_pgm FROM legal_chunks WHERE zona_pgm IS NOT NULL")).all()
     return sorted(r[0] for r in rows)
 
 
@@ -51,6 +49,7 @@ class ViabilityState(TypedDict):
     Shared State Dictionary.
     This acts as the memory that travels between the nodes of the LangGraph DAG.
     """
+
     codi_districte: int
     zona_pgm: str
     pregunta_especifica: NotRequired[str | None]
@@ -62,6 +61,7 @@ class ViabilityState(TypedDict):
 @dataclass
 class ViabilityReport:
     """Final LLM Output Structure."""
+
     semaforo: Semaforo
     resumen: str
     datos_distrito: dict[str, Any]
@@ -109,8 +109,7 @@ def _construir_pregunta_legal(zona_pgm: str, pregunta_especifica: str | None = N
 
 
 def _construir_mensaje_sintesis(
-    datos: dict[str, Any] | None,
-    legal: dict[str, Any]
+    datos: dict[str, Any] | None, legal: dict[str, Any]
 ) -> tuple[str, list[dict[str, str]]]:
     """Compiles the Phase 1 and Phase 2 data into the final prompt for the LLM."""
     if datos is None:
@@ -126,14 +125,10 @@ def _construir_mensaje_sintesis(
         )
 
     articulos_citados = [
-        {"numero_articulo": c.numero_articulo, "fuente_legal": c.fuente_legal}
-        for c in legal["chunks_recuperados"]
+        {"numero_articulo": c.numero_articulo, "fuente_legal": c.fuente_legal} for c in legal["chunks_recuperados"]
     ]
 
-    citas_texto = ", ".join(
-        f"{a['fuente_legal']} Art. {a['numero_articulo']}"
-        for a in articulos_citados
-    )
+    citas_texto = ", ".join(f"{a['fuente_legal']} Art. {a['numero_articulo']}" for a in articulos_citados)
 
     bloque_legal = f"{legal['respuesta']}\n\n(Artículos consultados: {citas_texto or 'ninguno'})"
     mensaje = f"DATOS SOCIOECONÓMICOS:\n{bloque_datos}\n\nRESPUESTA LEGAL:\n{bloque_legal}"
@@ -144,7 +139,7 @@ def _construir_mensaje_sintesis(
 def _parsear_semaforo_y_resumen(texto: str) -> tuple[Semaforo, str]:
     """
     Sanitizes non-deterministic LLM output.
-    LLMs often append trailing punctuation (e.g., 'AMBAR.') despite instructions 
+    LLMs often append trailing punctuation (e.g., 'AMBAR.') despite instructions
     not to. We use Regex to strip punctuation before checking against the Enum.
     """
     texto = texto.strip()
@@ -154,20 +149,14 @@ def _parsear_semaforo_y_resumen(texto: str) -> tuple[Semaforo, str]:
     semaforo_texto = re.sub(r"[.!:;,]+$", "", primera_linea.strip().upper())
 
     if semaforo_texto not in ("VERDE", "AMBAR", "ROJO"):
-        logger.warning(
-            "The LLM failed to return a valid traffic light on line 1: %r",
-            primera_linea
-        )
+        logger.warning("The LLM failed to return a valid traffic light on line 1: %r", primera_linea)
         return "ambar", texto
-  
+
     return semaforo_texto.lower(), "\n".join(resto).strip()  # type: ignore
 
 
 def _crear_nodos_paralelos(
-    session: Session,
-    embed_fn: EmbeddingFunction,
-    llm_client: Any,
-    model: str
+    session: Session, embed_fn: EmbeddingFunction, llm_client: Any, model: str
 ) -> tuple[Callable[[ViabilityState], dict[str, Any]], Callable[[ViabilityState], dict[str, Any]]]:
     """
     Defines the two parallel nodes of the LangGraph DAG.
@@ -190,10 +179,7 @@ def _crear_nodos_paralelos(
             ).mappings().first()
 
         if row is None:
-            logger.warning(
-                "No data found in district_scorecard for district %s",
-                state["codi_districte"]
-            )
+            logger.warning("No data found in district_scorecard for district %s", state["codi_districte"])
             return {"datos_distrito": None}
 
         return {"datos_distrito": dict(row)}
@@ -222,12 +208,10 @@ def build_data_gathering_graph(
 ) -> Any:
     """
     Builds a partial LangGraph.
-    Used exclusively for Streaming, where we need the data collection to finish, 
+    Used exclusively for Streaming, where we need the data collection to finish,
     but we want to handle the final Synthesis node manually to stream the tokens.
     """
-    datos_socioeconomicos, normativa_legal = _crear_nodos_paralelos(
-        session, embed_fn, llm_client, model
-    )
+    datos_socioeconomicos, normativa_legal = _crear_nodos_paralelos(session, embed_fn, llm_client, model)
 
     graph = StateGraph(ViabilityState)
     graph.add_node("datos_socioeconomicos", datos_socioeconomicos)
@@ -250,9 +234,7 @@ def build_agent_graph(
     max_tokens: int = 4096,
 ) -> Any:
     """Builds the full LangGraph, including the final LLM Synthesis node."""
-    datos_socioeconomicos, normativa_legal = _crear_nodos_paralelos(
-        session, embed_fn, llm_client, model
-    )
+    datos_socioeconomicos, normativa_legal = _crear_nodos_paralelos(session, embed_fn, llm_client, model)
 
     def sintesis_final(state: ViabilityState) -> dict[str, Any]:
         from backend.rag.gemini_adapter import GeminiAsAnthropicAdapter
@@ -260,7 +242,7 @@ def build_agent_graph(
         client = llm_client if llm_client is not None else GeminiAsAnthropicAdapter()
         mensaje, articulos_citados = _construir_mensaje_sintesis(
             state["datos_distrito"],
-            state["respuesta_legal"]  # type: ignore
+            state["respuesta_legal"],  # type: ignore
         )
 
         response = client.messages.create(
@@ -307,13 +289,7 @@ def generar_informe_viabilidad(
     pregunta_especifica: str | None = None,
 ) -> dict[str, Any]:
     """Synchronous invocation of the full LangGraph Agent."""
-    app = build_agent_graph(
-        session,
-        embed_fn=embed_fn,
-        llm_client=llm_client,
-        model=model,
-        max_tokens=max_tokens
-    )
+    app = build_agent_graph(session, embed_fn=embed_fn, llm_client=llm_client, model=model, max_tokens=max_tokens)
     resultado = app.invoke(
         {"codi_districte": codi_districte, "zona_pgm": zona_pgm, "pregunta_especifica": pregunta_especifica}
     )
@@ -331,14 +307,12 @@ def generar_informe_viabilidad_stream(
     pregunta_especifica: str | None = None,
 ) -> Iterator[dict[str, Any]]:
     """
-    Streaming invocation. Uses the partial graph to gather data quickly, 
+    Streaming invocation. Uses the partial graph to gather data quickly,
     yields the raw data to the frontend, and then manages the LLM stream manually.
     """
     from backend.rag.gemini_adapter import GeminiAsAnthropicAdapter
 
-    grafo = build_data_gathering_graph(
-        session, embed_fn=embed_fn, llm_client=llm_client, model=model
-    )
+    grafo = build_data_gathering_graph(session, embed_fn=embed_fn, llm_client=llm_client, model=model)
     resultado = grafo.invoke(
         {"codi_districte": codi_districte, "zona_pgm": zona_pgm, "pregunta_especifica": pregunta_especifica}
     )

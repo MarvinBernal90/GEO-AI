@@ -6,9 +6,9 @@ File: backend/ia/chat_intent.py
 
 Converts a free-text user message into structured, deterministic parameters (JSON).
 Architectural Note (Extraction vs. Autonomous Agent):
-This is a single, stateless LLM call. It does NOT use tools or conversational 
-memory. It simply translates human language into a dictionary format that the 
-pre-existing, battle-tested geospatial pipeline (geocoding, amb_identify, RAG) 
+This is a single, stateless LLM call. It does NOT use tools or conversational
+memory. It simply translates human language into a dictionary format that the
+pre-existing, battle-tested geospatial pipeline (geocoding, amb_identify, RAG)
 can consume natively.
 """
 
@@ -35,12 +35,12 @@ def extraer_intencion(mensaje: str, llm_client=None, model: str | None = None) -
     """
     Returns {"direccion": str | None, "distrito_mencionado": str | None, "pregunta_especifica": str | None}.
 
-    Note on `distrito_mencionado`: Handles cases where the user provides general 
+    Note on `distrito_mencionado`: Handles cases where the user provides general
     location context but no exact street (e.g., "I know Les Corts, what do you recommend?").
 
-    Fail-Safe Design: 
-    If the LLM fails to return valid JSON, the function safely degrades by returning 
-    None for all fields, forcing the downstream Orchestrator to ask for clarification 
+    Fail-Safe Design:
+    If the LLM fails to return valid JSON, the function safely degrades by returning
+    None for all fields, forcing the downstream Orchestrator to ask for clarification
     rather than hallucinating an address to force the workflow to continue.
     """
     from backend.rag.gemini_adapter import GeminiAsAnthropicAdapter
@@ -61,7 +61,7 @@ def extraer_intencion(mensaje: str, llm_client=None, model: str | None = None) -
         logger.exception("Error llamando al LLM para extraer intención del chat")
         return {"direccion": None, "distrito_mencionado": None, "pregunta_especifica": None}
 
-    # Defensive Parsing: LLMs frequently hallucinate Markdown syntax even when 
+    # Defensive Parsing: LLMs frequently hallucinate Markdown syntax even when
     # explicitly instructed not to. This cleanly strips the syntax before parsing.
     texto = texto.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
 

@@ -35,8 +35,7 @@ def geocodificar(direccion: str = Query(..., min_length=3)):
     if resultado_geo is None:
         # GDPR: the address the user typed is personal data and is never
         # logged -- only the fact that it did not resolve.
-        log_event(logger, "WARNING", "Address could not be geocoded",
-                  event="direccion.no_encontrada")
+        log_event(logger, "WARNING", "Address could not be geocoded", event="direccion.no_encontrada")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No se pudo encontrar esa dirección dentro de Barcelona.",
@@ -47,7 +46,9 @@ def geocodificar(direccion: str = Query(..., min_length=3)):
     resultado_zona = identificar_zona_pgm(resultado_geo["lat"], resultado_geo["lon"])
     if resultado_zona is None:
         log_event(
-            logger, "WARNING", "Address geocoded but PGM zone could not be determined",
+            logger,
+            "WARNING",
+            "Address geocoded but PGM zone could not be determined",
             event="zona_pgm.no_determinada",
             codi_districte=resultado_geo["codi_districte"],
         )

@@ -4,13 +4,13 @@ GEOCODING ENGINE (OPENSTREETMAP NOMINATIM)
 ==============================================================================
 File: backend/geo/geocoding.py
 
-Translates a free-text address into spatial coordinates (Lat/Lon) and, when 
-possible, extracts the official Barcelona District code. 
+Translates a free-text address into spatial coordinates (Lat/Lon) and, when
+possible, extracts the official Barcelona District code.
 
 Architectural Note (Separation of Concerns):
-This module DOES NOT resolve the PGM Urban Zoning. Urban zoning requires the 
-official AMB Identify service (`amb_identify.py`) using the coordinates generated 
-here. This file relies exclusively on the 'suburb' field returned by Nominatim, 
+This module DOES NOT resolve the PGM Urban Zoning. Urban zoning requires the
+official AMB Identify service (`amb_identify.py`) using the coordinates generated
+here. This file relies exclusively on the 'suburb' field returned by Nominatim,
 which empirical testing confirmed matches Barcelona's 10 official districts.
 """
 
@@ -28,12 +28,12 @@ NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 USER_AGENT = "GeoYieldAI/1.0 (proyecto academico Pontia)"
 
 # Geospatial Bounding Box (min_lon, max_lat, max_lon, min_lat).
-# Restricts results to the Barcelona metropolitan area to prevent false positives 
+# Restricts results to the Barcelona metropolitan area to prevent false positives
 # (e.g., resolving a street name to another city).
 BARCELONA_VIEWBOX = "2.052,41.469,2.228,41.320"
 
 # Official 10 districts mapped to their integer codes.
-# Stored in lowercase for case-insensitive matching. Note that "les corts" 
+# Stored in lowercase for case-insensitive matching. Note that "les corts"
 # retains the article "les" as it is officially part of the proper noun.
 DISTRITOS_BARCELONA = {
     "ciutat vella": 1,
@@ -58,7 +58,7 @@ def resolver_distrito_desde_suburb(suburb: str | None) -> int | None:
 
     Lexical Strategy:
     1. Attempts an EXACT match first (crucial for "Les Corts").
-    2. If it fails, strips the leading Catalan article using Regex and retries 
+    2. If it fails, strips the leading Catalan article using Regex and retries
        (e.g., "l'Eixample" -> "Eixample").
     3. Returns None if no match is found (Fail-Safe: no fuzzy guessing).
     """
@@ -84,7 +84,7 @@ def geocodificar_direccion(direccion: str) -> dict | None:
     - lat, lon: Spatial coordinates (float).
     - direccion_encontrada: The full 'display_name' for UX validation.
     - codi_districte: The resolved integer district code (or None if unresolvable).
-    
+
     Returns None if the network request fails or yields no results.
     """
     params = {

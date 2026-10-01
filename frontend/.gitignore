@@ -41,6 +41,7 @@ dist-ssr
 # This ensures any developer cloning the repo is prompted to install the 
 # team's required extensions (like Vue Volar or Tailwind IntelliSense).
 !.vscode/extensions.json
+!.vscode/settings.json
 
 .idea
 .DS_Store

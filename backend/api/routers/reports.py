@@ -92,29 +92,30 @@ def listar_zonas_pgm(db: Session = Depends(get_session)):
 # and automatically offloads the execution to an external OS Threadpool,
 # maintaining server concurrency without requiring a complex asyncio rewrite.
 
+
 @router.post("/reports", response_model=InformeResponse)
 def crear_informe(payload: InformeRequest, db: Session = Depends(get_session)):
     """Generates the full viability report synchronously (Waits until finished)."""
     try:
-        informe = generar_informe_viabilidad(
-            db, codi_districte=payload.codi_districte, zona_pgm=payload.zona_pgm
-        )
-    except Exception:
+        informe = generar_informe_viabilidad(db, codi_districte=payload.codi_districte, zona_pgm=payload.zona_pgm)
+    except Exception as exc:
         # District and zone go in `context`, not interpolated into the
         # message, so Logs Insights can filter on them directly.
         logger.exception(
             "Report generation failed",
-            extra={"context": {
-                "codi_districte": payload.codi_districte,
-                "zona_pgm": payload.zona_pgm,
-            }},
+            extra={
+                "context": {
+                    "codi_districte": payload.codi_districte,
+                    "zona_pgm": payload.zona_pgm,
+                }
+            },
         )
         # Security/UX: Never leak raw Python Stack Traces to the Frontend.
         # Translate internal crashes into clean HTTP 502 Bad Gateway responses.
         raise HTTPException(
             status_code=502,
             detail="Could not generate the report (Failed to contact AI model or Database). Please try again later.",
-        )
+        ) from exc
     return informe
 
 
@@ -125,6 +126,7 @@ def crear_informe_stream(payload: InformeRequest, db: Session = Depends(get_sess
     This drastically improves Perceived Latency. Instead of staring at a
     loading spinner for 20 seconds, the user sees the LLM typing in real-time.
     """
+
     def eventos():
         try:
             for evento in generar_informe_viabilidad_stream(
@@ -135,10 +137,12 @@ def crear_informe_stream(payload: InformeRequest, db: Session = Depends(get_sess
         except Exception:
             logger.exception(
                 "Report streaming failed",
-                extra={"context": {
-                    "codi_districte": payload.codi_districte,
-                    "zona_pgm": payload.zona_pgm,
-                }},
+                extra={
+                    "context": {
+                        "codi_districte": payload.codi_districte,
+                        "zona_pgm": payload.zona_pgm,
+                    }
+                },
             )
             # Fail gracefully inside the stream
             error = {"type": "error", "detail": "Could not generate the report. Please try again later."}

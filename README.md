@@ -152,6 +152,20 @@ DB_HOST_OVERRIDE=localhost uvicorn backend.api.api:app --reload --port 8000
 
 Comprueba que responde en `http://localhost:8000/health` y `http://localhost:8000/ready`. La documentación interactiva de todos los endpoints está en `http://localhost:8000/docs` (generada automáticamente por FastAPI).
 
+#### Lint y formato del backend
+
+El backend usa [Ruff](https://docs.astral.sh/ruff/) como linter, formateador y ordenador de imports. La configuración está en [`pyproject.toml`](pyproject.toml) y hoy se aplica solo a `backend/`. Desde la raíz del repositorio:
+
+```bash
+pip install -r backend/requirements-dev.txt   # instala Ruff (solo desarrollo, no va a la imagen de producción)
+ruff check backend          # analiza el código
+ruff check backend --fix    # aplica las correcciones automáticas seguras
+ruff format backend         # formatea
+ruff format --check backend # comprueba el formato sin modificar archivos
+```
+
+El job `backend-lint` de `.github/workflows/integrate.yml` ejecuta `ruff check` y `ruff format --check` en cada Pull Request.
+
 ### Levantar el frontend
 
 ```bash
@@ -166,6 +180,19 @@ VITE_API_BASE_URL=http://localhost:8000
 
 
 Con ambos corriendo, abre `http://localhost:5173` en el navegador: ahí están el chat, el formulario, el mapa y el visor de normativa, todo integrado.
+
+#### Lint y formato del frontend
+
+El frontend usa ESLint (con `eslint-plugin-vue`) y Prettier. Desde `frontend/`:
+
+```bash
+npm run lint          # analiza el código con ESLint
+npm run lint:fix      # aplica las correcciones automáticas de ESLint
+npm run format        # formatea con Prettier
+npm run format:check  # comprueba el formato sin modificar archivos
+```
+
+El job `frontend-lint` de `.github/workflows/integrate.yml` ejecuta `lint` y `format:check` en cada Pull Request.
 
 ### Uso directo del motor RAG y el agente (sin la API, para depuración o notebooks)
 

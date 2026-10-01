@@ -4,17 +4,18 @@ RESPONSE SCHEMAS (PYDANTIC DTOs) - COMPETITORS
 ==============================================================================
 File: backend/api/schemas/competitors.py
 
-These schemas act as Data Transfer Objects (DTOs). Their function is to filter 
-and shape the data coming from the database (SQLAlchemy) before converting it 
+These schemas act as Data Transfer Objects (DTOs). Their function is to filter
+and shape the data coming from the database (SQLAlchemy) before converting it
 into a JSON payload for the frontend.
 
-Architectural Lesson: 
-We must never return the raw database model directly through the API. Doing so 
-would expose internal details (such as timestamps or the PostGIS binary format) 
-to the client. By using Pydantic, we ensure that we only send the latitude and 
-longitude in a format (float) that the Vue/Leaflet map natively understands, 
+Architectural Lesson:
+We must never return the raw database model directly through the API. Doing so
+would expose internal details (such as timestamps or the PostGIS binary format)
+to the client. By using Pydantic, we ensure that we only send the latitude and
+longitude in a format (float) that the Vue/Leaflet map natively understands,
 thereby saving bandwidth and enforcing a strict API contract.
 """
+
 from pydantic import BaseModel
 
 
