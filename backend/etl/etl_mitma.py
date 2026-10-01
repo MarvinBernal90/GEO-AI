@@ -15,13 +15,7 @@ from backend.observability import configure_logging, get_logger
 
 logger = get_logger("etl.mitma")
 
-PROGRESS = {
-    "status": "idle",
-    "progress": 0,
-    "start_time": None,
-    "elapsed": 0,
-    "message": ""
-}
+PROGRESS = {"status": "idle", "progress": 0, "start_time": None, "elapsed": 0, "message": ""}
 
 
 def process_mitma_data() -> pd.DataFrame:
