@@ -32,7 +32,7 @@ from backend.observability import (
 
 from . import deps
 from .metrics.metrics import metrics
-from .routers import articles, chat, competitors, geocoding, logs, reports
+from .routers import articles, chat, competitors, etl, geocoding, logs, reports
 
 # Also configured here, not only in main.py, so `uvicorn backend.api.api:app`
 # is covered. Idempotent.
@@ -72,6 +72,7 @@ app.include_router(articles.router)
 app.include_router(geocoding.router)
 app.include_router(chat.router)
 app.include_router(logs.router)
+app.include_router(etl.router)
 
 # Probes are called every few seconds; logging them is paid-for noise.
 UNLOGGED_PATHS = frozenset({"/health", "/ready", "/metrics"})

@@ -15,7 +15,7 @@ import VerdictCard from './components/VerdictCard.vue'
 import ChatBubble from './components/ChatBubble.vue'
 import DistrictMap from './components/DistrictMap.vue'
 import RegulationsViewer from './components/RegulationsViewer.vue'
-import { chatInformeStream, generarInformeStream } from './services/api.js'
+import { chatInformeStream, generarInformeStream, dispararEtlMitma } from './services/api.js'
 import { createLogger } from './services/logger.js'
 
 const log = createLogger('app.informe')
@@ -26,6 +26,23 @@ const SEMAFOROS_VALIDOS = ['verde', 'ambar', 'rojo']
 const cargando = ref(false)
 const error = ref(null)
 const articuloSeleccionado = ref(null)
+const etlStatus = ref(null)
+
+async function onTriggerETL() {
+  etlStatus.value = 'Actualizando Datos del MITMA...'
+  try {
+    await dispararEtlMitma()
+    etlStatus.value = 'Proceso terminado'
+    setTimeout(() => {
+      etlStatus.value = null
+    }, 5000)
+  } catch (err) {
+    etlStatus.value = 'Error: ' + err.message
+    setTimeout(() => {
+      etlStatus.value = null
+    }, 5000)
+  }
+}
 
 // Global Data State
 const codiDistrictePedido = ref(null)
@@ -188,6 +205,16 @@ async function onEnviarChat() {
           Selecciona un distrito y una zona urbanística de Barcelona para generar un informe que cruza la normativa
           legal vigente con datos socioeconómicos reales.
         </p>
+
+        <div class="mt-6 flex items-center justify-center sm:justify-start gap-4">
+          <button
+            class="rounded border border-brass/50 px-3 py-1.5 text-xs font-medium text-brass transition hover:bg-brass/10"
+            @click="onTriggerETL"
+          >
+            Actualizar Datos MITMA (ETL)
+          </button>
+          <span v-if="etlStatus" class="text-xs text-brass animate-fade-in">{{ etlStatus }}</span>
+        </div>
       </header>
 
       <section class="mb-8 rounded-xl border border-paper/15 bg-ink-light/50 p-6 shadow-lg backdrop-blur-sm">

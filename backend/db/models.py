@@ -79,6 +79,7 @@ class DistrictMobility(Base):
     __tablename__ = "district_mobility"
     codi_districte: Mapped[int] = mapped_column(SmallInteger, ForeignKey("districts.codi_districte"), primary_key=True)
     daily_foot_traffic: Mapped[float] = mapped_column(Numeric(14, 2), nullable=False)
+    total_trips: Mapped[int | None] = mapped_column(nullable=True)
     fecha: Mapped[date | None] = mapped_column(Date)
     loaded_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
