@@ -1,6 +1,7 @@
-from fastapi import APIRouter, BackgroundTasks
-from backend.observability import get_logger
+from fastapi import APIRouter
+
 from backend.etl.etl_mitma import run_etl
+from backend.observability import get_logger
 
 logger = get_logger("api.routers.etl")
 router = APIRouter(prefix="/api/etl", tags=["ETL"])

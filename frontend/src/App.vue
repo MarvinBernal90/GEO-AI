@@ -31,7 +31,7 @@ const etlStatus = ref(null)
 async function onTriggerETL() {
   etlStatus.value = 'Actualizando Datos del MITMA...'
   try {
-    const res = await dispararEtlMitma()
+    await dispararEtlMitma()
     etlStatus.value = 'Proceso terminado'
     setTimeout(() => { etlStatus.value = null }, 5000)
   } catch (err) {
@@ -204,8 +204,8 @@ async function onEnviarChat() {
         
         <div class="mt-6 flex items-center justify-center sm:justify-start gap-4">
           <button 
-            @click="onTriggerETL"
             class="rounded border border-brass/50 px-3 py-1.5 text-xs font-medium text-brass transition hover:bg-brass/10"
+            @click="onTriggerETL"
           >
             Actualizar Datos MITMA (ETL)
           </button>
