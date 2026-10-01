@@ -171,7 +171,7 @@ def _crear_nodos_paralelos(
                     text(
                         "SELECT ds.codi_districte, ds.nom_districte, ds.renta_media, ds.daily_foot_traffic, "
                         "ds.total_competitors, ds.opportunity_score, "
-                        "dm.total_trips AS viajes_intraprovinciales "
+                        "dm.total_trips AS viajes_intraprovinciales, dm.predominant_age "
                         "FROM district_scorecard ds "
                         "LEFT JOIN district_mobility dm ON ds.codi_districte = dm.codi_districte "
                         "WHERE ds.codi_districte = :codi"

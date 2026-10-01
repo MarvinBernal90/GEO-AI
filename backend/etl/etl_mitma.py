@@ -1,3 +1,5 @@
+import time
+
 import pandas as pd
 from sqlalchemy import create_engine
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -12,6 +14,8 @@ from backend.etl import config
 from backend.observability import configure_logging, get_logger
 
 logger = get_logger("etl.mitma")
+
+PROGRESS = {"status": "idle", "progress": 0, "start_time": None, "elapsed": 0, "message": ""}
 
 
 def process_mitma_data() -> pd.DataFrame:
@@ -42,88 +46,105 @@ def process_mitma_data() -> pd.DataFrame:
     # Process each mobility file from MITMA
     all_trips = []
 
-    # Tamaño del trozo (chunk) para no saturar memoria y ver el progreso
+    # Size of chunk
     chunk_size = 2_000_000
+    num_files = len(config.PATHS_MITMA_MOBILITY)
 
-    for path in config.PATHS_MITMA_MOBILITY:
+    for file_idx, path in enumerate(config.PATHS_MITMA_MOBILITY):
+        PROGRESS["progress"] = int((file_idx / num_files) * 80)
+        PROGRESS["message"] = f"Procesando archivo {file_idx + 1}/{num_files}: {path.name}"
         file_size_mb = path.stat().st_size / (1024 * 1024)
         logger.info(f"Processing file: {path.name} (Size: {file_size_mb:.1f} MB)")
 
         trips_in_chunks = []
         trips_out_chunks = []
 
-        # Leemos el archivo poco a poco (en chunks)
+        # Reading in chunks
         csv_iterator = pd.read_csv(
-            path, sep="|", dtype={"destino": str, "origen": str}, compression="infer", chunksize=chunk_size
+            path, sep="|", dtype={"destino": str, "origen": str, "edad": str}, compression="infer", chunksize=chunk_size
         )
 
         for i, chunk in enumerate(csv_iterator):
             logger.info(f"  -> {path.name}: Leyendo bloque {i + 1} (~{chunk_size * (i + 1):,} filas...)")
 
-            # Limpieza: eliminar filas con nulos en las columnas clave
-            chunk = chunk.dropna(subset=["origen", "destino", "viajes"])
+            # Delete rows with missing values in critical columns and filter out 'NA' ages
+            chunk = chunk.dropna(subset=["origen", "destino", "edad", "viajes"])
+            chunk = chunk[chunk["edad"] != "NA"]
 
-            # 1. Viajes que llegan al distrito (destino)
+            # Trips that enter the district (destino)
             is_bcn_dest = chunk["destino"].str.startswith(config.BARCELONA_MUNICIPIO_CODE, na=False)
-            trips_in_chunk = chunk[is_bcn_dest].groupby("destino", as_index=False)["viajes"].sum()
+            trips_in_chunk = chunk[is_bcn_dest].groupby(["destino", "edad"], as_index=False)["viajes"].sum()
             trips_in_chunks.append(trips_in_chunk)
 
-            # 2. Viajes que salen del distrito (origen)
+            # Trips that leave the district (origen)
             is_bcn_orig = chunk["origen"].str.startswith(config.BARCELONA_MUNICIPIO_CODE, na=False)
             trips_out_chunk = chunk[is_bcn_orig].groupby("origen", as_index=False)["viajes"].sum()
             trips_out_chunks.append(trips_out_chunk)
 
-        # Consolidar los trozos de este archivo
+        # Consolidate the segments of this file
         logger.info(f"  -> {path.name}: Consolidando datos del archivo...")
-        trips_in = pd.concat(trips_in_chunks).groupby("destino", as_index=False)["viajes"].sum()
+        trips_in_with_age = pd.concat(trips_in_chunks).groupby(["destino", "edad"], as_index=False)["viajes"].sum()
+
+        trips_in = trips_in_with_age.groupby("destino", as_index=False)["viajes"].sum()
         trips_in.rename(columns={"destino": "distrito_id", "viajes": "viajes_in"}, inplace=True)
 
         trips_out = pd.concat(trips_out_chunks).groupby("origen", as_index=False)["viajes"].sum()
         trips_out.rename(columns={"origen": "distrito_id", "viajes": "viajes_out"}, inplace=True)
 
-        # 3. Consolidar entradas y salidas por archivo
+        # Consolidate Incoming and Outgoing Transactions by File
         trips_file = pd.merge(trips_in, trips_out, on="distrito_id", how="outer").fillna(0)
 
-        all_trips.append(trips_file[["distrito_id", "viajes_in", "viajes_out"]])
+        #  Save the age information to add it later
+        trips_in_with_age.rename(columns={"destino": "distrito_id"}, inplace=True)
+        all_trips.append({"totals": trips_file[["distrito_id", "viajes_in", "viajes_out"]], "ages": trips_in_with_age})
         logger.info(f"Terminado con {path.name}")
 
     if not all_trips:
         raise ValueError("No se encontraron archivos CSV de MITMA para procesar.")
 
-    # 4. Consolidar todas las fechas
+    PROGRESS["progress"] = 80
+    PROGRESS["message"] = "Consolidando fechas y cruzando con población..."
+    # Consolidate all dates
     logger.info("Consolidando fechas y cruzando con población...")
-    df_all = pd.concat(all_trips)
+    df_all_totals = pd.concat([t["totals"] for t in all_trips])
+    df_all_ages = pd.concat([t["ages"] for t in all_trips])
 
-    # Sumarizamos los viajes in y out de todos los días y calculamos el promedio
+    # We tally the daily inbound and outbound trips and calculate the average
     num_dias = len(config.PATHS_MITMA_MOBILITY)
-    df_grouped = df_all.groupby("distrito_id", as_index=False)[["viajes_in", "viajes_out"]].sum()
+    df_grouped = df_all_totals.groupby("distrito_id", as_index=False)[["viajes_in", "viajes_out"]].sum()
     df_grouped["viajes_in_promedio"] = df_grouped["viajes_in"] / num_dias
     df_grouped["viajes_out_promedio"] = df_grouped["viajes_out"] / num_dias
 
-    # 5. Cruzar con metadatos de Barcelona y calcular la métrica final
+    # Calculate the predominant age by district
+    df_ages_sum = df_all_ages.groupby(["distrito_id", "edad"], as_index=False)["viajes"].sum()
+    pred_age = df_ages_sum.loc[df_ages_sum.groupby("distrito_id")["viajes"].idxmax()][["distrito_id", "edad"]]
+    pred_age.rename(columns={"edad": "predominant_age"}, inplace=True)
+    df_grouped = df_grouped.merge(pred_age, on="distrito_id", how="left")
+
+    # Cross-reference with metadata from Barcelona and calculate the final metric
     df_final = df_bcn.merge(df_grouped, left_on="ID", right_on="distrito_id", how="left")
     df_final["viajes_in_promedio"] = df_final["viajes_in_promedio"].fillna(0)
     df_final["viajes_out_promedio"] = df_final["viajes_out_promedio"].fillna(0)
 
-    # Población Flotante: Población residente + Los que entran - Los que salen
+    # Floating Population: Resident Population + In-migrants - Out-migrants
     df_final["poblacion_flotante"] = (
         df_final["poblacion"] + df_final["viajes_in_promedio"] - df_final["viajes_out_promedio"]
     )
 
-    # Calculamos el daily_foot_traffic (índice de afluencia respecto a la población base)
-    # Ejemplo: Si hay 110 flotantes y 100 residentes -> índice de 1.10
+    # Calculating the daily_foot_traffic (foot traffic index relative to the base population)
+    # Example: If there are 110 non-residents and 100 residents -> ratio of 1.10
     df_final["daily_foot_traffic"] = df_final.apply(
         lambda row: row["poblacion_flotante"] / row["poblacion"] if row["poblacion"] > 0 else 0, axis=1
     )
 
-    # 6. Preparar DataFrame para la base de datos (extraer el codi_districte, ej. de 0801901 -> 1)
+    # Prepare the DataFrame for the database (extract the codi_districte, e.g., from 0801901 to 1)
     df_final["codi_districte"] = df_final["ID"].str[-2:].astype(int)
 
-    # Asignamos una fecha representativa (hoy) o la última fecha procesada
+    # Set a representative date (today) or the most recent processed date
     df_final["fecha"] = pd.Timestamp.today().date()
 
-    # Seleccionar solo las columnas necesarias para la BD
-    db_df = df_final[["codi_districte", "daily_foot_traffic", "poblacion_flotante", "fecha"]].copy()
+    # Select only the columns needed for the database
+    db_df = df_final[["codi_districte", "daily_foot_traffic", "poblacion_flotante", "predominant_age", "fecha"]].copy()
     db_df.rename(columns={"poblacion_flotante": "total_trips"}, inplace=True)
 
     return db_df
@@ -153,13 +174,23 @@ def _upsert_mobility(session: Session, df: pd.DataFrame) -> None:
 def run_etl():
     """Main function that performs the three steps: Extract, Transform, Load."""
     logger.info("Starting the Mobility (MITMA) ETL process with multiple files and population...")
+    PROGRESS["status"] = "running"
+    PROGRESS["progress"] = 0
+    PROGRESS["start_time"] = time.time()
+    PROGRESS["message"] = "Iniciando proceso ETL MITMA..."
 
     # 1. Extract and Transform
     try:
         mobility_df = process_mitma_data()
         logger.info("Pandas cleanup and aggregation completed successfully.")
+
+        PROGRESS["progress"] = 90
+        PROGRESS["message"] = "Volcando a PostgreSQL..."
     except Exception as e:
         logger.error(f"Error during extraction and cleaning: {e}")
+        PROGRESS["status"] = "error"
+        PROGRESS["message"] = f"Error: {e}"
+        PROGRESS["elapsed"] = time.time() - PROGRESS["start_time"]
         return
 
     # 2. Connect to Database
@@ -172,11 +203,21 @@ def run_etl():
 
     # 3. Load to Database
     logger.info("Starting data dump to PostgreSQL...")
-    with Session(engine) as session:
-        _upsert_mobility(session, mobility_df)
-        session.commit()
+    try:
+        with Session(engine) as session:
+            _upsert_mobility(session, mobility_df)
+            session.commit()
 
-    logger.info("MITMA's ETL process was successfully completed.")
+        logger.info("MITMA's ETL process was successfully completed.")
+        PROGRESS["status"] = "completed"
+        PROGRESS["progress"] = 100
+        PROGRESS["message"] = "Proceso ETL terminado con éxito."
+    except Exception as e:
+        logger.error(f"Error during database dump: {e}")
+        PROGRESS["status"] = "error"
+        PROGRESS["message"] = f"DB Error: {e}"
+    finally:
+        PROGRESS["elapsed"] = time.time() - PROGRESS["start_time"]
 
 
 if __name__ == "__main__":

@@ -126,6 +126,13 @@ export async function dispararEtlMitma() {
 }
 
 /**
+ * Gets the current progress of the MITMA ETL background process.
+ */
+export async function getEtlMitmaProgress() {
+  return request('getEtlMitmaProgress', `${API_BASE_URL}/api/etl/mitma/progress`)
+}
+
+/**
  * Fetches commercial competitors. If coordinates {lat, lon} are provided,
  * performs a geospatial radius search instead of a district-wide search.
  */

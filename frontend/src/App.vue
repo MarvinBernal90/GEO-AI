@@ -15,7 +15,7 @@ import VerdictCard from './components/VerdictCard.vue'
 import ChatBubble from './components/ChatBubble.vue'
 import DistrictMap from './components/DistrictMap.vue'
 import RegulationsViewer from './components/RegulationsViewer.vue'
-import { chatInformeStream, generarInformeStream, dispararEtlMitma } from './services/api.js'
+import { chatInformeStream, generarInformeStream, dispararEtlMitma, getEtlMitmaProgress } from './services/api.js'
 import { createLogger } from './services/logger.js'
 
 const log = createLogger('app.informe')
@@ -27,20 +27,43 @@ const cargando = ref(false)
 const error = ref(null)
 const articuloSeleccionado = ref(null)
 const etlStatus = ref(null)
+const etlProgress = ref(0)
+const etlElapsed = ref(0)
+let etlInterval = null
 
 async function onTriggerETL() {
-  etlStatus.value = 'Actualizando Datos del MITMA...'
+  if (etlStatus.value === 'running') return
+  etlStatus.value = 'running'
+  etlProgress.value = 0
+  etlElapsed.value = 0
+
   try {
     await dispararEtlMitma()
-    etlStatus.value = 'Proceso terminado'
-    setTimeout(() => {
-      etlStatus.value = null
-    }, 5000)
+
+    if (etlInterval) clearInterval(etlInterval)
+    etlInterval = setInterval(async () => {
+      try {
+        const state = await getEtlMitmaProgress()
+        etlProgress.value = state.progress
+        etlElapsed.value = Math.floor(state.elapsed)
+
+        if (state.status === 'completed' || state.status === 'error') {
+          clearInterval(etlInterval)
+          etlStatus.value = state.status === 'completed' ? 'success' : 'error'
+          setTimeout(() => {
+            if (etlStatus.value === 'success' || etlStatus.value === 'error') etlStatus.value = null
+          }, 8000)
+        }
+      } catch (err) {
+        console.error('Error polling ETL progress:', err)
+      }
+    }, 2000)
   } catch (err) {
-    etlStatus.value = 'Error: ' + err.message
+    console.error('Failed to start ETL:', err)
+    etlStatus.value = 'error'
     setTimeout(() => {
       etlStatus.value = null
-    }, 5000)
+    }, 8000)
   }
 }
 
@@ -206,14 +229,36 @@ async function onEnviarChat() {
           legal vigente con datos socioeconómicos reales.
         </p>
 
-        <div class="mt-6 flex items-center justify-center sm:justify-start gap-4">
-          <button
-            class="rounded border border-brass/50 px-3 py-1.5 text-xs font-medium text-brass transition hover:bg-brass/10"
-            @click="onTriggerETL"
-          >
-            Actualizar Datos MITMA (ETL)
-          </button>
-          <span v-if="etlStatus" class="text-xs text-brass animate-fade-in">{{ etlStatus }}</span>
+        <div class="flex flex-col gap-3">
+          <div class="flex items-center gap-4">
+            <button
+              class="rounded border border-brass/50 px-3 py-1.5 text-xs font-medium text-brass transition hover:bg-brass/10 disabled:opacity-50 disabled:cursor-not-allowed"
+              :disabled="etlStatus === 'running'"
+              @click="onTriggerETL"
+            >
+              Actualizar Datos MITMA (ETL)
+            </button>
+
+            <span
+              v-if="etlStatus === 'success'"
+              class="text-xs text-[#065f46] bg-[#d1fae5] px-2 py-1 rounded animate-fade-in"
+              >✅ Completado ({{ etlElapsed }}s)</span
+            >
+            <span v-if="etlStatus === 'error'" class="text-xs text-rojo animate-fade-in">❌ Error en ETL</span>
+          </div>
+
+          <div v-if="etlStatus === 'running'" class="w-full max-w-xs animate-fade-in">
+            <div class="flex justify-between text-[10px] text-paper/70 mb-1">
+              <span>Procesando datos (~{{ etlElapsed }}s)</span>
+              <span>{{ etlProgress }}%</span>
+            </div>
+            <div class="h-1.5 w-full bg-paper/10 rounded-full overflow-hidden">
+              <div
+                class="h-full bg-brass transition-all duration-500 ease-out"
+                :style="{ width: `${etlProgress}%` }"
+              ></div>
+            </div>
+          </div>
         </div>
       </header>
 
