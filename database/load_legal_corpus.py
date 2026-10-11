@@ -35,7 +35,7 @@ def load_corpus_from_directory(
     session: Session, pdf_dir: Path, embed_fn: EmbeddingFunction = embed_texts
 ) -> int:
     """Orchestrates the Extraction, Transformation, and Vectorization processes."""
-    pdf_paths = sorted(pdf_dir.glob("*.pdf"))
+    pdf_paths = sorted(pdf_dir.rglob("*.pdf"))
     if not pdf_paths:
         logger.warning(f"No se encontraron PDF en {pdf_dir}")
         return 0
