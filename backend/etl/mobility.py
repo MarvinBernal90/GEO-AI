@@ -16,9 +16,9 @@ import pandas as pd
 from .config import BARCELONA_MUNICIPIO_CODE
 
 
-def read_raw_mobility(path) -> pd.DataFrame:
+def read_raw_mobility(path_or_paths) -> pd.DataFrame:
     """
-    Reads the raw MITMA mobility CSV file.
+    Reads one or multiple raw MITMA mobility CSV files.
 
     Data Engineering Note (Silent Bug Prevention):
     The `sep="|"` is intentional, as MITMA uses pipes instead of commas.
@@ -31,10 +31,15 @@ def read_raw_mobility(path) -> pd.DataFrame:
     with "08019", the filter fails completely, returning an empty table.
     Forcing `str` parsing protects the data integrity.
     """
-    return pd.read_csv(path, sep="|", dtype={"destino": str, "origen": str}, compression="infer")
+    paths = path_or_paths if isinstance(path_or_paths, (list, tuple)) else [path_or_paths]
+    dfs = []
+    for p in paths:
+        df = pd.read_csv(p, sep="|", dtype={"destino": str, "origen": str}, compression="infer")
+        dfs.append(df)
+    return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
 
 
-def build_district_mobility(raw_df: pd.DataFrame) -> pd.DataFrame:
+def build_district_mobility(raw_df: pd.DataFrame, num_files: int = 1) -> pd.DataFrame:
     """
     Transforms the raw MITMA Big Data into a simple district-level summary.
 
@@ -44,7 +49,8 @@ def build_district_mobility(raw_df: pd.DataFrame) -> pd.DataFrame:
         2. We filter the nationwide dataset to keep ONLY rows where the
            destination starts with "08019".
         3. We extract the last two characters to get the `codi_districte`.
-        4. Group by district and sum the total trips to get foot traffic.
+        4. Group by district and sum the total trips to get foot traffic,
+           dividing by the number of dates/files to obtain daily average.
     """
     df = raw_df.copy()
     df["destino"] = df["destino"].astype(str)
@@ -64,16 +70,25 @@ def build_district_mobility(raw_df: pd.DataFrame) -> pd.DataFrame:
     # 2. Extract District ID (e.g., from "0801901" to 1)
     df["codi_districte"] = df["destino"].str[-2:].astype(int)
 
-    # 3. Aggregation: Sum all trips into a single daily foot traffic metric
-    aggregated = df.groupby("codi_districte", as_index=False).agg(daily_foot_traffic=("viajes", "sum"))
+    # 3. Aggregation: Sum all trips and average by number of dates/files
+    divisor = num_files if num_files > 0 else 1
+    if "fecha" in df.columns and df["fecha"].nunique() > 1:
+        divisor = df["fecha"].nunique()
 
-    # 4. Metadata: The dataset usually represents a single day.
-    # We extract the date from the first row just for context.
-    aggregated["fecha"] = pd.to_datetime(df["fecha"].iloc[0], format="%Y%m%d").date()
+    aggregated = df.groupby("codi_districte", as_index=False).agg(daily_foot_traffic=("viajes", "sum"))
+    aggregated["daily_foot_traffic"] = aggregated["daily_foot_traffic"] / divisor
+
+    # 4. Metadata: Take the date from the data or today's date
+    if "fecha" in df.columns and not df["fecha"].empty:
+        aggregated["fecha"] = pd.to_datetime(df["fecha"].iloc[0], format="%Y%m%d").date()
+    else:
+        aggregated["fecha"] = pd.Timestamp.today().date()
 
     return aggregated
 
 
-def load_district_mobility(path) -> pd.DataFrame:
-    """Wrapper function: Reads and transforms the dataset in a single call."""
-    return build_district_mobility(read_raw_mobility(path))
+def load_district_mobility(path_or_paths) -> pd.DataFrame:
+    """Wrapper function: Reads and transforms the dataset(s) in a single call."""
+    paths = path_or_paths if isinstance(path_or_paths, (list, tuple)) else [path_or_paths]
+    raw_df = read_raw_mobility(paths)
+    return build_district_mobility(raw_df, num_files=len(paths))

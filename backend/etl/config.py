@@ -38,7 +38,7 @@ PATH_INE_RENTA = RAW_DATA_DIR / "renta_media_por_distrito.csv"
 # Note on GZIP: The MITMA dataset is massive, so they distribute it compressed (.csv.gz).
 # Pandas' read_csv detects the compression automatically by the file extension.
 # Since we have multiple dates, we dynamically find all of them.
-PATHS_MITMA_MOBILITY = list(RAW_DATA_DIR.glob("*_Viajes_distritos.csv.gz"))
+PATHS_MITMA_MOBILITY = sorted(RAW_DATA_DIR.glob("*_Viajes_distritos.csv.gz"))
 PATH_NOMBRES_DISTRITOS = RAW_DATA_DIR / "nombres_distritos.csv"
 PATH_POBLACION_DISTRITOS = RAW_DATA_DIR / "poblacion_distritos.csv"
 
