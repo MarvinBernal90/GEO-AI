@@ -247,6 +247,7 @@ Este proyecto aplica los conocimientos de ingeniería adquiridos en el Máster:
 
 - **Contenedores:** Imágenes Docker propias para la API (`deployment/Dockerfile`) y para la base de datos (`deployment/Dockerfile.postgis`, Postgres + PostGIS + pgvector), para que el entorno de desarrollo sea idéntico al de producción.
 - **Migraciones:** Alembic, versionadas en `database/alembic/versions/` — cada cambio de esquema es un fichero nuevo, nunca se edita uno ya aplicado.
+- **AWS RDS:** Guía de migración de PostgreSQL con PostGIS y pgvector: [docs/aws-rds-migration.md](docs/aws-rds-migration.md).
 - **CI/CD:** Pipeline en GitHub Actions (`integrate.yml`) que ejecuta los tests en cada pull request, y despliegue manual (`deploy.yml`) a Render.
 - **Observabilidad:** Logging estructurado en JSON compartido por backend y frontend (ver *Structured logging* más abajo), más el contador de peticiones de `/metrics`. Las métricas específicas del agente/RAG (latencia del LLM, tasa de citas verificadas) se añadirán en la Fase 3.
 
