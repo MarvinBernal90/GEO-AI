@@ -46,10 +46,8 @@ pandas==3.0.2
 # collect stdout (the Render case). On ECS/Fargate/App Runner the host driver
 # already ships stdout and these two are unnecessary.
 #
-# The import is lazy (backend/observability/cloudwatch.py), so the app starts
-# fine without them while the flag stays false. Left commented out so boto3
-# (~15 MB with transitives) is not imposed on anyone who does not need it.
-# boto3==1.41.20
+# --- AWS SDK (Amazon Bedrock inference + CloudWatch logging) ---
+boto3>=1.34.0
 # watchtower==3.5.0
 
 # --- Code quality and testing ---

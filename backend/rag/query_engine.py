@@ -15,19 +15,20 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from sentence_transformers import CrossEncoder
 from sqlalchemy.orm import Session
 
 from backend.db.models import LegalChunk
 from backend.rag.embeddings import EmbeddingFunction, embed_texts
 
-# Allows seamless upgrades to newer Gemini models via environment variables
-# DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
-DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+# AWS Bedrock Foundation Models (Amazon Nova Lite for generation by default)
+DEFAULT_MODEL = os.getenv(
+    "GENERATION_MODEL",
+    os.getenv("BEDROCK_MODEL", os.getenv("GEMINI_MODEL", "amazon.nova-lite-v1:0")),
+)
 
-# Cross-encoder used to rerank retrieved chunks -- see
-# retrieve_relevant_chunks_with_rerank below.
-RERANK_MODEL = os.getenv("RERANK_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
+# Cross-encoder / reranker model (Amazon Rerank 1.0 by default)
+DEFAULT_RERANK_MODEL = "amazon.rerank-v1:0"
+RERANK_MODEL = os.getenv("RERANK_MODEL", DEFAULT_RERANK_MODEL)
 
 # ------------------------------------------------------------------------------
 # PROMPT ENGINEERING
@@ -133,6 +134,75 @@ def retrieve_relevant_chunks(
     ]
 
 
+def _is_bedrock_rerank_model(model_name: str) -> bool:
+    """Checks whether the configured model name refers to an Amazon Bedrock rerank model."""
+    return (
+        model_name.startswith("amazon.rerank")
+        or model_name.startswith("cohere.rerank")
+        or model_name.startswith("arn:aws:bedrock:")
+    )
+
+
+def _rerank_with_bedrock(
+    query: str,
+    chunks: list[RetrievedChunk],
+    model_name: str,
+    final_top_k: int,
+    client: Any = None,
+) -> list[RetrievedChunk]:
+    """Invokes Amazon Bedrock Agent Runtime Rerank API."""
+    if not chunks:
+        return []
+
+    import boto3
+    from botocore.config import Config
+
+    region = os.getenv("AWS_RERANK_REGION", os.getenv("AWS_REGION", "eu-central-1"))
+    rerank_client = client or boto3.client(
+        "bedrock-agent-runtime",
+        region_name=region,
+        config=Config(retries={"max_attempts": 3, "mode": "adaptive"}),
+    )
+
+    if not model_name.startswith("arn:aws:"):
+        model_arn = f"arn:aws:bedrock:{region}::foundation-model/{model_name}"
+    else:
+        model_arn = model_name
+
+    sources = [
+        {
+            "type": "INLINE",
+            "inlineDocumentSource": {
+                "type": "TEXT",
+                "textDocument": {
+                    "text": f"{c.numero_articulo}||{c.titulo}||{c.contenido}||{c.fuente_legal}"
+                },
+            },
+        }
+        for c in chunks
+    ]
+
+    response = rerank_client.rerank(
+        queries=[{"type": "TEXT", "textQuery": {"text": query}}],
+        sources=sources,
+        rerankingConfiguration={
+            "type": "BEDROCK_RERANKING_MODEL",
+            "bedrockRerankingConfiguration": {
+                "modelConfiguration": {"modelArn": model_arn},
+                "numberOfResults": min(final_top_k, len(chunks)),
+            },
+        },
+    )
+
+    results = response.get("results", [])
+    reranked: list[RetrievedChunk] = []
+    for r in results:
+        idx = r.get("index")
+        if idx is not None and 0 <= idx < len(chunks):
+            reranked.append(chunks[idx])
+    return reranked
+
+
 def retrieve_relevant_chunks_with_rerank(
     session: Session,
     query: str,
@@ -141,34 +211,31 @@ def retrieve_relevant_chunks_with_rerank(
     zona_pgm: str | None = None,
     cross_encoder_model: str = RERANK_MODEL,
     final_top_k: int = 4,
+    rerank_client: Any = None,
 ) -> list[RetrievedChunk]:
     """
-    Reranks the list of chunks obtained from retrieve_relevant_chunks using a
-    cross-encoder model, for higher-precision relevance ordering than raw
-    cosine distance alone.
-
-    Args:
-        session: SQLAlchemy active session.
-        query: The question used to retrieve the initial candidate chunks.
-        embed_fn: Embedding function used for the initial retrieval step.
-        top_k: Number of candidate chunks to retrieve before reranking.
-        zona_pgm: Optional PGM zone to filter the initial retrieval by.
-        cross_encoder_model: Name of the cross-encoder model used for reranking.
-        final_top_k: Number of chunks to return after reranking.
-
-    Returns:
-        The final_top_k chunks, reordered by the cross-encoder's relevance score.
+    Reranks the list of chunks obtained from retrieve_relevant_chunks using an
+    AI reranking model (Amazon Bedrock Rerank or local CrossEncoder) for
+    higher-precision relevance ordering.
     """
-
     chunks = retrieve_relevant_chunks(session, query, embed_fn, top_k, zona_pgm)
+    if not chunks:
+        return []
+
+    if _is_bedrock_rerank_model(cross_encoder_model):
+        return _rerank_with_bedrock(
+            query=query,
+            chunks=chunks,
+            model_name=cross_encoder_model,
+            final_top_k=final_top_k,
+            client=rerank_client,
+        )
+
+    from sentence_transformers import CrossEncoder
 
     model = CrossEncoder(cross_encoder_model)
-
     texts = [f"{c.numero_articulo}||{c.titulo}||{c.contenido}||{c.fuente_legal}" for c in chunks]
-
     ranks = model.rank(query, texts, final_top_k)
-
-    # corpus_id is the index into the original list of RetrievedChunks
     return [chunks[r["corpus_id"]] for r in ranks]
 
 
@@ -207,9 +274,9 @@ def generate_answer(
 
     # Lazy load the Adapter to prevent cyclic dependencies or unnecessary imports
     if llm_client is None:
-        from backend.rag.gemini_adapter import GeminiAsAnthropicAdapter
+        from backend.rag.bedrock_adapter import get_llm_adapter
 
-        llm_client = GeminiAsAnthropicAdapter()
+        llm_client = get_llm_adapter()
 
     response = llm_client.messages.create(
         model=model,
