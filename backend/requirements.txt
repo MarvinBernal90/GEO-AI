@@ -28,6 +28,7 @@ anthropic==0.122.0
 langgraph==1.2.11
 langgraph-checkpoint-postgres==3.0.4
 psycopg[binary]==3.2.6
+langchain-aws==1.8.1
 
 # Optional: only for testing with a free-tier key while the Anthropic account
 # gets funded (see backend/rag/gemini_adapter.py). This is not the final

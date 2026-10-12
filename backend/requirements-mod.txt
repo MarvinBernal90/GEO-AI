@@ -22,6 +22,7 @@ sentence-transformers==5.7.0
 langgraph==1.2.11
 langgraph-checkpoint-postgres==3.0.4
 psycopg[binary]==3.2.6
+langchain-aws==1.8.1
 
 # Opcional: solo para pruebas con clave gratuita mientras se financia la
 # cuenta de Anthropic (ver backend/rag/gemini_adapter.py). No es la

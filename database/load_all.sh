@@ -1,19 +1,19 @@
 
 #python -m database.load_to_db
 
-#python -m database.load_legal_corpus $BASEDIR/data/raw/legal/PGM
+python -m database.load_legal_corpus $BASEDIR/data/raw/legal/PGM
 
-#python -m database.load_general_law data/raw/legal/other/352884_03_es.pdf 'Decreto 322005, sobre la señalización de las limitaciones en la venta de bebidas alcohólicas.'
-#echo "Loaded: Decreto 322005, sobre la señalización de las limitaciones en la venta de bebidas alcohólicas."
+python -m database.load_general_law data/raw/legal/other/352884_03_es.pdf 'Decreto 322005, sobre la señalización de las limitaciones en la venta de bebidas alcohólicas.'
+echo "Loaded: Decreto 322005, sobre la señalización de las limitaciones en la venta de bebidas alcohólicas."
 
-#python -m database.load_general_law data/raw/legal/other/540841_02_es_i_es.pdf 'Decreto 1122010, de 31 de agosto, por el que se aprueba el Reglamento de espectáculos públicos y actividades recreativas -i'
-#echo "Loaded: Decreto 1122010, de 31 de agosto, por el que se aprueba el Reglamento de espectáculos públicos y actividades recreativas -i"
+python -m database.load_general_law data/raw/legal/other/540841_02_es_i_es.pdf 'Decreto 1122010, de 31 de agosto, por el que se aprueba el Reglamento de espectáculos públicos y actividades recreativas -i'
+echo "Loaded: Decreto 1122010, de 31 de agosto, por el que se aprueba el Reglamento de espectáculos públicos y actividades recreativas -i"
 
-#python -m database.load_general_law data/raw/legal/other/540841_02_es_ii_es.pdf 'Decreto 1122010, de 31 de agosto, por el que se aprueba el Reglamento de espectáculos públicos y actividades recreativas -ii'
-#echo "Loaded: Decreto 1122010, de 31 de agosto, por el que se aprueba el Reglamento de espectáculos públicos y actividades recreativas -ii"
+python -m database.load_general_law data/raw/legal/other/540841_02_es_ii_es.pdf 'Decreto 1122010, de 31 de agosto, por el que se aprueba el Reglamento de espectáculos públicos y actividades recreativas -ii'
+echo "Loaded: Decreto 1122010, de 31 de agosto, por el que se aprueba el Reglamento de espectáculos públicos y actividades recreativas -ii"
 
-#python -m database.load_general_law data/raw/legal/other/540841_02_es_iii_es.pdf 'Decreto 1122010, de 31 de agosto, por el que se aprueba el Reglamento de espectáculos públicos y actividades recreativas -iii'
-#echo "Loaded: Decreto 1122010, de 31 de agosto, por el que se aprueba el Reglamento de espectáculos públicos y actividades recreativas -iii"
+python -m database.load_general_law data/raw/legal/other/540841_02_es_iii_es.pdf 'Decreto 1122010, de 31 de agosto, por el que se aprueba el Reglamento de espectáculos públicos y actividades recreativas -iii'
+echo "Loaded: Decreto 1122010, de 31 de agosto, por el que se aprueba el Reglamento de espectáculos públicos y actividades recreativas -iii"
 
 python -m database.load_general_law data/raw/legal/other/629662_03_es.pdf 'Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo'
 echo "Loaded: Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo"
@@ -45,10 +45,10 @@ echo "Loaded: BOE-A-2010-13115 - código de consumo de Cataluña."
 python -m database.load_general_law data/raw/legal/other/BOE-A-2010-112009.pdf 'Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas'
 echo "Loaded: Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas"
 
-python -m database.load_general_law data/raw/legal/other/OMAIIAA_Barcelona.pdf 'Ordenanza  municipal  de  actividades  y  de  intervención  integral  de  la  administración  ambiental  de  Barcelona'
+python -m database.load_general_law data/raw/legal/other/OMAIIAA_Barcelona_i.pdf 'Ordenanza  municipal  de  actividades  y  de  intervención  integral  de  la  administración  ambiental  de  Barcelona'
 echo "Loaded: Ordenanza  municipal  de  actividades  y  de  intervención  integral  de  la  administración  ambiental  de  Barcelona"
 
-python -m database.load_general_law data/raw/legal/other/540841_02_es_i_es.pdf 'Ordenanza  municipal  de  actividades  y  de  intervención  integral  de  la  administración  ambiental  de  Barcelona'
+python -m database.load_general_law data/raw/legal/other/OMAIIAA_Barcelona_ii.pdf 'Ordenanza  municipal  de  actividades  y  de  intervención  integral  de  la  administración  ambiental  de  Barcelona'
 echo "Loaded: Ordenanza  municipal  de  actividades  y  de  intervención  integral  de  la  administración  ambiental  de  Barcelona"
 
 
