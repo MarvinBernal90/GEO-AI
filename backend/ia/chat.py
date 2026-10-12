@@ -29,7 +29,6 @@ from sqlalchemy.orm import Session
 
 sys.path.insert(0, "/home/claud/pontia/PJ")
 
-from typing import Literal
 
 from langgraph.checkpoint.postgres import PostgresSaver
 from langgraph.graph import END, START, StateGraph
@@ -47,7 +46,7 @@ load_dotenv()
 
 GENERATION_MODEL = os.environ.get("GENERATION_MODEL", "models/gemini-3.6-flash")
 MAX_NUM_MESSAGES = int(os.environ.get("MAX_NUM_MESSAGES", 5))
-NUM_MESSGES_TO_SUMMARIZE = int(os.environ.get("NUM_MESSGES_TO_SUMMARIZE", 3))
+NUM_MESSAGES_TO_SUMMARIZE = int(os.environ.get("NUM_MESSAGES_TO_SUMMARIZE", 3))
 
 GEODATA_BASEURL = resolve_database_url()
 
@@ -59,12 +58,12 @@ engine = create_engine(resolve_database_url())
 # Each message has an 'id' field. If a message is added with an id that already exists, the message is overwritten. A message can be removed from the list with
 # 'RemoveMessage(id)'
 
+
 # The MessageState class is subclassed to introduce the 'summary' key, which holds a summary of messages. It is used to keep the context without increasing
 # the number of tokens too much
-
-
 class State(MessagesState):
     summary: str
+    num_responses: int
 
 
 #### TOOLS DEFINITION
@@ -87,8 +86,7 @@ def get_opportunity_score(dirección: str) -> float:
                 session.execute(
                     text(
                         "SELECT ds.codi_districte, ds.nom_districte, ds.renta_media, ds.daily_foot_traffic, "
-                        "ds.total_competitors, ds.opportunity_score, "
-                        "dm.total_trips AS viajes_intraprovinciales, dm.predominant_age "
+                        "ds.total_competitors, ds.opportunity_score "
                         "FROM district_scorecard ds "
                         "LEFT JOIN district_mobility dm ON ds.codi_districte = dm.codi_districte "
                         "WHERE ds.codi_districte = :codi"
@@ -120,25 +118,35 @@ def regulations_query(query: str) -> str:
     return build_context(documents)
 
 
+# updates state['num_responses'], which keeps track of the number of answers given to the user
+# if they exceed MAX_NUM_MESSAGES, the first NUM_MESSAGES_TO_SUMMARIZE are included in stat['summary'] and deleted from state['messages'] along with tool calling and tool response associated messages
 def summarize_conversation(state: State):
-    if len(state["messages"]) > MAX_NUM_MESSAGES:
+    num_responses = state.get("num_responses", 0) + 1
+    if num_responses > MAX_NUM_MESSAGES:
         summary = state.get("summary", "")
         if summary:
             summary_message = (
-                f"Este es el resumen de la conversación hasta ahora: {summary}\n\n"
-                "Extiende el resumen teniendo en cuenta los mensajes anteriores:"
+                f"Este este es un resumen de mensajes pasados: {summary}\n\n"
+                "Actualiza el resumen teniendo en cuenta los mensajes en la lista de arriba"
             )
         else:
-            summary_message = "Crea un resumen teniendo en cuenta los mensajes anteriores:"
+            summary_message = "Crea un resumen teniendo en cuenta los mensajes en la lista de arriba"
 
-        # the model, without tools, is called to generate the summary
-        messages = state["messages"] + [HumanMessage(content=summary_message)]
+        # the model, without tools, is called to generate the summary. only response messages are summarized
+        responses = [m for m in state["messages"] if m.type == "ai" and m.content]
+        messages = responses[:NUM_MESSAGES_TO_SUMMARIZE] + [HumanMessage(content=summary_message)]
         response = llm.invoke(messages)
 
-        # Delete all but the 2 most recent messages
-        num_messages_left = len(state["messages"]) - NUM_MESSGES_TO_SUMMARIZE
-        delete_messages = [RemoveMessage(id=m.id) for m in state["messages"][:-num_messages_left]]
-        return {"summary": response.content, "messages": delete_messages}
+        # Delete all but the most recent messages (depends con NUM_MESSAGES_TO_SUMMARIZE constant)
+        last_msg_to_del_index = state["messages"].index(responses[NUM_MESSAGES_TO_SUMMARIZE])
+        delete_messages = [RemoveMessage(id=m.id) for m in state["messages"][:last_msg_to_del_index]]
+        return {
+            "summary": response.content[0]["text"],
+            "num_respones": num_responses - NUM_MESSAGES_TO_SUMMARIZE,
+            "messages": delete_messages,
+        }
+
+    return {"num_responses": num_responses}
 
 
 #### TOOL BINDING
@@ -186,22 +194,14 @@ def assistant(state: State):
 
 
 #### CREATE AND COMPILE GRAPH WITH MEMORY
-# router that decides whether a summary should be created before going to the end
-def summarize_check(state: State) -> Literal["summarize_conversation", END]:
-    """Returns whether the next node is END or summarize_conversation"""
-
-    if len(state["messages"]) > MAX_NUM_MESSAGES:
-        return "summarize_conversation"
-    return END
-
 
 # Persistent memory in PostgreSQL
-checkpointer_context = PostgresSaver.from_conn_string(resolve_database_url())
+checkpointer_context = PostgresSaver.from_conn_string(resolve_database_url().replace("+psycopg2", ""))
 checkpointer = checkpointer_context.__enter__()
 checkpointer.setup()
 
 # Graph
-builder = StateGraph(MessagesState)
+builder = StateGraph(State)
 
 # Node definitions
 builder.add_node("assistant", assistant)
@@ -210,8 +210,8 @@ builder.add_node("summarize", summarize_conversation)
 
 # Definition of the connectors (edges) between nodes
 builder.add_edge(START, "assistant")
-# this connector routes to the tools if the last assistant message is a tool call, and towards the end otherwise
-builder.add_conditional_edges("assistant", tools_condition, {"tools": "tools", "__end__": "summarize"})
+# this connector routes to the tools if the last assistant message is a tool call, to summarize if the number of responses exceeds MAX_NUM_MESSAGES or END otherwise
+builder.add_conditional_edges("assistant", tools_condition, {"tools": "tools", END: "summarize"})
 builder.add_edge("tools", "assistant")
 builder.add_edge("summarize", END)
 react_graph = builder.compile(checkpointer=checkpointer)
@@ -229,7 +229,7 @@ def request(content: str, thread: str) -> str:
     Returns:
         a text with the assistant's response
     """
-    messages = [{"role": "user", "content": {content}}]
+    messages = [{"role": "user", "content": content}]
     configurable = {"thread_id": thread}
 
     state = react_graph.invoke({"messages": messages}, {"configurable": configurable})
@@ -241,4 +241,28 @@ if __name__ == "__main__":
     print("para persistir la conversación me deberías dar tu usuario\nusuario:")
     print("quieres seguir alguna de estas conversacines o iniciar una nueva?")
 
-    print(request(sys.argv[1], sys.argv[2]).text)
+    print(
+        request(
+            "cuáles son los horarios de apertura para una cafetería?",
+            "1",
+        )
+    )
+    print(
+        request(
+            "y para un bar musical?",
+            "1",
+        )
+    )
+    print(
+        request(
+            "hay algún tipo de normativa específica para bar musical?",
+            "1",
+        )
+    )
+    print(
+        request(
+            "dime cuanto serían las tasas para una terraza de 15m2 en calle Creucoberta",
+            "1",
+        )
+    )
+    # print(request(sys.argv[1], sys.argv[2]).text)
