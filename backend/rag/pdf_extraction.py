@@ -35,6 +35,8 @@ def extract_text_from_pdf(path: Path) -> str:
         ["pdftotext", str(path), "-"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="ignore",
     )
     # 0 indicates the OS command ran successfully
     if result.returncode != 0:

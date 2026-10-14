@@ -112,9 +112,9 @@ def load_income(session: Session, path) -> None:
     _upsert_dataframe(session, DistrictIncome, income_df, pk_column="codi_districte")
 
 
-def load_mobility(session: Session, path) -> None:
+def load_mobility(session: Session, paths) -> None:
     """Carga datos de tráfico peatonal (MITMA)."""
-    mobility_df = load_district_mobility(path)
+    mobility_df = load_district_mobility(paths)
     _upsert_dataframe(session, DistrictMobility, mobility_df, pk_column="codi_districte")
 
 
@@ -144,7 +144,7 @@ def run(engine=None) -> None:
         load_income(session, config.PATH_INE_RENTA)
 
         logger.info("Cargando movilidad/afluencia por distrito...")
-        load_mobility(session, config.PATH_MITMA_MOBILITY)
+        load_mobility(session, config.PATHS_MITMA_MOBILITY)
 
         # Si todo el proceso llega hasta aquí sin errores, se consolida la BD.
         session.commit()

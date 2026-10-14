@@ -1,0 +1,71 @@
+#Para que GitHub tenga permiso de subir archivos al bucket S3 e invalidar CloudFront, con el usuario IAM de AWS con credenciales
+name: Deploy Frontend to S3 and CloudFront
+
+# ==============================================================================
+# PIPELINE DE CI/CD: DESPLIEGUE CONTINUO DEL FRONTEND EN AWS
+# ==============================================================================
+# Este flujo compila la aplicación Vue/Vite y sincroniza los artefactos generados 
+# directamente en el bucket de S3 e invalida la caché de CloudFront.
+# ==============================================================================
+
+on:
+  push:
+    branches:
+      - develop
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/deploy-frontend.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-frontend:
+    name: Build & Deploy Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Clonar el repositorio
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Configurar entorno de Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      # 3. Instalar dependencias del frontend
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci #Clean Install
+
+      # 4. Compilar la aplicación para producción (Vite build)
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: https://d2yya2azx26rn0.cloudfront.net
+        run: npm run build
+
+      # 5. Autenticarse en AWS con las credenciales de IAM
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-south-2
+
+      # 6. Sincronizar archivos estáticos con el bucket S3
+      - name: Deploy to S3
+        run: |
+          aws s3 sync frontend/dist s3://geoyield-frontend --delete
+
+      # 7. Invalidar la caché de CloudFront
+      - name: Invalidate CloudFront Cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id E20TNUC7CKHU1I \
+            --paths "/*"
