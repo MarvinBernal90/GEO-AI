@@ -222,7 +222,8 @@ def summarize_conversation(state: State) -> dict[str, Any]:
 
         responses = [m for m in state["messages"] if m.type == "ai" and m.content]
         messages = responses[:NUM_MESSAGES_TO_SUMMARIZE] + [HumanMessage(content=summary_message)]
-        response = llm.invoke(messages)
+        active_llm = llm or target_llm or get_chat_llm()
+        response = active_llm.invoke(messages)
 
         last_msg_to_del_index = state["messages"].index(responses[NUM_MESSAGES_TO_SUMMARIZE])
         delete_messages = [RemoveMessage(id=m.id) for m in state["messages"][:last_msg_to_del_index]]
@@ -237,8 +238,13 @@ def summarize_conversation(state: State) -> dict[str, Any]:
 
 #### TOOL BINDING & LLM INITIALIZATION
 tools = [get_opportunity_score, regulations_query]
-llm = get_chat_llm()
-llm_with_tools = llm.bind_tools(tools)
+try:
+    llm = get_chat_llm()
+    llm_with_tools = llm.bind_tools(tools)
+except Exception as exc:
+    logger.warning("Could not initialize chat LLM at module load: %s", exc)
+    llm = None
+    llm_with_tools = None
 
 #### ASSISTANT
 sys_msg = SystemMessage(
@@ -249,6 +255,7 @@ Dispones de dos herramientas para ayudarte en tu tarea:
 2. regulations_query: Esta herramienta te permite obtener información sobre aspectos regulatorios y legales relacionados con la apertura de negocios en Barcelona.
 Empieza la respuesta 'Dirección: [la dirección entrada en get_opportunity_score], score: [valor devuelto por get_opportunity_score]'
 Cuando respondas a las consultas de los usuarios, asegúrate de proporcionar información precisa y relevante, y de citar las fuentes de información cuando sea posible.
+Lita los documentos devueltos la tool regulations_query. Si no ha devuelto ninguno, dilo claramente
 Si no puedes encontrar información relevante, informa al usuario de que no se encontró información relevante."""
 )
 
@@ -264,13 +271,13 @@ def assistant(state: State) -> dict[str, Any]:
     else:
         messages = state["messages"]
 
-    return {"messages": [llm_with_tools.invoke([sys_msg] + messages)]}
+    invoker = llm_with_tools or (llm.bind_tools(tools) if llm else get_chat_llm().bind_tools(tools))
+    return {"messages": [invoker.invoke([sys_msg] + messages)]}
 
 
 #### CREATE AND COMPILE GRAPH WITH MEMORY
 
-# checkpointer = _init_postgres_checkpointer()
-# Persistent memory in PostgreSQL
+checkpointer = None
 try:
     checkpointer_context = PostgresSaver.from_conn_string(resolve_database_url().replace("+psycopg2", ""))
     checkpointer = checkpointer_context.__enter__()
@@ -278,9 +285,8 @@ try:
 except Exception as exc:
     logger.warning("Could not initialize PostgreSQL checkpointer: %s", exc)
 
-# target_llm = llm_instance or llm
 target_llm = llm
-target_llm_with_tools = target_llm.bind_tools(tools)
+target_llm_with_tools = llm_with_tools
 
 
 def _node_assistant(state: State):
@@ -290,7 +296,10 @@ def _node_assistant(state: State):
         messages = [SystemMessage(content=system_message)] + state["messages"]
     else:
         messages = state["messages"]
-    return {"messages": [target_llm_with_tools.invoke([sys_msg] + messages)]}
+    invoker = target_llm_with_tools or (
+        target_llm.bind_tools(tools) if target_llm else get_chat_llm().bind_tools(tools)
+    )
+    return {"messages": [invoker.invoke([sys_msg] + messages)]}
 
 
 def _node_summarize(state: State):
@@ -307,7 +316,8 @@ def _node_summarize(state: State):
 
         responses = [m for m in state["messages"] if m.type == "ai" and m.content]
         messages = responses[:NUM_MESSAGES_TO_SUMMARIZE] + [HumanMessage(content=summary_message)]
-        response = target_llm.invoke(messages)
+        active_llm = target_llm or llm or get_chat_llm()
+        response = active_llm.invoke(messages)
 
         last_msg_to_del_index = state["messages"].index(responses[NUM_MESSAGES_TO_SUMMARIZE])
         delete_messages = [RemoveMessage(id=m.id) for m in state["messages"][:last_msg_to_del_index]]
@@ -362,19 +372,25 @@ if __name__ == "__main__":
 
     request(
         "cuáles son los horarios de apertura para una cafetería?",
-        "3",
+        "33",
     ).pretty_print()
     request(
         "y para un bar musical?",
-        "3",
+        "33",
     ).pretty_print()
     request(
         "hay algún tipo de normativa específica para bar musical?",
-        "3",
+        "33",
     ).pretty_print()
     request(
         "dime cuanto serían las tasas para una terraza de 15m2 en calle Creucoberta",
-        "3",
+        "33",
     ).pretty_print()
     pass
-    # print(request(sys.argv[1], sys.argv[2]).text)
+
+    """ request(
+        "cuales son los horarios de apertura para un restaruante",
+        "14",
+    ).pretty_print() """
+
+    # request(sys.argv[1], sys.argv[2]).pretty_print()
