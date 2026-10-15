@@ -10,11 +10,12 @@ using SQLAlchemy. It integrates advanced PostgreSQL extensions such as:
 - pgvector for storage and similarity search of embeddings (RAG).
 """
 
+import uuid
 from datetime import date, datetime
 
 from geoalchemy2 import Geography
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Date, ForeignKey, Numeric, SmallInteger, String, Text, func
+from sqlalchemy import Date, ForeignKey, Numeric, SmallInteger, String, Text, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.rag.embeddings import EMBEDDING_DIM as LEGAL_EMBEDDING_DIM
@@ -116,3 +117,20 @@ class LegalChunk(Base):
     # It directly depends on the embedding engine's configuration constant.
     embedding: Mapped[list[float]] = mapped_column(Vector(LEGAL_EMBEDDING_DIM), nullable=False)
     loaded_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+# ==============================================================================
+# IDENTITY AND USER MANAGEMENT LAYER
+# ==============================================================================
+
+
+class User(Base):
+    """
+    User entity model for identity management and multi-tenant access control.
+    """
+
+    __tablename__ = "users"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user: Mapped[str] = mapped_column(String(100), nullable=False)
+
