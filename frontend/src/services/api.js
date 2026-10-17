@@ -27,7 +27,12 @@ const log = createLogger('api')
 async function handleResponse(response) {
   if (!response.ok) {
     const body = await response.json().catch(() => null)
-    const mensaje = body?.detail || `Error HTTP ${response.status}: Error al conectar con el servidor.`
+    let mensaje = `Error HTTP ${response.status}: Error al conectar con el servidor.`
+    if (typeof body?.detail === 'string') {
+      mensaje = body.detail
+    } else if (Array.isArray(body?.detail) && body.detail[0]?.msg) {
+      mensaje = body.detail[0].msg
+    }
     const error = new Error(mensaje)
     error.status = response.status
     throw error
@@ -280,4 +285,18 @@ export async function chatInformeStream(mensaje, callbacks = {}) {
   } catch (error) {
     onError?.(error.message)
   }
+}
+
+/**
+ * Authenticates a user and retrieves their conversation threads.
+ *
+ * @param {string} user - Username to verify
+ * @returns {Promise<{ user: string, conversations: Array<{ id: string, title: string }> }>}
+ */
+export async function loginUser(user) {
+  return request('loginUser', `${API_BASE_URL}/api/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user }),
+  })
 }
