@@ -2,8 +2,8 @@
 ==============================================================================
 ORQUESTADOR DE CARGA ETL (FASE 1)
 ==============================================================================
-Este script actúa como controlador central del pipeline de datos. Extrae los 
-archivos brutos (CSV/Excel), aplica las transformaciones de la capa ETL 
+Este script actúa como controlador central del pipeline de datos. Extrae los
+archivos brutos (CSV/Excel), aplica las transformaciones de la capa ETL
 (backend/etl/) y materializa los DataFrames resultantes en PostgreSQL/PostGIS.
 
 Uso:
@@ -12,15 +12,16 @@ Uso:
 Estrategias de carga híbridas implementadas:
     1. Tablas de dimensión (districts, neighborhoods, income, mobility):
        Se utiliza una estrategia de "Upsert" (INSERT ... ON CONFLICT DO UPDATE).
-       Esto permite actualizar valores (ej. un nuevo dato de renta) sin duplicar 
+       Esto permite actualizar valores (ej. un nuevo dato de renta) sin duplicar
        filas ni borrar la estructura de la base de datos.
     2. Tabla de Censo Comercial (competitors):
-       Se utiliza un reemplazo transaccional completo (DELETE + INSERT). 
-       Dado que los negocios abren y cierran, un Upsert mantendría negocios 
-       "fantasma" que ya no existen en el censo real. El borrado completo 
+       Se utiliza un reemplazo transaccional completo (DELETE + INSERT).
+       Dado que los negocios abren y cierran, un Upsert mantendría negocios
+       "fantasma" que ya no existen en el censo real. El borrado completo
        garantiza la integridad absoluta con la última foto del ayuntamiento.
 """
-import logging
+
+import sys
 
 import pandas as pd
 from dotenv import load_dotenv
@@ -29,17 +30,14 @@ from sqlalchemy import create_engine
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
-import sys
-sys.path.insert(0, '/home/claud/pontia/PJ')
+sys.path.insert(0, "/home/claud/pontia/PJ")
 
-from backend.db import Base
 from backend.db.connection import resolve_database_url
 from backend.db.models import Competitor, District, DistrictIncome, DistrictMobility, Neighborhood
-from backend.etl import config
+from backend.etl import config, etl_mitma
 from backend.etl.competitors import build_competitors, build_districts, build_neighborhoods, read_raw_census
 from backend.etl.income import load_district_income
 from backend.etl.mobility import load_district_mobility
-
 from backend.observability import configure_logging, get_logger
 
 logger = get_logger("etl.load_to_db")
@@ -58,9 +56,7 @@ def _upsert_dataframe(session: Session, model, df: pd.DataFrame, pk_column: str)
     stmt = pg_insert(model).values(records)
 
     # Preparamos el diccionario de columnas a actualizar si hay conflicto de PK
-    update_columns = {
-        col: getattr(stmt.excluded, col) for col in df.columns if col != pk_column
-    }
+    update_columns = {col: getattr(stmt.excluded, col) for col in df.columns if col != pk_column}
     stmt = stmt.on_conflict_do_update(index_elements=[pk_column], set_=update_columns)
     session.execute(stmt)
     logger.info(f"{model.__tablename__}: {len(records)} filas upsert-eadas.")
@@ -134,9 +130,9 @@ def run(engine=None) -> None:
         load_dimensions(session, raw_census_df)
 
         # Flush fuerza la escritura en BD sin cerrar la transacción.
-        # Es obligatorio porque 'competitors' necesita que las PKs de 
+        # Es obligatorio porque 'competitors' necesita que las PKs de
         # districts/neighborhoods ya existan para validar sus Foreign Keys.
-        session.flush()  
+        session.flush()
 
         load_competitors(session, raw_census_df)
 
@@ -144,7 +140,8 @@ def run(engine=None) -> None:
         load_income(session, config.PATH_INE_RENTA)
 
         logger.info("Cargando movilidad/afluencia por distrito...")
-        load_mobility(session, config.PATHS_MITMA_MOBILITY)
+        # load_mobility(session, config.PATHS_MITMA_MOBILITY)
+        etl_mitma.run_etl()
 
         # Si todo el proceso llega hasta aquí sin errores, se consolida la BD.
         session.commit()
