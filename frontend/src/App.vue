@@ -13,7 +13,7 @@ Refactored layout:
 - Right Column: Interactive Prompt Text Box and Response Text Box.
 -->
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import ViabilityForm from './components/ViabilityForm.vue'
 import VerdictCard from './components/VerdictCard.vue'
 import ChatBubble from './components/ChatBubble.vue'
@@ -126,8 +126,6 @@ function reiniciarResultados() {
 async function onGenerar({ codiDistricte, zonaPgm, ubicacion }) {
   const inicio = performance.now()
   cargando.value = true
-  procesandoChat.value = true
-  respuestaPrompt.value = ''
   codiDistrictePedido.value = codiDistricte
   ubicacionPedida.value = ubicacion
   reiniciarResultados()
@@ -141,24 +139,15 @@ async function onGenerar({ codiDistricte, zonaPgm, ubicacion }) {
     },
     onToken: (texto) => {
       textoSintesis.value += texto
-      respuestaPrompt.value += texto
-      autoScrollResponse()
     },
     onError: (detail) => {
       error.value = detail
-      respuestaPrompt.value = `Error: ${detail}`
       cargando.value = false
-      procesandoChat.value = false
     },
     onDone: (evento) => {
       semaforoConfirmado.value = evento.semaforo
       resumenConfirmado.value = evento.resumen
       cargando.value = false
-      procesandoChat.value = false
-
-      if (respuestaLegal.value && !respuestaPrompt.value.includes('FUNDAMENTO LEGAL')) {
-        respuestaPrompt.value = `${textoSintesis.value.trim()}\n\n---\nFUNDAMENTO LEGAL:\n${respuestaLegal.value}`
-      }
 
       log.event('informe.completado', {
         codi_districte: codiDistricte,
@@ -294,14 +283,6 @@ const zonaDesdeChat = ref(null)
 const ubicacionDesdeChat = ref(null)
 const mensajeAclaracionChat = ref(null)
 
-function autoScrollResponse() {
-  nextTick(() => {
-    if (responseTextarea.value) {
-      responseTextarea.value.scrollTop = responseTextarea.value.scrollHeight
-    }
-  })
-}
-
 function limpiarPrompt() {
   mensajeChat.value = ''
 }
@@ -341,7 +322,6 @@ async function onEnviarChat() {
   await chatInformeStream(mensaje, {
     onAclaracion: (evento) => {
       mensajeAclaracionChat.value = { tipo: 'aviso', texto: evento.mensaje }
-      respuestaPrompt.value = evento.mensaje
       if (evento.codi_districte) distritoDesdeChat.value = evento.codi_districte
       if (evento.zona_pgm) zonaDesdeChat.value = evento.zona_pgm
       if (evento.lat != null && evento.lon != null) {
@@ -363,12 +343,9 @@ async function onEnviarChat() {
     },
     onToken: (texto) => {
       textoSintesis.value += texto
-      respuestaPrompt.value += texto
-      autoScrollResponse()
     },
     onError: (detail) => {
       error.value = detail
-      respuestaPrompt.value = `Error: ${detail}`
       cargando.value = false
       procesandoChat.value = false
     },
@@ -377,10 +354,6 @@ async function onEnviarChat() {
       resumenConfirmado.value = evento.resumen
       cargando.value = false
       procesandoChat.value = false
-
-      if (respuestaLegal.value && !respuestaPrompt.value.includes('FUNDAMENTO LEGAL')) {
-        respuestaPrompt.value = `${textoSintesis.value.trim()}\n\n---\nFUNDAMENTO LEGAL:\n${respuestaLegal.value}`
-      }
     },
   })
 }
