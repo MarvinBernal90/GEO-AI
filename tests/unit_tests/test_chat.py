@@ -348,8 +348,8 @@ class TestReActGraphAndRequest:
         assert expected_nodes.issubset(set(react_graph.nodes.keys()))
 
     @patch("backend.ia.chat.react_graph.invoke")
-    def test_request_dispatches_to_graph_and_returns_last_message(self, mock_invoke):
-        """request function dispatches user content and thread_id to react_graph.invoke."""
+    def test_request_dispatches_to_graph_and_returns_last_message_when_not_streaming(self, mock_invoke):
+        """request function dispatches user content and thread_id to react_graph.invoke when stream=False."""
         mock_response = AIMessage(content="Horarios de cafetería: 06:00 a 02:00")
         mock_invoke.return_value = {
             "messages": [
@@ -358,7 +358,7 @@ class TestReActGraphAndRequest:
             ]
         }
 
-        result = request("horarios cafetería", thread="test_thread_42")
+        result = request("horarios cafetería", thread="test_thread_42", stream=False)
         assert result == mock_response
         assert result.content == "Horarios de cafetería: 06:00 a 02:00"
 
@@ -366,3 +366,58 @@ class TestReActGraphAndRequest:
             {"messages": [{"role": "user", "content": "horarios cafetería"}]},
             {"configurable": {"thread_id": "test_thread_42"}},
         )
+
+    @patch("backend.ia.chat.react_graph.stream")
+    def test_request_stream_yields_tokens_and_done(self, mock_stream):
+        """request function streams assistant tokens and finishes with done event."""
+        mock_stream.return_value = [
+            (AIMessage(content="Horarios "), {"langgraph_node": "assistant"}),
+            (AIMessage(content="de cafetería"), {"langgraph_node": "assistant"}),
+        ]
+
+        events = list(request("horarios cafetería", thread="test_thread_42"))
+        assert events == [
+            {"type": "token", "text": "Horarios "},
+            {"type": "token", "text": "de cafetería"},
+            {"type": "done", "text": "Horarios de cafetería"},
+        ]
+
+        mock_stream.assert_called_once_with(
+            {"messages": [{"role": "user", "content": "horarios cafetería"}]},
+            {"configurable": {"thread_id": "test_thread_42"}},
+            stream_mode="messages",
+        )
+
+    @patch("backend.ia.chat.react_graph.stream")
+    def test_request_stream_filters_tool_calls_and_non_assistant_nodes(self, mock_stream):
+        """request function ignores tool calls and nodes other than assistant."""
+        tool_call_msg = AIMessage(
+            content="",
+            tool_calls=[{"name": "regulations_query", "args": {"query": "horarios"}, "id": "1", "type": "tool_call"}],
+        )
+        tool_msg = AIMessage(content="Raw regulations context")
+        assistant_ans = AIMessage(content="Respuesta al usuario")
+        summary_msg = AIMessage(content="Resumen interno")
+
+        mock_stream.return_value = [
+            (tool_call_msg, {"langgraph_node": "assistant"}),
+            (tool_msg, {"langgraph_node": "tools"}),
+            (assistant_ans, {"langgraph_node": "assistant"}),
+            (summary_msg, {"langgraph_node": "summarize"}),
+        ]
+
+        events = list(request("horarios cafetería", thread="test_thread_42"))
+        assert events == [
+            {"type": "token", "text": "Respuesta al usuario"},
+            {"type": "done", "text": "Respuesta al usuario"},
+        ]
+
+    @patch("backend.ia.chat.react_graph.stream")
+    def test_request_stream_handles_exceptions_gracefully(self, mock_stream):
+        """request function yields an error event if graph streaming fails."""
+        mock_stream.side_effect = RuntimeError("Bedrock connection timeout")
+
+        events = list(request("horarios cafetería", thread="test_thread_42"))
+        assert len(events) == 1
+        assert events[0]["type"] == "error"
+        assert "detail" in events[0]

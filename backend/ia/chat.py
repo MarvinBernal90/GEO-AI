@@ -24,6 +24,7 @@ Conversation persistence is managed with PostgresSaver (PostgreSQL / PostGIS).
 import logging
 import os
 import sys
+from collections.abc import Iterator
 from typing import Any
 
 sys.path.insert(0, "/home/claud/pontia/PJ")
@@ -347,54 +348,115 @@ builder.add_edge("summarize", END)
 react_graph = builder.compile(checkpointer=checkpointer)
 
 
-#### ASSISTANT CALL FUNCTION
-def request(content: str, thread: str, graph: Any = None) -> Any:
-    """
-    Sends the user's latest request in the conversation thread to the chat assistant and returns the response.
+#### ASSISTANT CALL FUNCTIONS
+def _request_stream(
+    content: str,
+    thread: str,
+    graph: Any = None,
+) -> Iterator[dict[str, Any]]:
+    """Internal generator that streams assistant tokens from react_graph."""
+    active_graph = graph or react_graph
+    messages = [{"role": "user", "content": content}]
+    configurable = {"thread_id": thread}
+    full_response: list[str] = []
 
-    Args:
-        content: request text
-        thread: conversation thread identifier. Has the form user:conversaton_id
-        graph: optional compiled StateGraph instance (defaults to react_graph)
+    try:
+        for chunk, metadata in active_graph.stream(
+            {"messages": messages},
+            {"configurable": configurable},
+            stream_mode="messages",
+        ):
+            # Only stream tokens from the assistant node intended for the user
+            if metadata.get("langgraph_node") == "assistant":
+                # Filter out internal tool call argument tokens
+                is_tool_call = bool(
+                    getattr(chunk, "tool_calls", None)
+                    or getattr(chunk, "tool_call_chunks", None)
+                    or (
+                        isinstance(getattr(chunk, "additional_kwargs", None), dict)
+                        and chunk.additional_kwargs.get("tool_calls")
+                    )
+                )
+                if is_tool_call:
+                    continue
 
-    Returns:
-        The assistant's response message
-    """
-    # active_graph = graph or react_graph
-    active_graph = react_graph
+                text = _extract_text_content(chunk.content)
+                if text:
+                    full_response.append(text)
+                    yield {"type": "token", "text": text}
+
+        full_text = "".join(full_response)
+        yield {"type": "done", "text": full_text}
+    except Exception as exc:
+        logger.exception("Error streaming chat request for thread %s: %s", thread, exc)
+        yield {"type": "error", "detail": "No se pudo procesar tu mensaje. Inténtalo de nuevo."}
+
+
+def _request_invoke(
+    content: str,
+    thread: str,
+    graph: Any = None,
+) -> Any:
+    """Internal invocation that returns the full AIMessage."""
+    active_graph = graph or react_graph
     messages = [{"role": "user", "content": content}]
     configurable = {"thread_id": thread}
 
     state = active_graph.invoke({"messages": messages}, {"configurable": configurable})
-
     return state["messages"][-1]
 
 
-if __name__ == "__main__":
-    # print("para persistir la conversación me deberías dar tu usuario\nusuario:")
-    # print("quieres seguir alguna de estas conversacines o iniciar una nueva?")
+def request(
+    content: str,
+    thread: str,
+    graph: Any = None,
+    stream: bool = True,
+) -> Iterator[dict[str, Any]] | Any:
+    """
+    Sends the user's latest request in the conversation thread to the chat assistant.
 
-    request(
+    When stream=True (default), streams SSE-compatible token events for real-time
+    publishing in the frontend's response-output text area.
+    When stream=False, synchronously invokes the agent graph and returns the final AIMessage.
+
+    Args:
+        content: request text from the user
+        thread: conversation thread identifier. Has the form user:conversation_id
+        graph: optional compiled StateGraph instance (defaults to react_graph)
+        stream: whether to stream response tokens (defaults to True)
+
+    Returns:
+        If stream=True: Iterator of event dicts ({"type": "token", "text": ...}, {"type": "done", ...})
+        If stream=False: The assistant's response message (AIMessage)
+    """
+    if stream:
+        return _request_stream(content, thread, graph=graph)
+    return _request_invoke(content, thread, graph=graph)
+
+
+if __name__ == "__main__":
+    def _print_stream(prompt: str, thread_id: str):
+        print(f"\nUser: {prompt}\nAssistant: ", end="", flush=True)
+        for event in request(prompt, thread_id):
+            if event.get("type") == "token":
+                print(event["text"], end="", flush=True)
+            elif event.get("type") == "error":
+                print(f"\n[Error: {event['detail']}]")
+        print()
+
+    _print_stream(
         "cuáles son los horarios de apertura para una cafetería?",
         "claudiberenguer:2",
-    ).pretty_print()
-    request(
+    )
+    _print_stream(
         "y para un bar musical?",
         "claudiberenguer:2",
-    ).pretty_print()
-    request(
+    )
+    _print_stream(
         "hay algún tipo de normativa específica para bar musical?",
         "claudiberenguer:2",
-    ).pretty_print()
-    request(
+    )
+    _print_stream(
         "dime cuanto serían las tasas para una terraza de 15m2 en calle Creucoberta",
         "claudiberenguer:2",
-    ).pretty_print()
-    pass
-
-    """ request(
-        "cuales son los horarios de apertura para un restaruante",
-        "14",
-    ).pretty_print() """
-
-    # request(sys.argv[1], sys.argv[2]).pretty_print()
+    )
