@@ -288,6 +288,58 @@ export async function chatInformeStream(mensaje, callbacks = {}) {
 }
 
 /**
+ * Streams responses from the conversational assistant endpoint (/api/assistant).
+ *
+ * @param {string} prompt - Prompt or user query
+ * @param {string} threadId - Conversation thread ID (e.g. username:ordinal)
+ * @param {object} callbacks - Optional callbacks: onToken, onDone, onError
+ */
+export async function assistantStream(prompt, threadId, callbacks = {}) {
+  const { onToken, onDone, onError } = callbacks
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/assistant`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, thread_id: threadId }),
+    })
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => null)
+      throw new Error(body?.detail || `Error ${response.status} al llamar al asistente`)
+    }
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const bloques = buffer.split('\n\n')
+      buffer = bloques.pop() ?? ''
+
+      for (const bloque of bloques) {
+        if (!bloque.startsWith('data: ')) continue
+
+        try {
+          const evento = JSON.parse(bloque.slice(6))
+          if (evento.type === 'token') onToken?.(evento.text)
+          else if (evento.type === 'done') onDone?.(evento)
+          else if (evento.type === 'error') onError?.(evento.detail)
+        } catch {
+          console.warn('Error parseando bloque SSE del asistente:', bloque)
+        }
+      }
+    }
+  } catch (error) {
+    onError?.(error.message)
+  }
+}
+
+/**
  * Authenticates a user and retrieves their conversation threads.
  *
  * @param {string} user - Username to verify

@@ -13,13 +13,14 @@ Refactored layout:
 - Right Column: Interactive Prompt Text Box and Response Text Box.
 -->
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import ViabilityForm from './components/ViabilityForm.vue'
 import VerdictCard from './components/VerdictCard.vue'
 import ChatBubble from './components/ChatBubble.vue'
 import DistrictMap from './components/DistrictMap.vue'
 import RegulationsViewer from './components/RegulationsViewer.vue'
 import {
+  assistantStream,
   chatInformeStream,
   generarInformeStream,
   dispararEtlMitma,
@@ -260,6 +261,8 @@ async function onLogin() {
 }
 
 function onSeleccionarConversacion() {
+  mensajeChat.value = ''
+  respuestaPrompt.value = ''
   updateThreadId()
   if (!conversacionSeleccionada.value) {
     localStorage.removeItem('geoyield_conversation')
@@ -304,11 +307,61 @@ async function copiarRespuesta() {
   }
 }
 
+function autoScrollResponse() {
+  nextTick(() => {
+    if (responseTextarea.value) {
+      responseTextarea.value.scrollTop = responseTextarea.value.scrollHeight
+    }
+  })
+}
+
 async function onEnviarChat() {
   const mensaje = mensajeChat.value.trim()
   if (!mensaje || procesandoChat.value) return
 
   procesandoChat.value = true
+
+  if (username.value !== null) {
+    updateThreadId()
+    if (!conversacionSeleccionada.value || conversacionSeleccionada.value === 'nueva conversación') {
+      const newThreadId = thread_id.value
+      if (!Array.isArray(conversaciones.value)) {
+        conversaciones.value = []
+      }
+      conversaciones.value.push({ id: newThreadId, title: mensaje })
+      conversacionSeleccionada.value = newThreadId
+      localStorage.setItem('geoyield_conversation', newThreadId)
+      log.event('conversation.created', {
+        conversation_id: newThreadId,
+        title: mensaje,
+        user: username.value,
+      })
+    }
+
+    let primerToken = true
+    await assistantStream(mensaje, thread_id.value, {
+      onToken: (texto) => {
+        if (!texto) return
+        if (primerToken) {
+          primerToken = false
+          const prefijo = respuestaPrompt.value ? `${respuestaPrompt.value.trim()}\n\n` : ''
+          respuestaPrompt.value = `${prefijo}PROMPT: ${mensaje}\nRESPONSE:\n`
+          mensajeChat.value = ''
+        }
+        respuestaPrompt.value += texto
+        autoScrollResponse()
+      },
+      onError: (detail) => {
+        error.value = detail
+        procesandoChat.value = false
+      },
+      onDone: () => {
+        procesandoChat.value = false
+      },
+    })
+    return
+  }
+
   cargando.value = true
   respuestaPrompt.value = ''
   distritoDesdeChat.value = null
