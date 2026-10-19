@@ -8,8 +8,8 @@ This is the main Vue component. It manages the global application state
 (coordinates, active district, streaming status) and distributes it down to
 its child components (Map, Form, Chat) via props.
 Refactored layout:
-- Left Column: Actual contents (Dossier header, ETL actions, Viability Form,
-  Verdict Card, District Map, Legal basis).
+- Left Column: Actual contents (Dossier header, Viability Form, Verdict Card,
+  District Map, Legal basis).
 - Right Column: Interactive Prompt Text Box and Response Text Box.
 -->
 <script setup>
@@ -19,14 +19,7 @@ import VerdictCard from './components/VerdictCard.vue'
 import ChatBubble from './components/ChatBubble.vue'
 import DistrictMap from './components/DistrictMap.vue'
 import RegulationsViewer from './components/RegulationsViewer.vue'
-import {
-  assistantStream,
-  chatInformeStream,
-  generarInformeStream,
-  dispararEtlMitma,
-  getEtlMitmaProgress,
-  loginUser,
-} from './services/api.js'
+import { assistantStream, chatInformeStream, generarInformeStream, getHistory, loginUser } from './services/api.js'
 import { createLogger } from './services/logger.js'
 
 const log = createLogger('app.informe')
@@ -37,46 +30,6 @@ const SEMAFOROS_VALIDOS = ['verde', 'ambar', 'rojo']
 const cargando = ref(false)
 const error = ref(null)
 const articuloSeleccionado = ref(null)
-const etlStatus = ref(null)
-const etlProgress = ref(0)
-const etlElapsed = ref(0)
-let etlInterval = null
-
-async function onTriggerETL() {
-  if (etlStatus.value === 'running') return
-  etlStatus.value = 'running'
-  etlProgress.value = 0
-  etlElapsed.value = 0
-
-  try {
-    await dispararEtlMitma()
-
-    if (etlInterval) clearInterval(etlInterval)
-    etlInterval = setInterval(async () => {
-      try {
-        const state = await getEtlMitmaProgress()
-        etlProgress.value = state.progress
-        etlElapsed.value = Math.floor(state.elapsed)
-
-        if (state.status === 'completed' || state.status === 'error') {
-          clearInterval(etlInterval)
-          etlStatus.value = state.status === 'completed' ? 'success' : 'error'
-          setTimeout(() => {
-            if (etlStatus.value === 'success' || etlStatus.value === 'error') etlStatus.value = null
-          }, 8000)
-        }
-      } catch (err) {
-        console.error('Error polling ETL progress:', err)
-      }
-    }, 2000)
-  } catch (err) {
-    console.error('Failed to start ETL:', err)
-    etlStatus.value = 'error'
-    setTimeout(() => {
-      etlStatus.value = null
-    }, 8000)
-  }
-}
 
 // Global Data State
 const codiDistrictePedido = ref(null)
@@ -260,11 +213,15 @@ async function onLogin() {
   }
 }
 
-function onSeleccionarConversacion() {
+async function onSeleccionarConversacion() {
   mensajeChat.value = ''
   respuestaPrompt.value = ''
   updateThreadId()
-  if (!conversacionSeleccionada.value) {
+
+  const selected = conversacionSeleccionada.value
+  const isNueva = !selected || selected === 'nueva conversación'
+
+  if (isNueva) {
     localStorage.removeItem('geoyield_conversation')
     log.event('conversation.selected', {
       conversation_id: 'nueva_conversacion',
@@ -273,12 +230,28 @@ function onSeleccionarConversacion() {
     })
     return
   }
-  localStorage.setItem('geoyield_conversation', conversacionSeleccionada.value)
+
+  localStorage.setItem('geoyield_conversation', selected)
+  const currentThreadId = thread_id.value || selected
+
   log.event('conversation.selected', {
-    conversation_id: conversacionSeleccionada.value,
-    thread_id: thread_id.value,
+    conversation_id: selected,
+    thread_id: currentThreadId,
     user: username.value,
   })
+
+  try {
+    const data = await getHistory(currentThreadId)
+    if (data && typeof data.content === 'string') {
+      respuestaPrompt.value = data.content
+      autoScrollResponse()
+    }
+  } catch (err) {
+    log.error('Failed to load conversation history', {
+      thread_id: currentThreadId,
+      error: err.message,
+    })
+  }
 }
 
 const distritoDesdeChat = ref(null)
@@ -428,39 +401,6 @@ async function onEnviarChat() {
               Selecciona un distrito y una zona urbanística de Barcelona para generar un informe que cruza la normativa
               legal vigente con datos socioeconómicos reales.
             </p>
-
-            <div class="mt-6 flex flex-col gap-3">
-              <div class="flex items-center gap-4">
-                <button
-                  class="rounded border border-brass/50 px-3 py-1.5 text-xs font-medium text-brass transition hover:bg-brass/10 disabled:cursor-not-allowed disabled:opacity-50"
-                  :disabled="etlStatus === 'running'"
-                  @click="onTriggerETL"
-                >
-                  Actualizar Datos MITMA (ETL)
-                </button>
-
-                <span
-                  v-if="etlStatus === 'success'"
-                  class="animate-fade-in rounded bg-[#d1fae5] px-2 py-1 text-xs text-[#065f46]"
-                >
-                  ✅ Completado ({{ etlElapsed }}s)
-                </span>
-                <span v-if="etlStatus === 'error'" class="animate-fade-in text-xs text-rojo">❌ Error en ETL</span>
-              </div>
-
-              <div v-if="etlStatus === 'running'" class="w-full max-w-xs animate-fade-in">
-                <div class="mb-1 flex justify-between text-[10px] text-paper/70">
-                  <span>Procesando datos (~{{ etlElapsed }}s)</span>
-                  <span>{{ etlProgress }}%</span>
-                </div>
-                <div class="h-1.5 w-full overflow-hidden rounded-full bg-paper/10">
-                  <div
-                    class="h-full bg-brass transition-all duration-500 ease-out"
-                    :style="{ width: `${etlProgress}%` }"
-                  ></div>
-                </div>
-              </div>
-            </div>
           </header>
 
           <!-- Viability Form Section -->

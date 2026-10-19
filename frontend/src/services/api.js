@@ -122,22 +122,6 @@ export async function geocodificarDireccion(direccion) {
 }
 
 /**
- * Triggers the MITMA ETL process in the background.
- */
-export async function dispararEtlMitma() {
-  return request('dispararEtlMitma', `${API_BASE_URL}/api/etl/mitma`, {
-    method: 'POST',
-  })
-}
-
-/**
- * Gets the current progress of the MITMA ETL background process.
- */
-export async function getEtlMitmaProgress() {
-  return request('getEtlMitmaProgress', `${API_BASE_URL}/api/etl/mitma/progress`)
-}
-
-/**
  * Fetches commercial competitors. If coordinates {lat, lon} are provided,
  * performs a geospatial radius search instead of a district-wide search.
  */
@@ -350,5 +334,17 @@ export async function loginUser(user) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ user }),
+  })
+}
+
+/**
+ * Retrieves the chat conversation history for a given thread_id.
+ *
+ * @param {string} threadId - Conversation thread ID
+ * @returns {Promise<{ thread_id: string, content: string, filename: string }>}
+ */
+export async function getHistory(threadId) {
+  return request('getHistory', `${API_BASE_URL}/api/gethistory?thread_id=${encodeURIComponent(threadId)}`, {
+    method: 'GET',
   })
 }
