@@ -25,6 +25,7 @@ import {
   generarInformeStream,
   dispararEtlMitma,
   getEtlMitmaProgress,
+  getHistory,
   loginUser,
 } from './services/api.js'
 import { createLogger } from './services/logger.js'
@@ -260,11 +261,15 @@ async function onLogin() {
   }
 }
 
-function onSeleccionarConversacion() {
+async function onSeleccionarConversacion() {
   mensajeChat.value = ''
   respuestaPrompt.value = ''
   updateThreadId()
-  if (!conversacionSeleccionada.value) {
+
+  const selected = conversacionSeleccionada.value
+  const isNueva = !selected || selected === 'nueva conversación'
+
+  if (isNueva) {
     localStorage.removeItem('geoyield_conversation')
     log.event('conversation.selected', {
       conversation_id: 'nueva_conversacion',
@@ -273,12 +278,28 @@ function onSeleccionarConversacion() {
     })
     return
   }
-  localStorage.setItem('geoyield_conversation', conversacionSeleccionada.value)
+
+  localStorage.setItem('geoyield_conversation', selected)
+  const currentThreadId = thread_id.value || selected
+
   log.event('conversation.selected', {
-    conversation_id: conversacionSeleccionada.value,
-    thread_id: thread_id.value,
+    conversation_id: selected,
+    thread_id: currentThreadId,
     user: username.value,
   })
+
+  try {
+    const data = await getHistory(currentThreadId)
+    if (data && typeof data.content === 'string') {
+      respuestaPrompt.value = data.content
+      autoScrollResponse()
+    }
+  } catch (err) {
+    log.error('Failed to load conversation history', {
+      thread_id: currentThreadId,
+      error: err.message,
+    })
+  }
 }
 
 const distritoDesdeChat = ref(null)

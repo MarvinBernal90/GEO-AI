@@ -25,9 +25,11 @@ import logging
 import os
 import sys
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, "/home/claud/pontia/PJ")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, REPO_ROOT)
 
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, RemoveMessage, SystemMessage
@@ -252,14 +254,15 @@ except Exception as exc:
 #### ASSISTANT
 sys_msg = SystemMessage(
     content="""Eres un asistente experto en hostelería y restauración, especializado en la ciudad de Barcelona.
-Tu tarea es proporcionar información sobre aspectos regulatorios y legales relacionados con la apertura de negocios en esta ciudad y un opportunity_score.
+Tu tarea es proporcionar información sobre aspectos regulatorios y legales relacionados con la apertura de negocios en esta ciudad y un opportunity_score, si se te pide.
 Dispones de dos herramientas para ayudarte en tu tarea:
 1. get_opportunity_score: devuelve un score a partir de una dirección en la ciudad de Barcelona.
 2. regulations_query: Esta herramienta te permite obtener información sobre aspectos regulatorios y legales relacionados con la apertura de negocios en Barcelona.
-Empieza la respuesta 'Dirección: [la dirección entrada en get_opportunity_score], score: [valor devuelto por get_opportunity_score]'
 Cuando respondas a las consultas de los usuarios, asegúrate de proporcionar información precisa y relevante, y de citar las fuentes de información cuando sea posible.
-Lita los documentos devueltos la tool regulations_query. Si no ha devuelto ninguno, dilo claramente
-Si no puedes encontrar información relevante, informa al usuario de que no se encontró información relevante."""
+Usa solamente datos que te proporcionen las herrmientas, de ningún otro lugar.
+Lista las fuentes.
+Si no eres capaz dem responder a la petición del usuario con la información disponible, dilo claramente.
+"""
 )
 
 
@@ -387,6 +390,9 @@ def _request_stream(
 
         full_text = "".join(full_response)
         yield {"type": "done", "text": full_text}
+        with open(f"{REPO_ROOT}/chat_history/{thread}.txt", "a") as f:
+            f.write(f"USUARIO:\n{content}\n\n")  # saves user input to history
+            f.write(f"ASISTENTE:\n{full_text}")  # saves assistant output input to history
     except Exception as exc:
         logger.exception("Error streaming chat request for thread %s: %s", thread, exc)
         yield {"type": "error", "detail": "No se pudo procesar tu mensaje. Inténtalo de nuevo."}
@@ -403,7 +409,13 @@ def _request_invoke(
     configurable = {"thread_id": thread}
 
     state = active_graph.invoke({"messages": messages}, {"configurable": configurable})
-    return state["messages"][-1]
+    response = state["messages"][-1]
+
+    with open(f"{REPO_ROOT}/chat_history/{thread}.txt", "a") as f:
+        f.write(f"USUARIO:\n{content}\n\n")  # saves user input to history
+        f.write(f"ASISTENTE:\n{response}")  # saves assistant output input to history
+
+    return response
 
 
 def request(
@@ -435,6 +447,7 @@ def request(
 
 
 if __name__ == "__main__":
+
     def _print_stream(prompt: str, thread_id: str):
         print(f"\nUser: {prompt}\nAssistant: ", end="", flush=True)
         for event in request(prompt, thread_id):
@@ -446,17 +459,17 @@ if __name__ == "__main__":
 
     _print_stream(
         "cuáles son los horarios de apertura para una cafetería?",
-        "claudiberenguer:2",
+        "claudiberenguer:5",
     )
     _print_stream(
         "y para un bar musical?",
-        "claudiberenguer:2",
+        "claudiberenguer:5",
     )
     _print_stream(
         "hay algún tipo de normativa específica para bar musical?",
-        "claudiberenguer:2",
+        "claudiberenguer:5",
     )
     _print_stream(
         "dime cuanto serían las tasas para una terraza de 15m2 en calle Creucoberta",
-        "claudiberenguer:2",
+        "claudiberenguer:5",
     )

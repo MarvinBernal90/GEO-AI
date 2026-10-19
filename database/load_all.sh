@@ -44,14 +44,9 @@ echo "Loaded: Ley 112009, de 6 de julio, de regulación administrativa de los es
 #python -m database.load_general_law data/raw/legal/other/OMAIIAA_Barcelona.pdf 'Ordenanza  municipal  de  actividades  y  de  intervención  integral  de  la  administración  ambiental  de  Barcelona'
 #echo "Loaded: Ordenanza  municipal  de  actividades  y  de  intervención  integral  de  la  administración  ambiental  de  Barcelona"
 
-python -m database.load_general_law data/raw/legal/other/omaiiaa_barcelona_v2_i.pdf 'Ordenanza  municipal  de  actividades  y  de  intervención  integral  de  la  administración  ambiental  de  Barcelona'
-echo "Loaded: Ordenanza  municipal  de  actividades  y  de  intervención  integral  de  la  administración  ambiental  de  Barcelona i"
-python -m database.load_general_law data/raw/legal/other/omaiiaa_barcelona_v2_i-ii.pdf 'Ordenanza  municipal  de  actividades  y  de  intervención  integral  de  la  administración  ambiental  de  Barcelona'
-echo "Loaded: Ordenanza  municipal  de  actividades  y  de  intervención  integral  de  la  administración  ambiental  de  Barcelona i-ii"
-python -m database.load_general_law data/raw/legal/other/omaiiaa_barcelona_v2_ii.pdf 'Ordenanza  municipal  de  actividades  y  de  intervención  integral  de  la  administración  ambiental  de  Barcelona'
-echo "Loaded: Ordenanza  municipal  de  actividades  y  de  intervención  integral  de  la  administración  ambiental  de  Barcelona ii"
-python -m database.load_general_law data/raw/legal/other/omaiiaa_barcelona_v2_ii-ii.pdf 'Ordenanza  municipal  de  actividades  y  de  intervención  integral  de  la  administración  ambiental  de  Barcelona'
-echo "Loaded: Ordenanza  municipal  de  actividades  y  de  intervención  integral  de  la  administración  ambiental  de  Barcelona ii-ii"
+
+
+
 
 
 

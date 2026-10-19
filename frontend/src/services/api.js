@@ -352,3 +352,16 @@ export async function loginUser(user) {
     body: JSON.stringify({ user }),
   })
 }
+
+/**
+ * Retrieves the chat conversation history for a given thread_id.
+ *
+ * @param {string} threadId - Conversation thread ID
+ * @returns {Promise<{ thread_id: string, content: string, filename: string }>}
+ */
+export async function getHistory(threadId) {
+  return request('getHistory', `${API_BASE_URL}/api/gethistory?thread_id=${encodeURIComponent(threadId)}`, {
+    method: 'GET',
+  })
+}
+
