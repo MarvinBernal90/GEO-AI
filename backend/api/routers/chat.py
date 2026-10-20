@@ -119,12 +119,13 @@ def _procesar_chat(mensaje: str, db: Session):
     # ------------------------------------------------------------------------
     # STEP 4: RAG Legal Assessment (Streaming)
     # ------------------------------------------------------------------------
+
     yield from generar_informe_viabilidad_stream(
         db, codi_districte=geo["codi_districte"], zona_pgm=zona_pgm, pregunta_especifica=pregunta_especifica
     )
 
 
-@router.post("/chat/informe/stream")
+@router.post("")
 def chat_informe_stream(payload: ChatRequest, db: Session = Depends(get_session)):
     """SSE Endpoint. Serializes the generator chunks into standard SSE format."""
 

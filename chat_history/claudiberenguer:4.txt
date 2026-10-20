@@ -1,0 +1,16 @@
+PROMPT: cuáles son los horarios de apertura para una cafetería?
+
+RESPONSE: <generator object _request_stream at 0x7f65bb82fa00>
+
+PROMPT: y para un bar musical?
+
+RESPONSE: <generator object _request_stream at 0x7f65bb82fa00>
+
+PROMPT: hay algún tipo de normativa específica para bar musical?
+
+RESPONSE: <generator object _request_stream at 0x7f65bb82fa00>
+
+PROMPT: dime cuanto serían las tasas para una terraza de 15m2 en calle Creucoberta
+
+RESPONSE: <generator object _request_stream at 0x7f65bb82fa00>
+

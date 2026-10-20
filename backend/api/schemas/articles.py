@@ -18,7 +18,7 @@ class ArticuloOut(BaseModel):
     `extra="forbid"` acts as an outbound firewall. If a developer accidentally
     modifies the SQL query in `routers/articulos.py` to `SELECT * FROM legal_chunks`,
     the database would return internal metadata (like `expedient` or `loaded_at`),
-    and more critically, the massive 384-dimensional `embedding` float array.
+    and more critically, the massive 1024-dimensional `embedding` float array.
     If Pydantic allowed extra fields, FastAPI would silently serialize and leak
     this heavy mathematical data to the Frontend.
     By setting `extra="forbid"`, Pydantic will intentionally crash and throw a

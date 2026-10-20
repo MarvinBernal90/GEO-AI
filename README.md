@@ -217,6 +217,21 @@ Gemini es el proveedor por defecto (no hace falta pasar `llm_client` explícitam
 
 La zona PGM se puede pedir explícita, o dejar que se determine automáticamente a partir de una dirección (ver `backend/geo/geocoding.py` y `backend/geo/amb_identify.py`) -- un distrito puede abarcar varias zonas PGM distintas, así que sin una dirección exacta no hay forma honesta de saber cuál aplica.
 
+### Uso de modelos Bedrock
+La aplicación se ha modificado para usar modelos de AWS Bedrock, tanto para el bi-encoder (etl de la basde de datos vectorial y codificación de las queries de usuario), el crossencoder (rernking) y el modelo generativo (razonador del agente ReAct y generación de respuestas)
+
+La instanciación del modelo toma las credenciales del contexto, que puede ser de access keys en .env, un perfil asociado a una sesión SSO activa o un IAM role asociado al EC2 donde se esté ejecutando el código.
+Para las pruebas en local lo mejor es tener activa una sesión AWS SSO. Para ello debe estar instalado AWS CLI. El comando es el siguiente: ´aws sso login --profile AdministratorAccess-192445490421´. Al ejecutarlo da una url en la que identificarse y a partir de entonces las credenciales se refrescan automáticamente mientras la sesión esté activa
+En .env deben estar AWS_PROFILE y AWS_REGION. Es mantener lo que hay en .env_example
+
+Se ha mentenido el código para hacer el fallback a modelo gemini para generación y razonamiento y modelos locales para embeddings. Aun así la latencia con los de Bedrock es claramente mejor y tienen la ventaja de estar incluidos en la cuenta del proyecto
+
+### Asistente
+Se ha creado un asistente disponible solamente param  usuarios registrados. Por simplificar, esos usuarios están predefinidos en la base de datos y son los noombres de usuario github de los componentes del equipo de proyecto
+El chat del asistente es con memoria. Las conversaciones son guardadas en base de datos, de forma que se pueden recuperar y seguir con ellas en otro momento
+El agente, con dos tools, el generador de 'opportunity score' y el RAG, está hecho con langgraph con output en modo stream, de forma que se puede entregar la respuesta por SSE al frontend. Para prevenir un crecimiento desmesurado de la ventana de contexto a medida que avanza la conversación, los mensajes más antiguos son eliminados de él y sustituidos un resumen. La historia de la conversación sí se mantienen íntegra, este tratamiento es específico del contexto
+Usa un directorio 'chat_history en la raíz del proyecto para guardar las conversaciones. Esto puede canviarse a la hora de subirlo a la nube.
+
 ### Ejecutar los tests
 
 ```bash
@@ -247,6 +262,7 @@ Este proyecto aplica los conocimientos de ingeniería adquiridos en el Máster:
 
 - **Contenedores:** Imágenes Docker propias para la API (`deployment/Dockerfile`) y para la base de datos (`deployment/Dockerfile.postgis`, Postgres + PostGIS + pgvector), para que el entorno de desarrollo sea idéntico al de producción.
 - **Migraciones:** Alembic, versionadas en `database/alembic/versions/` — cada cambio de esquema es un fichero nuevo, nunca se edita uno ya aplicado.
+- **AWS RDS:** Guía de migración de PostgreSQL con PostGIS y pgvector: [docs/aws-rds-migration.md](docs/aws-rds-migration.md).
 - **CI/CD:** Pipeline en GitHub Actions (`integrate.yml`) que ejecuta los tests en cada pull request, y despliegue manual (`deploy.yml`) a Render.
 - **Observabilidad:** Logging estructurado en JSON compartido por backend y frontend (ver *Structured logging* más abajo), más el contador de peticiones de `/metrics`. Las métricas específicas del agente/RAG (latencia del LLM, tasa de citas verificadas) se añadirán en la Fase 3.
 
