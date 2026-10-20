@@ -80,7 +80,7 @@ def gethistory(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error reading chat history file.",
-        )
+        ) from exc
 
     return HistoryResponse(
         thread_id=clean_id,

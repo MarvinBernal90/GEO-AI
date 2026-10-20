@@ -174,9 +174,7 @@ def _rerank_with_bedrock(
             "type": "INLINE",
             "inlineDocumentSource": {
                 "type": "TEXT",
-                "textDocument": {
-                    "text": f"{c.numero_articulo}||{c.titulo}||{c.contenido}||{c.fuente_legal}"
-                },
+                "textDocument": {"text": f"{c.numero_articulo}||{c.titulo}||{c.contenido}||{c.fuente_legal}"},
             },
         }
         for c in chunks

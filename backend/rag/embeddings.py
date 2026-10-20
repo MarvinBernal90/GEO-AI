@@ -92,11 +92,13 @@ def embed_texts(texts: list[str], client: Any = None) -> list[list[float]]:
         embeddings: list[list[float]] = []
 
         for text in texts:
-            body = json.dumps({
-                "inputText": text,
-                "dimensions": EMBEDDING_DIM,
-                "normalize": True,
-            })
+            body = json.dumps(
+                {
+                    "inputText": text,
+                    "dimensions": EMBEDDING_DIM,
+                    "normalize": True,
+                }
+            )
             response = bedrock.invoke_model(
                 modelId=EMBEDDINGS_MODEL,
                 body=body,

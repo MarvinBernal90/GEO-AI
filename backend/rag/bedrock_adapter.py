@@ -102,10 +102,12 @@ class BedrockAsAnthropicAdapter:
             else:
                 text_content = str(content)
 
-            bedrock_messages.append({
-                "role": msg.get("role", "user"),
-                "content": [{"text": text_content}],
-            })
+            bedrock_messages.append(
+                {
+                    "role": msg.get("role", "user"),
+                    "content": [{"text": text_content}],
+                }
+            )
 
         # 3. Explicit inferenceConfig (critical: avoids silent 64K quota exhaustion)
         inference_config = {
@@ -126,9 +128,7 @@ class BedrockAsAnthropicAdapter:
 
         stop_reason = response.get("stopReason")
         if stop_reason == "max_tokens":
-            logger.warning(
-                f"Bedrock generation reached maxTokens ({max_tokens}). Response may be truncated."
-            )
+            logger.warning(f"Bedrock generation reached maxTokens ({max_tokens}). Response may be truncated.")
 
         return _FakeAnthropicResponse(text_out)
 
@@ -160,10 +160,12 @@ class BedrockAsAnthropicAdapter:
             else:
                 text_content = str(content)
 
-            bedrock_messages.append({
-                "role": msg.get("role", "user"),
-                "content": [{"text": text_content}],
-            })
+            bedrock_messages.append(
+                {
+                    "role": msg.get("role", "user"),
+                    "content": [{"text": text_content}],
+                }
+            )
 
         inference_config = {
             "maxTokens": max_tokens,

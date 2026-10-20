@@ -23,13 +23,9 @@ Conversation persistence is managed with PostgresSaver (PostgreSQL / PostGIS).
 
 import logging
 import os
-import sys
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
-
-REPO_ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, REPO_ROOT)
 
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, RemoveMessage, SystemMessage
@@ -42,6 +38,8 @@ from sqlalchemy.orm import Session
 from backend.db.connection import resolve_database_url
 from backend.geo.geocoding import geocodificar_direccion
 from backend.rag.query_engine import build_context, retrieve_relevant_chunks_with_rerank
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 #### CONFIGURATION
 logger = logging.getLogger("geoyield_agent")

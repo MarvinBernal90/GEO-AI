@@ -230,6 +230,7 @@ Se ha mentenido el código para hacer el fallback a modelo gemini para generaci�
 Se ha creado un asistente disponible solamente param  usuarios registrados. Por simplificar, esos usuarios están predefinidos en la base de datos y son los noombres de usuario github de los componentes del equipo de proyecto
 El chat del asistente es con memoria. Las conversaciones son guardadas en base de datos, de forma que se pueden recuperar y seguir con ellas en otro momento
 El agente, con dos tools, el generador de 'opportunity score' y el RAG, está hecho con langgraph con output en modo stream, de forma que se puede entregar la respuesta por SSE al frontend. Para prevenir un crecimiento desmesurado de la ventana de contexto a medida que avanza la conversación, los mensajes más antiguos son eliminados de él y sustituidos un resumen. La historia de la conversación sí se mantienen íntegra, este tratamiento es específico del contexto
+Usa un directorio 'chat_history en la raíz del proyecto para guardar las conversaciones. Esto puede canviarse a la hora de subirlo a la nube.
 
 ### Ejecutar los tests
 

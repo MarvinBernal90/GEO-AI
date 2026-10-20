@@ -133,4 +133,3 @@ class User(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     user: Mapped[str] = mapped_column(String(100), nullable=False)
-

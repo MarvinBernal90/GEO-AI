@@ -9,8 +9,6 @@ Defines input contract for login requests and structured output containing
 user profile info and conversation history.
 """
 
-from typing import Any
-
 from pydantic import BaseModel, Field
 
 
@@ -25,6 +23,7 @@ class ConversationOut(BaseModel):
 
     id: str = Field(..., description="Unique conversation thread identifier")
     title: str = Field(..., description="Title or summary of the conversation")
+
 
 class LoginResponse(BaseModel):
     """Response returned upon successful login verification."""

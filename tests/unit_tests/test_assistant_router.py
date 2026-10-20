@@ -25,11 +25,11 @@ class TestAssistantEndpoint:
             {"type": "done", "text": "Horarios: de 06:00 a 02:00."},
         ])
 
-        with TestClient(app) as client:
-            response = client.post(
-                "/api/assistant",
-                json={"thread_id": "alice:1", "prompt": "¿cuáles son los horarios?"},
-            )
+        client = TestClient(app)
+        response = client.post(
+            "/api/assistant",
+            json={"thread_id": "alice:1", "prompt": "¿cuáles son los horarios?"},
+        )
 
         assert response.status_code == 200
         assert "text/event-stream" in response.headers["content-type"]
@@ -52,29 +52,29 @@ class TestAssistantEndpoint:
             {"type": "done", "text": "OK"},
         ])
 
-        with TestClient(app) as client:
-            response = client.post(
-                "/api/assistant",
-                json={"thread_id": "bob:2", "content": "consulta sobre licencias"},
-            )
+        client = TestClient(app)
+        response = client.post(
+            "/api/assistant",
+            json={"thread_id": "bob:2", "content": "consulta sobre licencias"},
+        )
 
         assert response.status_code == 200
         mock_request.assert_called_once_with("consulta sobre licencias", thread="bob:2", stream=True)
 
     def test_assistant_validation_error_empty_message(self):
         """Returns 422 if neither prompt nor content is provided or both are empty."""
-        with TestClient(app) as client:
-            res1 = client.post("/api/assistant", json={"thread_id": "alice:1", "prompt": "   "})
-            assert res1.status_code == 422
+        client = TestClient(app)
+        res1 = client.post("/api/assistant", json={"thread_id": "alice:1", "prompt": "   "})
+        assert res1.status_code == 422
 
-            res2 = client.post("/api/assistant", json={"thread_id": "alice:1"})
-            assert res2.status_code == 422
+        res2 = client.post("/api/assistant", json={"thread_id": "alice:1"})
+        assert res2.status_code == 422
 
     def test_assistant_validation_error_missing_thread_id(self):
         """Returns 422 if thread_id is missing or empty."""
-        with TestClient(app) as client:
-            res = client.post("/api/assistant", json={"prompt": "hola", "thread_id": ""})
-            assert res.status_code == 422
+        client = TestClient(app)
+        res = client.post("/api/assistant", json={"prompt": "hola", "thread_id": ""})
+        assert res.status_code == 422
 
     @patch("backend.api.routers.assistant.request")
     def test_assistant_stream_exception_handling(self, mock_request):
@@ -85,11 +85,11 @@ class TestAssistantEndpoint:
 
         mock_request.return_value = broken_generator()
 
-        with TestClient(app) as client:
-            response = client.post(
-                "/api/assistant",
-                json={"thread_id": "alice:1", "prompt": "hola"},
-            )
+        client = TestClient(app)
+        response = client.post(
+            "/api/assistant",
+            json={"thread_id": "alice:1", "prompt": "hola"},
+        )
 
         assert response.status_code == 200
         lines = [line for line in response.text.split("\n\n") if line.startswith("data: ")]

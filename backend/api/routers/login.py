@@ -54,11 +54,7 @@ def get_user_conversations(
     cp = active_checkpointer if active_checkpointer is not None else checkpointer
 
     try:
-        query = text(
-            "SELECT DISTINCT thread_id FROM checkpoints "
-            "WHERE thread_id LIKE :prefix "
-            "ORDER BY thread_id ASC"
-        )
+        query = text("SELECT DISTINCT thread_id FROM checkpoints WHERE thread_id LIKE :prefix ORDER BY thread_id ASC")
         rows = db.execute(query, {"prefix": f"{username}%"}).fetchall()
         thread_ids = [r[0] for r in rows if r[0].startswith(username)]
     except Exception as exc:
@@ -127,4 +123,3 @@ def login(
         user=user_record.user,
         conversations=conversations,
     )
-
