@@ -27,7 +27,12 @@ const log = createLogger('api')
 async function handleResponse(response) {
   if (!response.ok) {
     const body = await response.json().catch(() => null)
-    const mensaje = body?.detail || `Error HTTP ${response.status}: Error al conectar con el servidor.`
+    let mensaje = `Error HTTP ${response.status}: Error al conectar con el servidor.`
+    if (typeof body?.detail === 'string') {
+      mensaje = body.detail
+    } else if (Array.isArray(body?.detail) && body.detail[0]?.msg) {
+      mensaje = body.detail[0].msg
+    }
     const error = new Error(mensaje)
     error.status = response.status
     throw error
@@ -114,22 +119,6 @@ export async function obtenerArticulo(fuenteLegal, numeroArticulo) {
 export async function geocodificarDireccion(direccion) {
   const params = new URLSearchParams({ direccion })
   return request('geocodificarDireccion', `${API_BASE_URL}/api/geocode?${params}`)
-}
-
-/**
- * Triggers the MITMA ETL process in the background.
- */
-export async function dispararEtlMitma() {
-  return request('dispararEtlMitma', `${API_BASE_URL}/api/etl/mitma`, {
-    method: 'POST',
-  })
-}
-
-/**
- * Gets the current progress of the MITMA ETL background process.
- */
-export async function getEtlMitmaProgress() {
-  return request('getEtlMitmaProgress', `${API_BASE_URL}/api/etl/mitma/progress`)
 }
 
 /**
@@ -280,4 +269,82 @@ export async function chatInformeStream(mensaje, callbacks = {}) {
   } catch (error) {
     onError?.(error.message)
   }
+}
+
+/**
+ * Streams responses from the conversational assistant endpoint (/api/assistant).
+ *
+ * @param {string} prompt - Prompt or user query
+ * @param {string} threadId - Conversation thread ID (e.g. username:ordinal)
+ * @param {object} callbacks - Optional callbacks: onToken, onDone, onError
+ */
+export async function assistantStream(prompt, threadId, callbacks = {}) {
+  const { onToken, onDone, onError } = callbacks
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/assistant`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, thread_id: threadId }),
+    })
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => null)
+      throw new Error(body?.detail || `Error ${response.status} al llamar al asistente`)
+    }
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const bloques = buffer.split('\n\n')
+      buffer = bloques.pop() ?? ''
+
+      for (const bloque of bloques) {
+        if (!bloque.startsWith('data: ')) continue
+
+        try {
+          const evento = JSON.parse(bloque.slice(6))
+          if (evento.type === 'token') onToken?.(evento.text)
+          else if (evento.type === 'done') onDone?.(evento)
+          else if (evento.type === 'error') onError?.(evento.detail)
+        } catch {
+          console.warn('Error parseando bloque SSE del asistente:', bloque)
+        }
+      }
+    }
+  } catch (error) {
+    onError?.(error.message)
+  }
+}
+
+/**
+ * Authenticates a user and retrieves their conversation threads.
+ *
+ * @param {string} user - Username to verify
+ * @returns {Promise<{ user: string, conversations: Array<{ id: string, title: string }> }>}
+ */
+export async function loginUser(user) {
+  return request('loginUser', `${API_BASE_URL}/api/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user }),
+  })
+}
+
+/**
+ * Retrieves the chat conversation history for a given thread_id.
+ *
+ * @param {string} threadId - Conversation thread ID
+ * @returns {Promise<{ thread_id: string, content: string, filename: string }>}
+ */
+export async function getHistory(threadId) {
+  return request('getHistory', `${API_BASE_URL}/api/gethistory?thread_id=${encodeURIComponent(threadId)}`, {
+    method: 'GET',
+  })
 }

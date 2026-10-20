@@ -1,0 +1,298 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Geo-Yield-AI Infrastructure replication for eu-central-1 (Frankfurt).
+  Replicates the infrastructure audited from eu-south-2:
+  EC2 Geo-Yield-Server (Ubuntu 26.04, t3.micro, 30GB gp3), Elastic IP,
+  geoyield-firewall Security Group (ports 22, 80, 443, 8080, 5432),
+  VPC networking, and S3 raw data bucket.
+
+Metadata:
+  AWSToolsMetrics:
+    AWSAgentToolkit: "aws-cloudformation@3"
+  com.aws.cloudformation.Context:
+    why: "Replicate production infrastructure from eu-south-2 to eu-central-1 with high fidelity and secure defaults."
+    must:
+      - "Retain S3 bucket on stack deletion to prevent data loss."
+      - "Restrict PostgreSQL port 5432 ingress to specified administrative CIDR."
+      - "Enforce TLS/HTTPS only on S3 buckets via aws:SecureTransport."
+
+Parameters:
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues:
+      - development
+      - staging
+      - production
+    Description: Deployment target environment.
+
+  InstanceType:
+    Type: String
+    Default: t3.micro
+    Description: EC2 instance type for the Geo-Yield-Server application host.
+
+  AmiId:
+    Type: AWS::EC2::Image::Id
+    Default: ami-087c4bdada7bc4dec
+    Description: Ubuntu 26.04 LTS amd64 hvm-ssd-gp3 AMI ID in eu-central-1.
+
+  KeyName:
+    Type: String
+    Default: ""
+    Description: (Optional) EC2 KeyPair name for SSH access. Leave empty if using AWS Systems Manager (SSM).
+
+  PostgresAllowedCidr:
+    Type: String
+    Default: 185.193.174.197/32
+    AllowedPattern: '^([0-9]{1,3}\.){3}[0-9]{1,3}/([0-9]|[1-2][0-9]|3[0-2])$'
+    Description: IP CIDR permitted to access PostgreSQL database on port 5432.
+
+  RawDataBucketName:
+    Type: String
+    Default: ""
+    Description: (Optional) Name for S3 raw data bucket. If omitted, stack name and account ID will be used.
+
+Conditions:
+  HasKeyName: !Not [!Equals [!Ref KeyName, ""]]
+  HasCustomBucketName: !Not [!Equals [!Ref RawDataBucketName, ""]]
+
+Resources:
+  # ============================================================================
+  # 1. STORAGE: S3 Raw Data Bucket
+  # ============================================================================
+  RawDataBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !If
+        - HasCustomBucketName
+        - !Ref RawDataBucketName
+        - !Sub "geoyield-raw-data-${AWS::AccountId}-eu-central-1"
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-raw-data"
+        - Key: Environment
+          Value: !Ref Environment
+
+  RawDataBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref RawDataBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyNonHTTPSRequests
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !GetAtt RawDataBucket.Arn
+              - !Sub "${RawDataBucket.Arn}/*"
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+
+  # ============================================================================
+  # 2. NETWORKING: VPC, Subnet, Internet Gateway & Routing
+  # ============================================================================
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 172.31.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-vpc"
+        - Key: Environment
+          Value: !Ref Environment
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-igw"
+
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 172.31.0.0/20
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-public-subnet"
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-public-rt"
+
+  DefaultPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  SubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref PublicRouteTable
+
+  # ============================================================================
+  # 3. SECURITY GROUP: geoyield-firewall
+  # ============================================================================
+  ServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: geoyield-firewall
+      GroupDescription: Security group replicated from eu-south-2 for Geo-Yield-AI server
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+          Description: SSH remote management
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: HTTP standard ingress
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: HTTPS secure ingress
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: 0.0.0.0/0
+          Description: FastAPI backend and reverse proxy ingress
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          CidrIp: !Ref PostgresAllowedCidr
+          Description: PostgreSQL restricted ingress
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic
+      Tags:
+        - Key: Name
+          Value: geoyield-firewall
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ============================================================================
+  # 4. COMPUTE: EC2 Geo-Yield-Server & Elastic IP
+  # ============================================================================
+  ServerInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref AmiId
+      KeyName: !If [HasKeyName, !Ref KeyName, !Ref "AWS::NoValue"]
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds:
+        - !Ref ServerSecurityGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 30
+            VolumeType: gp3
+            DeleteOnTermination: true
+            Encrypted: true
+      Tags:
+        - Key: Name
+          Value: Geo-Yield-Server
+        - Key: Environment
+          Value: !Ref Environment
+
+  ServerElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-server-eip"
+
+  ServerEIPAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt ServerElasticIP.AllocationId
+      InstanceId: !Ref ServerInstance
+
+# ============================================================================
+# 5. OUTPUTS
+# ============================================================================
+Outputs:
+  ServerInstanceId:
+    Description: Instance ID of the Geo-Yield-Server
+    Value: !Ref ServerInstance
+    Export:
+      Name: !Sub "${AWS::StackName}-InstanceId"
+
+  ServerPublicIp:
+    Description: Static Elastic IP address assigned to the Geo-Yield-Server
+    Value: !Ref ServerElasticIP
+    Export:
+      Name: !Sub "${AWS::StackName}-PublicIp"
+
+  ServerPublicDns:
+    Description: Public DNS hostname of the Geo-Yield-Server
+    Value: !GetAtt ServerInstance.PublicDnsName
+
+  ServerSecurityGroupId:
+    Description: Security Group ID for geoyield-firewall
+    Value: !Ref ServerSecurityGroup
+    Export:
+      Name: !Sub "${AWS::StackName}-SecurityGroupId"
+
+  VpcId:
+    Description: VPC ID where resources are deployed
+    Value: !Ref VPC
+    Export:
+      Name: !Sub "${AWS::StackName}-VpcId"
+
+  PublicSubnetId:
+    Description: Public Subnet ID
+    Value: !Ref PublicSubnet
+    Export:
+      Name: !Sub "${AWS::StackName}-PublicSubnetId"
+
+  RawDataBucketName:
+    Description: S3 bucket name for raw data assets in eu-central-1
+    Value: !Ref RawDataBucket
+    Export:
+      Name: !Sub "${AWS::StackName}-RawDataBucket"
+
+  RawDataBucketArn:
+    Description: S3 bucket ARN for raw data assets in eu-central-1
+    Value: !GetAtt RawDataBucket.Arn

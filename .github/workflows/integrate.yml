@@ -19,6 +19,9 @@ jobs:
       contents: read
       pull-requests: write
 
+    env:
+      DATABASE_URL: "sqlite:///:memory:"
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -42,11 +45,13 @@ jobs:
         # stop immediately. This guarantees that the next step (artifact
         # upload) always runs so the logs are preserved.
         continue-on-error: true
+        env:
+          DATABASE_URL: "sqlite:///:memory:"
         run: |
           mkdir -p test-results
           # PYTHONPATH=. is injected to resolve absolute imports.
           # A coverage report (--cov) and XML logs are generated for static analysis.
-          PYTHONPATH=. pytest tests/unit_tests/ --capture=tee-sys --cov=backend --cov-report=term --cov-report=html --junitxml=test-results/results.xml > test-results/results.log
+          PYTHONPATH=. pytest tests/unit_tests/ --capture=tee-sys --cov=backend --cov-report=term --cov-report=html --junitxml=test-results/results.xml 2>&1 | tee test-results/results.log
 
       # ------------------------------------------------------------------
       # ARTIFACT PERSISTENCE FOR DEBUGGING

@@ -241,9 +241,9 @@ def build_agent_graph(
     datos_socioeconomicos, normativa_legal = _crear_nodos_paralelos(session, embed_fn, llm_client, model)
 
     def sintesis_final(state: ViabilityState) -> dict[str, Any]:
-        from backend.rag.gemini_adapter import GeminiAsAnthropicAdapter
+        from backend.rag.bedrock_adapter import get_llm_adapter
 
-        client = llm_client if llm_client is not None else GeminiAsAnthropicAdapter()
+        client = get_llm_adapter(llm_client)
         mensaje, articulos_citados = _construir_mensaje_sintesis(
             state["datos_distrito"],
             state["respuesta_legal"],  # type: ignore
@@ -314,8 +314,6 @@ def generar_informe_viabilidad_stream(
     Streaming invocation. Uses the partial graph to gather data quickly,
     yields the raw data to the frontend, and then manages the LLM stream manually.
     """
-    from backend.rag.gemini_adapter import GeminiAsAnthropicAdapter
-
     grafo = build_data_gathering_graph(session, embed_fn=embed_fn, llm_client=llm_client, model=model)
     resultado = grafo.invoke(
         {"codi_districte": codi_districte, "zona_pgm": zona_pgm, "pregunta_especifica": pregunta_especifica}
@@ -333,7 +331,9 @@ def generar_informe_viabilidad_stream(
         "articulos_citados": articulos_citados,
     }
 
-    client = llm_client if llm_client is not None else GeminiAsAnthropicAdapter()
+    from backend.rag.bedrock_adapter import get_llm_adapter
+
+    client = get_llm_adapter(llm_client)
     texto_acumulado = ""
 
     # Second event loop: Stream the LLM synthesis token by token
