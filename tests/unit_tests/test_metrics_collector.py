@@ -173,3 +173,26 @@ class TestClipText:
 
     def test_none_stays_none(self):
         assert clip_text(None) is None
+
+
+class TestCancelledAndExplicitTarget:
+    def test_generator_exit_marks_the_span_as_cancelled(self):
+        collector = MetricsCollector(trace_id="t1")
+
+        def stream():
+            with collector.span("llm", "stream") as current:
+                yield current
+                yield "never reached"
+
+        gen = stream()
+        current = next(gen)
+        gen.close()
+        assert current.status == "cancelled"
+        assert current.error is None
+
+    def test_add_usage_with_explicit_target_works_outside_the_span(self):
+        collector = MetricsCollector(trace_id="t1")
+        with collector.span("llm", "call") as current:
+            pass
+        add_usage("gemini-2.5-flash", 1_000_000, 0, 0, target=current)
+        assert current.cost_usd == pytest.approx(0.30)

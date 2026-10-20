@@ -20,7 +20,7 @@ from backend.observability import get_logger
 logger = get_logger("observability.metrics.spans")
 
 Actor = Literal["agent", "llm", "rag", "db", "external"]
-Status = Literal["running", "ok", "error"]
+Status = Literal["running", "ok", "error", "cancelled"]
 
 MAX_SUMMARY_CHARS = 200
 
@@ -54,6 +54,7 @@ class Span:
     cached: bool | None = None
     input_summary: str | None = None
     output_summary: str | None = None
+    ttft_ms: float | None = None  # time to first token (streaming calls only)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -106,3 +107,18 @@ def estimate_cost(
     billed_out = (tokens_out or 0) + (thought_tokens or 0)
     cost = ((tokens_in or 0) * price_in + billed_out * price_out) / 1_000_000
     return round(cost, 6)
+
+
+def apply_usage(
+    target: Span,
+    model: str,
+    tokens_in: int | None,
+    tokens_out: int | None,
+    thought_tokens: int | None = 0,
+) -> None:
+    """Write token counts and the estimated cost on a span. It replaces any earlier value."""
+    target.model = model
+    target.tokens_in = int(tokens_in or 0)
+    target.tokens_out = int(tokens_out or 0)
+    target.thought_tokens = int(thought_tokens or 0)
+    target.cost_usd = estimate_cost(model, target.tokens_in, target.tokens_out, target.thought_tokens)

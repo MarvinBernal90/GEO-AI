@@ -17,6 +17,7 @@ collector and the parent span.
 
 from __future__ import annotations
 
+import asyncio
 import threading
 import time
 from collections.abc import Iterator
@@ -25,7 +26,7 @@ from contextvars import ContextVar
 from typing import Any
 
 from backend.observability import get_logger, get_trace_id
-from backend.observability.metrics.spans import Actor, Span, clip_text, estimate_cost
+from backend.observability.metrics.spans import Actor, Span, apply_usage, clip_text
 
 logger = get_logger("observability.metrics.collector")
 
@@ -119,6 +120,10 @@ class MetricsCollector:
         started = time.perf_counter()
         try:
             yield current
+        except (GeneratorExit, asyncio.CancelledError):
+            # The client left or the task was cancelled: this is not a server error.
+            current.status = "cancelled"
+            raise
         except BaseException as exc:
             current.status = "error"
             current.error = type(exc).__name__  # class only: the message may hold personal data
@@ -147,22 +152,18 @@ class MetricsCollector:
         so call it once with the final totals (streaming chunks report running totals).
         """
         try:
-            target = self._by_id.get(_current_span_id.get())  # type: ignore[arg-type]
+            target = self._by_id.get(_current_span_id.get())
             if target is None:
                 logger.debug("add_usage called outside a span; ignored")
                 return
-            target.model = model
-            target.tokens_in = int(tokens_in or 0)
-            target.tokens_out = int(tokens_out or 0)
-            target.thought_tokens = int(thought_tokens or 0)
-            target.cost_usd = estimate_cost(model, target.tokens_in, target.tokens_out, target.thought_tokens)
+            apply_usage(target, model, tokens_in, tokens_out, thought_tokens)
         except Exception:
             logger.warning("Could not store token usage", exc_info=True)
 
     def set_output(self, text: str | None) -> None:
         """Store a short summary of the result on the current span."""
         try:
-            target = self._by_id.get(_current_span_id.get())  # type: ignore[arg-type]
+            target = self._by_id.get(_current_span_id.get())
             if target is not None:
                 target.output_summary = clip_text(text)
         except Exception:
@@ -223,10 +224,27 @@ def span(actor: Actor, name: str, **kwargs: Any) -> Iterator[Span | None]:
         yield current
 
 
-def add_usage(model: str, tokens_in: int | None, tokens_out: int | None, thought_tokens: int | None = 0) -> None:
-    collector = get_collector()
-    if collector is not None:
-        collector.add_usage(model, tokens_in, tokens_out, thought_tokens)
+def add_usage(
+    model: str,
+    tokens_in: int | None,
+    tokens_out: int | None,
+    thought_tokens: int | None = 0,
+    *,
+    target: Span | None = None,
+) -> None:
+    """
+    Store token usage. With `target`, write on that span directly. Streaming needs this:
+    a generator may run each step in a different context, so the "current span" can be lost.
+    """
+    try:
+        if target is not None:
+            apply_usage(target, model, tokens_in, tokens_out, thought_tokens)
+            return
+        collector = get_collector()
+        if collector is not None:
+            collector.add_usage(model, tokens_in, tokens_out, thought_tokens)
+    except Exception:
+        logger.warning("Could not store token usage", exc_info=True)
 
 
 def set_output(text: str | None) -> None:
