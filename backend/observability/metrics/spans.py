@@ -27,11 +27,20 @@ MAX_SUMMARY_CHARS = 200
 # Default prices in USD per 1 million tokens: (input, output).
 # For Gemini the output price also covers the "thinking" tokens.
 # Source: ai.google.dev/gemini-api/docs/pricing, standard paid tier, checked on 2026-10-20.
-# Override with env vars METRICS_PRICE_<MODEL>_IN / METRICS_PRICE_<MODEL>_OUT,
-# for example METRICS_PRICE_GEMINI_2_5_FLASH_IN=0.30
+#
+# Bedrock models are NOT listed on purpose: their price depends on the region and
+# the AWS contract, and we could not confirm it from the official page. Without a
+# price the cost is None ("unknown"), never 0. Set both variables to enable it:
+#   METRICS_PRICE_<MODEL>_IN and METRICS_PRICE_<MODEL>_OUT
+# where <MODEL> is the key returned by `_model_key`, for example
+#   METRICS_PRICE_AMAZON_NOVA_2_LITE_V1_0_IN=...
+#   METRICS_PRICE_AMAZON_NOVA_2_LITE_V1_0_OUT=...
 _DEFAULT_PRICES: dict[str, tuple[float, float]] = {
     "GEMINI_2_5_FLASH": (0.30, 2.50),
 }
+
+# Cross-region inference profiles add one of these prefixes to the model id.
+_REGION_PREFIXES = ("eu.", "us.", "apac.", "global.", "us-gov.", "ca.", "jp.", "au.")
 
 
 @dataclass
@@ -69,8 +78,22 @@ def clip_text(text: str | None, limit: int = MAX_SUMMARY_CHARS) -> str | None:
 
 
 def _model_key(model: str) -> str:
-    """'gemini-2.5-flash' -> 'GEMINI_2_5_FLASH' (used to look up prices and env vars)."""
-    return re.sub(r"[^A-Za-z0-9]+", "_", model).strip("_").upper()
+    """
+    Turn a model name into the key used to look up prices and env vars.
+
+    'gemini-2.5-flash' -> 'GEMINI_2_5_FLASH'
+    'arn:aws:bedrock:eu-central-1:123:inference-profile/eu.amazon.nova-2-lite-v1:0'
+        -> 'AMAZON_NOVA_2_LITE_V1_0'  (the ARN and the region prefix are removed)
+    """
+    name = model
+    if name.startswith("arn:"):
+        # An ARN ends with '<resource type>/<model or profile id>': keep the id only.
+        name = name.rsplit("/", 1)[-1]
+    for prefix in _REGION_PREFIXES:
+        if name.startswith(prefix):
+            name = name[len(prefix) :]
+            break
+    return re.sub(r"[^A-Za-z0-9]+", "_", name).strip("_").upper()
 
 
 def _read_price(env_name: str, default: float | None) -> float | None:

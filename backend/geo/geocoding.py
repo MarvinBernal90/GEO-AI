@@ -14,6 +14,7 @@ here. This file relies exclusively on the 'suburb' field returned by Nominatim,
 which empirical testing confirmed matches Barcelona's 10 official districts.
 """
 
+import json
 import re
 
 import requests
@@ -102,7 +103,7 @@ def geocodificar_direccion(direccion: str) -> dict | None:
         logger.exception(f"Error consultando Nominatim para la dirección: {direccion!r}")
         return None
 
-    resultados = response.json()
+    resultados = json.loads(response.text)
     if not resultados:
         return None
 

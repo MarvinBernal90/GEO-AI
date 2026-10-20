@@ -13,6 +13,7 @@ import hashlib
 import pytest
 
 from backend.db.models import LegalChunk
+from backend.rag.embeddings import EMBEDDING_DIM
 from backend.rag.query_engine import build_context, retrieve_relevant_chunks
 
 # ------------------------------------------------------------------------------
@@ -21,17 +22,13 @@ from backend.rag.query_engine import build_context, retrieve_relevant_chunks
 def hash_embed(texts: list[str]) -> list[list[float]]:
     """
     Mock Embedding Function.
-    Generates deterministic 384-dimensional vectors based on the SHA256 hash 
-    of the text. 
-    Why? We cannot use the real Hugging Face model in unit tests because:
-    1. It's too slow to load into RAM.
-    2. ML model outputs can drift across versions, causing flaky tests.
-    This fake function guarantees the exact same mathematical vectors every run.
+    Generates deterministic vectors matching EMBEDDING_DIM based on the SHA256 hash
+    of the text.
     """
     result = []
     for t in texts:
         seed = int(hashlib.sha256(t.encode()).hexdigest(), 16)
-        result.append([((seed >> (i % 64)) % 1000) / 1000.0 for i in range(384)])
+        result.append([((seed >> (i % 64)) % 1000) / 1000.0 for i in range(EMBEDDING_DIM)])
     return result
 
 

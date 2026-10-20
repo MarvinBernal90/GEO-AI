@@ -23,13 +23,14 @@ from backend.ia.agent import (
     generar_informe_viabilidad_stream,
     zonas_pgm_disponibles,
 )
+from backend.rag.embeddings import EMBEDDING_DIM
 
 # Deterministic Embedding Mock (from Phase 2)
 def hash_embed(texts: list[str]) -> list[list[float]]:
     result = []
     for t in texts:
         seed = int(hashlib.sha256(t.encode()).hexdigest(), 16)
-        result.append([((seed >> (i % 64)) % 1000) / 1000.0 for i in range(384)])
+        result.append([((seed >> (i % 64)) % 1000) / 1000.0 for i in range(EMBEDDING_DIM)])
     return result
 
 

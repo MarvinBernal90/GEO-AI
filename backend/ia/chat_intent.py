@@ -43,10 +43,10 @@ def extraer_intencion(mensaje: str, llm_client=None, model: str | None = None) -
     None for all fields, forcing the downstream Orchestrator to ask for clarification
     rather than hallucinating an address to force the workflow to continue.
     """
-    from backend.rag.gemini_adapter import GeminiAsAnthropicAdapter
+    from backend.rag.bedrock_adapter import get_llm_adapter
     from backend.rag.query_engine import DEFAULT_MODEL
 
-    client = llm_client if llm_client is not None else GeminiAsAnthropicAdapter()
+    client = get_llm_adapter(llm_client)
     modelo = model if model is not None else DEFAULT_MODEL
 
     try:

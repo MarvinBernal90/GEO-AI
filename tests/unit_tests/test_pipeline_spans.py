@@ -5,7 +5,7 @@ UNIT TESTS: METRICS SPANS IN THE RAG + AGENT PIPELINE
 File: tests/unit_tests/test_pipeline_spans.py
 
 Checks that the pipeline records the expected spans, that they form a tree,
-and that the user's text never reaches them. No network and no Gemini.
+and that the user's text never reaches them. No network and no LLM calls.
 """
 
 import time
@@ -17,6 +17,7 @@ from langgraph.graph import END, START, StateGraph
 from backend.db.models import LegalChunk
 from backend.ia import agent
 from backend.observability.metrics import MetricsCollector, span, use_collector
+from backend.rag.embeddings import EMBEDDING_DIM
 from backend.rag.query_engine import retrieve_relevant_chunks
 
 
@@ -102,7 +103,7 @@ class TestStreamReportSpans:
 
 def _constant_embed(texts):
     """Fake embedding: every text gets the same vector."""
-    return [[1.0] + [0.0] * 383 for _ in texts]
+    return [[1.0] + [0.0] * (EMBEDDING_DIM - 1) for _ in texts]
 
 
 @pytest.fixture
@@ -115,7 +116,7 @@ def two_chunks(db_session):
             contenido="zone article",
             versio="original",
             zona_pgm="industrial",
-            embedding=[0.9] + [0.0] * 383,
+            embedding=[0.9] + [0.0] * (EMBEDDING_DIM - 1),
         )
     )
     db_session.add(
@@ -126,7 +127,7 @@ def two_chunks(db_session):
             contenido="general article",
             versio="vigente",
             zona_pgm=None,
-            embedding=[0.8] + [0.0] * 383,
+            embedding=[0.8] + [0.0] * (EMBEDDING_DIM - 1),
         )
     )
     db_session.commit()
