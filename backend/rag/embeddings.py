@@ -13,9 +13,14 @@ Performance Feature:
 The Heavy Machine Learning model (Torch) is loaded lazily and cached in
 memory. It only consumes RAM upon the first actual usage, preventing slow
 boot times when other modules import the EMBEDDING_DIM constant.
+
+Metrics: the first load of the model (cold start) is recorded as its own span,
+so we can see how much time the first request pays for it.
 """
 
 from typing import Protocol
+
+from backend.observability.metrics import span
 
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 EMBEDDING_DIM = 384
@@ -37,18 +42,20 @@ class EmbeddingFunction(Protocol):
 
 
 def _get_model():
-    global _model
     """
     Lazy Loader (Singleton Pattern).
     Loads the Hugging Face model into memory only the first time it is called.
     """
+    global _model
     if _model is None:
-        # Lazy Import: 'sentence_transformers' drags the massive PyTorch library
-        # into memory. We do not want to pay this heavy import tax globally,
-        # especially during Pytest runs that use Mock embedding functions.
-        from sentence_transformers import SentenceTransformer
+        # The span only exists on a cold start: later calls skip this block.
+        with span("rag", "load_embedding_model", model=MODEL_NAME):
+            # Lazy Import: 'sentence_transformers' drags the massive PyTorch library
+            # into memory. We do not want to pay this heavy import tax globally,
+            # especially during Pytest runs that use Mock embedding functions.
+            from sentence_transformers import SentenceTransformer
 
-        _model = SentenceTransformer(MODEL_NAME)
+            _model = SentenceTransformer(MODEL_NAME)
     return _model
 
 
