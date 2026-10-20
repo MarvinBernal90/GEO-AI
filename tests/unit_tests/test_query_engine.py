@@ -80,12 +80,12 @@ class TestRetrieveOrdenaPorRelevanciaGlobal:
         """
         # Fake embedding function returning an exact target vector
         def embed_pregunta(textos):
-            return [[1.0] + [0.0] * 383 for _ in textos]
+            return [[1.0] + [0.0] * (EMBEDDING_DIM - 1) for _ in textos]
 
         # vector_cercano is mathematically very close to the simulated question
-        vector_cercano = [0.99] + [0.0] * 383  
+        vector_cercano = [0.99] + [0.0] * (EMBEDDING_DIM - 1)
         # vector_lejano is mathematically very far from the question
-        vector_lejano = [0.1] + [0.99] * 383   
+        vector_lejano = [0.1] + [0.99] * (EMBEDDING_DIM - 1)
 
         db_session.add(LegalChunk(
             fuente_legal="PGM (Secció V)", numero_articulo="1", titulo="t",
