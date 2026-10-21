@@ -1,11 +1,11 @@
-<!-- 
+<!--
 ==============================================================================
 EXECUTIVE SUMMARY COMPONENT (STATELESS)
 ==============================================================================
 File: frontend/src/components/VerdictCard.vue
 
-A pure presentational "dumb" component. It receives the parsed LLM verdict 
-and district data via props, applying styling and formatting without holding 
+A pure presentational "dumb" component. It receives the parsed LLM verdict
+and district data via props, applying styling and formatting without holding
 any business logic of its own.
 -->
 <script setup>
@@ -28,8 +28,23 @@ const veredicto = computed(() => COLORES[props.informe.semaforo] ?? COLORES.amba
 // Native Browser i18n (Internationalization) for strict Spanish formatting
 const formatoNumero = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 })
 const formatoMoneda = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })
+const formatoPorcentaje = new Intl.NumberFormat('es-ES', {
+  style: 'percent',
+  maximumFractionDigits: 1,
+  signDisplay: 'exceptZero',
+})
 
 const datos = computed(() => props.informe.datos_distrito ?? {})
+
+// `daily_foot_traffic` is an index, not a head count: (residents + people who
+// arrive - people who leave) / residents. A value of 1.04 means 4% more people
+// than residents on an average day. We show it as a signed percentage.
+// A value of 0 means the district has no population data, so we show a dash.
+const afluencia = computed(() => {
+  const indice = Number(datos.value.daily_foot_traffic)
+  if (!Number.isFinite(indice) || indice <= 0) return '—'
+  return formatoPorcentaje.format(indice - 1)
+})
 </script>
 
 <template>
@@ -75,10 +90,13 @@ const datos = computed(() => props.informe.datos_distrito ?? {})
         </dd>
       </div>
       <div>
-        <dt class="text-[11px] tracking-wide text-ink/45 uppercase">Afluencia diaria</dt>
-        <dd class="font-mono font-medium">
-          {{ datos.daily_foot_traffic != null ? formatoNumero.format(datos.daily_foot_traffic) : '—' }}
-        </dd>
+        <dt
+          class="text-[11px] tracking-wide text-ink/45 uppercase"
+          title="Personas presentes en un día medio respecto a los residentes del distrito"
+        >
+          Afluencia vs. residentes
+        </dt>
+        <dd class="font-mono font-medium">{{ afluencia }}</dd>
       </div>
       <div>
         <dt class="text-[11px] tracking-wide text-ink/45 uppercase">Competidores</dt>
@@ -93,7 +111,12 @@ const datos = computed(() => props.informe.datos_distrito ?? {})
         </dd>
       </div>
       <div>
-        <dt class="text-[11px] tracking-wide text-ink/45 uppercase">Viajes (Mitma)</dt>
+        <dt
+          class="text-[11px] tracking-wide text-ink/45 uppercase"
+          title="Personas que hay en el distrito un día medio: residentes, más las que llegan, menos las que salen"
+        >
+          Población flotante
+        </dt>
         <dd class="font-mono font-medium">
           {{ datos.viajes_intraprovinciales != null ? formatoNumero.format(datos.viajes_intraprovinciales) : '—' }}
         </dd>
