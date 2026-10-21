@@ -8,19 +8,28 @@ later spans would not be recorded.
 
 Fix: run every step of the generator inside one single Context object.
 
+Live events: while a stream runs, the spans that start and end are sent to the
+frontend as `trace` events, and the totals as a final `metrics_summary` event.
+Both carry only names, times and numbers, never user text.
+
 Metrics must never break an answer: the helpers only add measuring around the code.
 """
 
 from __future__ import annotations
 
 import contextvars
+import queue
 from collections.abc import Generator, Iterable, Iterator
 from contextlib import contextmanager
+from typing import Any
 
+from backend.observability import get_logger
 from backend.observability.context import get_trace_id
 from backend.observability.metrics.collector import MetricsCollector, use_collector
-from backend.observability.metrics.config import metrics_enabled
-from backend.observability.metrics.writer import record_request
+from backend.observability.metrics.config import eur_per_usd, metrics_enabled, stream_events_enabled
+from backend.observability.metrics.writer import build_record, record_request
+
+logger = get_logger("observability.metrics.streaming")
 
 
 def iterate_in_context[T](source: Iterable[T]) -> Generator[T, None, None]:
@@ -68,27 +77,73 @@ def _with_collector[T](source: Iterable[T], collector: MetricsCollector) -> Gene
         yield from source
 
 
-def stream_with_metrics[T](
-    source: Iterable[T],
+def build_summary_event(collector: MetricsCollector, *, route: str) -> dict[str, Any]:
+    """
+    The `metrics_summary` event: the same record that is saved in the database
+    (without the spans), plus the time per actor and the cost in euros.
+    """
+    record = build_record(collector, route=route)
+    event = {key: value for key, value in record.items() if key != "spans"}
+    event["type"] = "metrics_summary"
+    event["per_actor"] = collector.summary()["per_actor"]
+
+    rate = eur_per_usd()
+    cost_usd = event.get("cost_usd")
+    event["eur_per_usd"] = rate
+    event["cost_eur"] = round(float(cost_usd) * rate, 6) if cost_usd is not None and rate is not None else None
+    return event
+
+
+def _drain(events: queue.SimpleQueue | None) -> Iterator[dict[str, Any]]:
+    """Yield, without waiting, every event that is in the queue now."""
+    if events is None:
+        return
+    while True:
+        try:
+            yield events.get_nowait()
+        except queue.Empty:
+            return
+
+
+def stream_with_metrics(
+    source: Iterable[Any],
     collector: MetricsCollector | None,
     *,
     route: str,
     status_code: int | None = 200,
-) -> Generator[T, None, None]:
+) -> Generator[Any, None, None]:
     """
     Yield the items of a streamed answer while measuring it.
 
-    When the stream ends, fails or is closed by the client, the request is queued
-    for saving with status ok, error or cancelled. With no collector it only passes
-    the items through.
+    - The `trace` events of the spans that happened are sent before each item.
+    - When the source ends, the rest of the `trace` events and the `metrics_summary` are sent.
+    - When the stream ends, fails or is closed by the client, the request is queued for
+      saving with status ok, error or cancelled.
+    With no collector it only passes the items through.
     """
     if collector is None:
         yield from source
         return
 
+    events: queue.SimpleQueue | None = None
+    if stream_events_enabled():
+        events = queue.SimpleQueue()
+        sink = events  # the listener may run in worker threads; SimpleQueue is thread-safe
+        collector.set_listener(lambda phase, current: sink.put({"type": "trace", "phase": phase, "span": current.to_dict()}))
+
     status = None
     try:
-        yield from iterate_in_context(_with_collector(source, collector))
+        for item in iterate_in_context(_with_collector(source, collector)):
+            yield from _drain(events)
+            yield item
+        yield from _drain(events)
+        if events is not None:
+            try:
+                summary_event = build_summary_event(collector, route=route)
+            except Exception:
+                logger.warning("Could not build the metrics summary event", exc_info=True)
+            else:
+                yield summary_event
     except GeneratorExit:
         status = "cancelled"
         raise

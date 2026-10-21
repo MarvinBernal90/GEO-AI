@@ -13,6 +13,9 @@ and only logs them.
 Threads: a new thread does not inherit ContextVars. When a step runs in a worker
 thread, start it with `contextvars.copy_context().run(...)` so it keeps the
 collector and the parent span.
+
+Live events: `set_listener()` lets the API follow the spans while they happen,
+to send them to the frontend.
 """
 
 from __future__ import annotations
@@ -20,7 +23,7 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import Any
@@ -63,11 +66,29 @@ class MetricsCollector:
         self._next_id = 1
         self._lock = threading.Lock()  # parallel graph nodes may open spans at the same time
         self._started = time.perf_counter()
+        self._listener: Callable[[str, Span], None] | None = None
 
     @property
     def spans(self) -> list[Span]:
         with self._lock:
             return list(self._spans)
+
+    def set_listener(self, listener: Callable[[str, Span], None] | None) -> None:
+        """
+        Call `listener(phase, span)` when a span starts ("start") and when it ends ("end").
+        The listener can run in any thread, so it must be fast and thread-safe
+        (for example, put the event in a queue). If it raises, the error is ignored.
+        """
+        self._listener = listener
+
+    def _notify(self, phase: str, current: Span) -> None:
+        listener = self._listener
+        if listener is None:
+            return
+        try:
+            listener(phase, current)
+        except Exception:
+            logger.debug("Span listener failed on %s of %s", phase, current.name, exc_info=True)
 
     def _open(
         self, actor: Actor, name: str, model: str | None, cached: bool | None, input_summary: str | None
@@ -116,6 +137,7 @@ class MetricsCollector:
             yield None
             return
 
+        self._notify("start", current)
         token = _current_span_id.set(current.id)
         started = time.perf_counter()
         try:
@@ -138,6 +160,8 @@ class MetricsCollector:
                 current.status = "ok"
         except Exception:
             logger.warning("Could not close span %s", current.name, exc_info=True)
+        # After the duration and status are final, so the listener sees the finished span.
+        self._notify("end", current)
         try:
             _current_span_id.reset(token)
         except (ValueError, RuntimeError):
