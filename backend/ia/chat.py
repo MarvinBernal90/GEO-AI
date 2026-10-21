@@ -19,6 +19,9 @@ The LangChain/LangGraph framework provides standard schemas that allow starting
 generic and evolving towards AWS Bedrock Foundation Models (Amazon Nova / Claude).
 
 Conversation persistence is managed with PostgresSaver (PostgreSQL / PostGIS).
+
+Metrics: the LLM calls and the tools are measured with spans (time, tokens, steps).
+Spans only keep sizes and tool names, never the text of the user.
 """
 
 import logging
@@ -37,6 +40,7 @@ from sqlalchemy.orm import Session
 
 from backend.db.connection import resolve_database_url
 from backend.geo.geocoding import geocodificar_direccion
+from backend.observability.metrics import add_usage, set_output, span
 from backend.rag.query_engine import build_context, retrieve_relevant_chunks_with_rerank
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -134,6 +138,28 @@ class State(MessagesState):
     num_responses: int
 
 
+#### METRICS HELPER
+def _record_llm_result(response: Any, current_span: Any) -> None:
+    """
+    Store the token usage and a short output summary of an LLM call on its span.
+    LangChain puts the usage in `response.usage_metadata`. Never raises: metrics
+    must not break an answer.
+    """
+    if current_span is None:
+        return
+    try:
+        usage = getattr(response, "usage_metadata", None) or {}
+        add_usage(GENERATION_MODEL, usage.get("input_tokens"), usage.get("output_tokens"), 0, target=current_span)
+        tool_calls = getattr(response, "tool_calls", None) or []
+        if tool_calls:
+            names = ", ".join(str(call.get("name", "?")) for call in tool_calls)
+            set_output(f"tool calls: {names}")
+        else:
+            set_output(f"{len(_extract_text_content(response.content))} chars")
+    except Exception:
+        logger.debug("Could not record the LLM metrics", exc_info=True)
+
+
 #### TOOLS DEFINITION
 def get_opportunity_score(direccion: str) -> dict[str, Any]:
     """
@@ -147,31 +173,37 @@ def get_opportunity_score(direccion: str) -> dict[str, Any]:
     Returns:
         dict: A dictionary containing district metrics or None if not found
     """
-    res = geocodificar_direccion(direccion)
-    if res is not None:
-        with Session(engine) as session:
-            row = (
-                session.execute(
-                    text(
-                        "SELECT ds.codi_districte, ds.nom_districte, ds.renta_media, ds.daily_foot_traffic, "
-                        "ds.total_competitors, ds.opportunity_score "
-                        "FROM district_scorecard ds "
-                        "LEFT JOIN district_mobility dm ON ds.codi_districte = dm.codi_districte "
-                        "WHERE ds.codi_districte = :codi"
-                    ),
-                    {"codi": res["codi_districte"]},
+    with span("agent", "tool_get_opportunity_score", input_summary=f"{len(str(direccion))} chars"):
+        with span("external", "geocode_address", input_summary=f"{len(str(direccion))} chars"):
+            res = geocodificar_direccion(direccion)
+            set_output("found" if res else "not found")
+
+        if res is None:
+            return {"datos_distrito": None}
+
+        with span("db", "district_scorecard_query"):
+            with Session(engine) as session:
+                row = (
+                    session.execute(
+                        text(
+                            "SELECT ds.codi_districte, ds.nom_districte, ds.renta_media, ds.daily_foot_traffic, "
+                            "ds.total_competitors, ds.opportunity_score "
+                            "FROM district_scorecard ds "
+                            "LEFT JOIN district_mobility dm ON ds.codi_districte = dm.codi_districte "
+                            "WHERE ds.codi_districte = :codi"
+                        ),
+                        {"codi": res["codi_districte"]},
+                    )
+                    .mappings()
+                    .first()
                 )
-                .mappings()
-                .first()
-            )
+            set_output("district found" if row else "no data for the district")
 
         if row is None:
             logger.warning("No hay datos en district_scorecard para el distrito %s", res["codi_districte"])
             return {"datos_distrito": None}
 
         return {"datos_distrito": dict(row)}
-
-    return {"datos_distrito": None}
 
 
 def regulations_query(query: str) -> str:
@@ -184,9 +216,13 @@ def regulations_query(query: str) -> str:
     Returns:
         str: Built regulatory context from relevant chunks.
     """
-    with Session(engine) as session:
-        documents = retrieve_relevant_chunks_with_rerank(session=session, query=query)
-    return build_context(documents)
+    with span("agent", "tool_regulations_query", input_summary=f"{len(str(query))} chars"):
+        with Session(engine) as session:
+            documents = retrieve_relevant_chunks_with_rerank(session=session, query=query)
+        context = build_context(documents)
+        if isinstance(context, str):
+            set_output(f"{len(context)} chars of context")
+    return context
 
 
 def _extract_text_content(content: Any) -> str:
@@ -303,7 +339,11 @@ def _node_assistant(state: State):
     invoker = target_llm_with_tools or (
         target_llm.bind_tools(tools) if target_llm else get_chat_llm().bind_tools(tools)
     )
-    return {"messages": [invoker.invoke([sys_msg] + messages)]}
+    prompt = [sys_msg] + messages
+    with span("llm", "llm_call", model=GENERATION_MODEL, input_summary=f"{len(prompt)} messages") as llm_span:
+        response = invoker.invoke(prompt)
+        _record_llm_result(response, llm_span)
+    return {"messages": [response]}
 
 
 def _node_summarize(state: State):
@@ -322,7 +362,9 @@ def _node_summarize(state: State):
         responses = [m for m in state["messages"] if m.type == "ai" and m.content]
         messages = responses[:NUM_MESSAGES_TO_SUMMARIZE] + [HumanMessage(content=summary_message)]
         active_llm = target_llm or llm or get_chat_llm()
-        response = active_llm.invoke(messages)
+        with span("llm", "summarize_call", model=GENERATION_MODEL, input_summary=f"{len(messages)} messages") as llm_span:
+            response = active_llm.invoke(messages)
+            _record_llm_result(response, llm_span)
 
         last_msg_to_del_index = state["messages"].index(responses[NUM_MESSAGES_TO_SUMMARIZE])
         # first message is the HumanMessage that initated the conversation. This message is always kept and serves as 'title' of th conversation
