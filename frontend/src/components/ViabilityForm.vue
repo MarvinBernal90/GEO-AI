@@ -162,6 +162,9 @@ function onSubmit() {
       codiDistricte: codiDistricte.value,
       zonaPgm: zonaPgm.value,
       ubicacion: ubicacionGeocodificada.value,
+      // Names are used by the chat to write a readable message for the request.
+      distritoNombre: distritos.value.find((d) => d.codi_districte === codiDistricte.value)?.nom_districte ?? '',
+      zonaNombre: zonas.value.find((z) => z.id === zonaPgm.value)?.nombre ?? '',
     })
   }
 }
