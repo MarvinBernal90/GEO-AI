@@ -14,8 +14,14 @@ It strictly enforces Human-in-the-Loop: If intent or geolocation cannot be resol
 with certainty, it yields an 'aclaracion' event to trigger the manual UI form,
 never guessing.
 
+One chat for everything: when the request carries a `thread_id` and the message has no
+address or district (for example "what licence do I need for a terrace?"), the message is
+handed to the conversational assistant instead of asking for clarification. A `modo`
+event announces it, so the UI knows the answer is free text and not a report.
+
 Metrics: every step of the flow is a span (NLU, geocoding, zone lookup, then the
-report pipeline). Spans only hold sizes and yes/no results, never the user text.
+report pipeline or the assistant). Spans only hold sizes and yes/no results, never the
+user text.
 """
 
 import json
@@ -26,6 +32,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from backend.api.deps import get_session
+from backend.api.routers.assistant import stream_assistant
 from backend.api.routers.reports import _json_default
 from backend.api.schemas.chat import ChatRequest
 from backend.geo.amb_identify import identificar_zona_pgm
@@ -33,7 +40,7 @@ from backend.geo.geocoding import geocodificar_direccion, resolver_distrito_desd
 from backend.ia.agent import generar_informe_viabilidad_stream
 from backend.ia.chat_intent import extraer_intencion
 from backend.observability.metrics import set_output, span
-from backend.observability.metrics.streaming import new_collector, stream_with_metrics
+from backend.observability.metrics.streaming import mark_stream_events, new_collector, stream_with_metrics
 
 logger = logging.getLogger("geoyield_api")
 
@@ -50,7 +57,13 @@ def _si_no(valor) -> str:
     return "yes" if valor else "no"
 
 
-def _procesar_chat(mensaje: str, db: Session):
+def _responder_con_asistente(mensaje: str, thread_id: str):
+    """Hands a message that has no place in it to the conversational assistant."""
+    yield {"type": "modo", "modo": "asistente"}
+    yield from stream_assistant(mensaje, thread_id)
+
+
+def _procesar_chat(mensaje: str, db: Session, thread_id: str | None = None):
     """
     Generator function representing the State Machine of the conversational flow.
     """
@@ -81,7 +94,12 @@ def _procesar_chat(mensaje: str, db: Session):
                 )
                 return
 
-        # Fallback 1B: Complete NLU Failure (No location found)
+        # Fallback 1B: no location found. With a thread, the assistant answers general
+        # questions (licences, schedules...); without one, we ask for clarification.
+        if thread_id is not None:
+            yield from _responder_con_asistente(mensaje, thread_id)
+            return
+
         yield _evento_aclaracion(
             "No he podido identificar una dirección ni un distrito de Barcelona en tu mensaje. "
             "¿Puedes indicarme la calle, o al menos en qué distrito te gustaría abrir?"
@@ -148,10 +166,13 @@ def _procesar_chat(mensaje: str, db: Session):
     )
 
 
-def _procesar_chat_medido(mensaje: str, db: Session):
-    """The same flow as `_procesar_chat`, inside one root span so every step nests under it."""
-    with span("agent", "chat_pipeline", input_summary=f"{len(mensaje)} chars"):
-        yield from _procesar_chat(mensaje, db)
+def _procesar_chat_medido(mensaje: str, db: Session, thread_id: str | None = None):
+    """
+    The same flow as `_procesar_chat`, inside one root span so every step nests under it.
+    The root span also gets the time to the first token and any `error` event.
+    """
+    with span("agent", "chat_pipeline", input_summary=f"{len(mensaje)} chars") as root:
+        yield from mark_stream_events(_procesar_chat(mensaje, db, thread_id), root)
 
 
 @router.post("")
@@ -162,7 +183,7 @@ def chat_informe_stream(payload: ChatRequest, db: Session = Depends(get_session)
 
     def eventos():
         try:
-            flujo = _procesar_chat_medido(payload.mensaje, db)
+            flujo = _procesar_chat_medido(payload.mensaje, db, payload.thread_id)
             # stream_with_metrics keeps the whole flow in one context, sends the live
             # metrics events and saves the request when the stream ends.
             for evento in stream_with_metrics(flujo, collector, route="/api/chat/informe/stream"):

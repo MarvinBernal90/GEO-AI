@@ -8,12 +8,14 @@ Streaming endpoint for the ReAct chat assistant.
 Invokes the assistant via request() and streams token events to the frontend
 for real-time display in the 'response-output' text area.
 
-Metrics: the whole stream is one root span (`assistant_pipeline`) and the live
-metrics events travel in the same stream. Spans keep only sizes, never the text.
+`stream_assistant` is also used by the chat router, which hands over the messages
+that have no place in them (see routers/chat.py).
+
+Metrics: the whole stream is one span (`assistant_pipeline`) and the live metrics
+events travel in the same stream. Spans keep only sizes, never the text.
 """
 
 import json
-import time
 
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
@@ -22,33 +24,22 @@ from backend.api.schemas.assistant import AssistantRequest
 from backend.ia.chat import request
 from backend.observability import get_logger
 from backend.observability.metrics import span
-from backend.observability.metrics.streaming import new_collector, stream_with_metrics
+from backend.observability.metrics.streaming import mark_stream_events, new_collector, stream_with_metrics
 
 logger = get_logger("api.assistant")
 
 router = APIRouter(prefix="/api", tags=["assistant"])
 
 
-def _flujo_medido(payload: AssistantRequest):
+def stream_assistant(message: str, thread_id: str):
     """
-    The assistant stream inside one root span.
+    The assistant stream inside its own span.
 
-    - The time to the first token is stored on the root span (the assistant does not
-      go through our LLM adapter, so nobody else measures it).
-    - `request()` does not raise on errors: it yields an `error` event. We mark the
-      root span as failed when we see one, so the request is not saved as ok.
+    `request()` does not raise on errors: it yields an `error` event. `mark_stream_events`
+    marks the span as failed when it sees one, and stores the time to the first token.
     """
-    with span("agent", "assistant_pipeline", input_summary=f"{len(payload.message)} chars") as root:
-        started = time.perf_counter()
-        for evento in request(payload.message, thread=payload.thread_id, stream=True):
-            if root is not None:
-                tipo = evento.get("type")
-                if tipo == "token" and root.ttft_ms is None:
-                    root.ttft_ms = round((time.perf_counter() - started) * 1000, 2)
-                elif tipo == "error":
-                    root.status = "error"
-                    root.error = "StreamError"
-            yield evento
+    with span("agent", "assistant_pipeline", input_summary=f"{len(message)} chars") as root:
+        yield from mark_stream_events(request(message, thread=thread_id, stream=True), root)
 
 
 @router.post("/assistant")
@@ -64,7 +55,8 @@ def assistant_stream(payload: AssistantRequest):
 
     def eventos():
         try:
-            for evento in stream_with_metrics(_flujo_medido(payload), collector, route="/api/assistant"):
+            flujo = stream_assistant(payload.message, payload.thread_id)
+            for evento in stream_with_metrics(flujo, collector, route="/api/assistant"):
                 yield f"data: {json.dumps(evento, ensure_ascii=False)}\n\n"
         except Exception as exc:
             logger.exception("Error during assistant streaming: %s", exc)

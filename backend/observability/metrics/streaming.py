@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextvars
 import queue
+import time
 from collections.abc import Generator, Iterable, Iterator
 from contextlib import contextmanager
 from typing import Any
@@ -27,6 +28,7 @@ from backend.observability import get_logger
 from backend.observability.context import get_trace_id
 from backend.observability.metrics.collector import MetricsCollector, use_collector
 from backend.observability.metrics.config import eur_per_usd, metrics_enabled, stream_events_enabled
+from backend.observability.metrics.spans import Span
 from backend.observability.metrics.writer import build_record, record_request
 
 logger = get_logger("observability.metrics.streaming")
@@ -58,6 +60,26 @@ def iterate_in_context[T](source: Iterable[T]) -> Generator[T, None, None]:
             except RuntimeError:
                 # The context is busy in another thread: nothing safe to do.
                 pass
+
+
+def mark_stream_events[T](events: Iterable[T], root: Span | None) -> Generator[T, None, None]:
+    """
+    Pass the events through unchanged while storing two facts on the `root` span:
+    - the time from now to the first `token` event (time to first token), and
+    - an `error` event, which marks the span as failed.
+    Some streams (like the assistant) report errors as events instead of raising,
+    so without this the request would be saved as ok.
+    """
+    started = time.perf_counter()
+    for event in events:
+        if root is not None and isinstance(event, dict):
+            kind = event.get("type")
+            if kind == "token" and root.ttft_ms is None:
+                root.ttft_ms = round((time.perf_counter() - started) * 1000, 2)
+            elif kind == "error":
+                root.status = "error"
+                root.error = "StreamError"
+        yield event
 
 
 def new_collector() -> MetricsCollector | None:
@@ -129,7 +151,9 @@ def stream_with_metrics(
     if stream_events_enabled():
         events = queue.SimpleQueue()
         sink = events  # the listener may run in worker threads; SimpleQueue is thread-safe
-        collector.set_listener(lambda phase, current: sink.put({"type": "trace", "phase": phase, "span": current.to_dict()}))
+        collector.set_listener(
+            lambda phase, current: sink.put({"type": "trace", "phase": phase, "span": current.to_dict()})
+        )
 
     status = None
     try:
