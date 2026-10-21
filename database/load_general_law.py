@@ -11,12 +11,13 @@ Architectural Difference:
 Unlike the local PGM laws (where 1 PDF = 1 Article), here 1 PDF = 1 Full Law
 (containing dozens of articles). Because PDF filenames are unreliable, the
 Legal Source Name (`fuente_legal`) is explicitly required as a CLI argument.
+
+Usage:
+    python -m database.load_general_law <path.pdf> "<Law Name>"
 """
 
 import sys
 from pathlib import Path
-
-sys.path.insert(0, "/home/claud/pontia/PJ")
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
@@ -25,7 +26,7 @@ from sqlalchemy.orm import Session
 
 from backend.db.connection import resolve_database_url
 from backend.db.models import LegalChunk
-from backend.observability import get_logger
+from backend.observability import configure_logging, get_logger
 from backend.rag.embeddings import EmbeddingFunction, embed_texts
 from backend.rag.general_chunking import parse_articulo_general
 from backend.rag.pdf_extraction import extract_text_from_pdf
@@ -71,7 +72,7 @@ def load_general_law(
             "documento_origen": pdf_path.name,
             "embedding": embedding,
         }
-        for a, embedding in zip(articulos, embeddings)
+        for a, embedding in zip(articulos, embeddings, strict=True)
     ]
 
     # Idempotent Upsert Strategy (Zero Downtime)
@@ -84,9 +85,7 @@ def load_general_law(
     session.execute(stmt)
 
     logger.info(f"legal_chunks: {len(records)} artículos de '{fuente_legal}' upsert-eados.")
-
-
-return len(records)
+    return len(records)
 
 
 def run(pdf_path: Path, fuente_legal: str, engine=None, embed_fn: EmbeddingFunction = embed_texts) -> int:
@@ -101,12 +100,8 @@ def run(pdf_path: Path, fuente_legal: str, engine=None, embed_fn: EmbeddingFunct
 
 
 if __name__ == "__main__":
-    run(
-        Path("/home/claud/pontia/PJ/data/raw/legal/other/OMAIIAA_Barcelona.pdf"),
-        "Ordenanza  municipal  de  actividades  y  de  intervención  integral  de  la  administración  ambiental  de  Barcelona",
-    )
-    """ configure_logging()
+    configure_logging()
     if len(sys.argv) != 3:
         print('Uso: python -m database.load_general_law <ruta.pdf> "<Law Name>"')
         sys.exit(1)
-    run(Path(sys.argv[1]), sys.argv[2]) """
+    run(Path(sys.argv[1]), sys.argv[2])
