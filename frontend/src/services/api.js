@@ -135,107 +135,115 @@ export async function obtenerCompetidores(codiDistricte, ubicacion = null) {
 }
 
 /**
- * LLM Streaming Engine (Server-Sent Events via POST).
+ * ==============================================================================
+ * SERVER-SENT EVENTS (SSE) OVER POST
+ * ==============================================================================
+ * Browsers' native EventSource API only supports GET requests. Because we must
+ * send a JSON payload (POST), we read the network byte stream by hand with the
+ * Fetch API's Response Reader.
  *
- * Note: Browsers' native EventSource API only supports GET requests. Because
- * we must send a complex JSON payload (POST), we manually consume the network
- * byte stream using the Fetch API's Response Reader.
+ * All three streams (report, chat, assistant) share the same reader. Every
+ * stream may call any of these callbacks; an event the endpoint never sends
+ * simply never fires its callback.
+ *
+ *   onAclaracion(event)  the chat needs more input (district only, no address)
+ *   onUbicacion(event)   the address was found, so the map can center on it
+ *   onModo(event)        the chat switched mode (e.g. { modo: 'asistente' })
+ *   onDatos(event)       district data and legal answer are ready
+ *   onToken(text)        one piece of the streamed answer
+ *   onDone(event)        the answer is complete
+ *   onError(detail)      something failed (backend event or network error)
+ *   onTrace(event)       one pipeline step started or ended ({ phase, span })
+ *   onMetrics(event)     final request summary (tokens, cost, latency)
  */
-export async function generarInformeStream(codiDistricte, zonaPgm, callbacks = {}) {
-  const { onDatos, onToken, onDone, onError } = callbacks
 
-  const traceId = generateTraceId()
-  const start = performance.now()
-  const streamLog = log.child({
-    trace_id: traceId,
-    codi_districte: codiDistricte,
-    zona_pgm: zonaPgm,
-  })
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/reports/stream`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Request-ID': traceId },
-      body: JSON.stringify({ codi_districte: codiDistricte, zona_pgm: zonaPgm }),
-    })
-
-    if (!response.ok) {
-      const body = await response.json().catch(() => null)
-      throw new Error(body?.detail || `Error ${response.status} al llamar a la API`)
-    }
-
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-    let corruptBlocks = 0
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-
-      buffer += decoder.decode(value, { stream: true })
-      const bloques = buffer.split('\n\n')
-
-      // Network Chunking Safety: Keep the last fragment if it's incomplete
-      // to avoid breaking JSON.parse on the next iteration.
-      buffer = bloques.pop() ?? ''
-
-      for (const bloque of bloques) {
-        if (!bloque.startsWith('data: ')) continue
-
-        try {
-          const evento = JSON.parse(bloque.slice(6))
-          if (evento.type === 'datos') onDatos?.(evento)
-          else if (evento.type === 'token') onToken?.(evento.text)
-          else if (evento.type === 'done') onDone?.(evento)
-          else if (evento.type === 'error') {
-            streamLog.error('Backend reported an error during streaming', {
-              detail: evento.detail,
-            })
-            onError?.(evento.detail)
-          }
-        } catch (error) {
-          corruptBlocks += 1
-          streamLog.warn('Malformed SSE block, ignored', {
-            error,
-            fragment: String(bloque).slice(0, 200),
-          })
-        }
-      }
-    }
-
-    streamLog.event('informe.generado', {
-      duration_ms: performance.now() - start,
-      corrupt_blocks: corruptBlocks,
-    })
-  } catch (error) {
-    streamLog.error('Report streaming failed', {
-      error,
-      duration_ms: performance.now() - start,
-    })
-    onError?.(error.message)
+/**
+ * Builds the table that maps an SSE event type to its callback.
+ * Unknown event types are not in the table, so they are ignored.
+ */
+function buildHandlers(callbacks) {
+  const { onAclaracion, onUbicacion, onModo, onDatos, onToken, onDone, onError, onTrace, onMetrics } = callbacks
+  return {
+    aclaracion: (evento) => onAclaracion?.(evento),
+    ubicacion: (evento) => onUbicacion?.(evento),
+    modo: (evento) => onModo?.(evento),
+    datos: (evento) => onDatos?.(evento),
+    token: (evento) => onToken?.(evento.text),
+    done: (evento) => onDone?.(evento),
+    error: (evento) => onError?.(evento.detail),
+    trace: (evento) => onTrace?.(evento),
+    metrics_summary: (evento) => onMetrics?.(evento),
   }
 }
 
 /**
- * Conversational AI Streaming Engine.
- *
- * Handles conversational specific events like 'aclaracion' (geocoding failed,
- * asking user for input) and 'ubicacion' (geocoding succeeded, centering the map).
+ * Parses one raw SSE block ("data: {...}") into an event object.
+ * Returns null if the block is not a data block or the JSON is broken.
  */
-export async function chatInformeStream(mensaje, callbacks = {}) {
-  const { onAclaracion, onUbicacion, onDatos, onToken, onDone, onError } = callbacks
+function parseBlock(bloque, streamLog, counters) {
+  if (!bloque.startsWith('data: ')) return null
+  try {
+    return JSON.parse(bloque.slice(6))
+  } catch (error) {
+    counters.corruptBlocks += 1
+    streamLog.warn('Malformed SSE block, ignored', {
+      error,
+      fragment: String(bloque).slice(0, 200),
+    })
+    return null
+  }
+}
+
+/**
+ * Calls the callback of one event. A bug inside a callback is logged but it
+ * must not stop the stream, and it is not a "malformed block".
+ */
+function dispatch(evento, handlers, streamLog) {
+  if (!Object.hasOwn(handlers, evento?.type)) return
+  if (evento.type === 'error') {
+    streamLog.error('Backend reported an error during streaming', { detail: evento.detail })
+  }
+  try {
+    handlers[evento.type](evento)
+  } catch (error) {
+    streamLog.error('Stream callback failed', { error, event_type: evento.type })
+  }
+}
+
+/**
+ * Opens a POST stream and sends every event to the matching callback.
+ *
+ * PRIVACY: the body (user text, thread id) is never logged.
+ *
+ * @param {object} config
+ * @param {string} config.operation   Short name used in logs
+ * @param {string} config.path        API path, e.g. '/api/assistant'
+ * @param {object} config.body        JSON body
+ * @param {object} config.callbacks   See the callback list above
+ * @param {string} config.doneEvent   Name of the log event written at the end
+ * @param {string} config.httpError   Message used when the HTTP status is not ok
+ * @param {object} [config.logContext] Extra safe fields for every log line
+ * @param {AbortSignal} [config.signal] Lets the caller cancel the stream
+ * @returns {Promise<string>} The trace id sent in X-Request-ID
+ */
+async function streamSSE({ operation, path, body, callbacks, doneEvent, httpError, logContext = {}, signal }) {
+  const traceId = generateTraceId()
+  const start = performance.now()
+  const streamLog = log.child({ trace_id: traceId, operation, ...logContext })
+  const handlers = buildHandlers(callbacks)
+  const counters = { corruptBlocks: 0 }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/chat/informe/stream`, {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mensaje }),
+      headers: { 'Content-Type': 'application/json', 'X-Request-ID': traceId },
+      body: JSON.stringify(body),
+      signal,
     })
 
     if (!response.ok) {
-      const body = await response.json().catch(() => null)
-      throw new Error(body?.detail || `Error ${response.status} al llamar a la API`)
+      const errorBody = await response.json().catch(() => null)
+      throw new Error(errorBody?.detail || `${httpError} (${response.status})`)
     }
 
     const reader = response.body.getReader()
@@ -248,27 +256,80 @@ export async function chatInformeStream(mensaje, callbacks = {}) {
 
       buffer += decoder.decode(value, { stream: true })
       const bloques = buffer.split('\n\n')
+
+      // Network Chunking Safety: keep the last fragment if it is incomplete,
+      // so JSON.parse never sees half an event.
       buffer = bloques.pop() ?? ''
 
       for (const bloque of bloques) {
-        if (!bloque.startsWith('data: ')) continue
-
-        try {
-          const evento = JSON.parse(bloque.slice(6))
-          if (evento.type === 'aclaracion') onAclaracion?.(evento)
-          else if (evento.type === 'ubicacion') onUbicacion?.(evento)
-          else if (evento.type === 'datos') onDatos?.(evento)
-          else if (evento.type === 'token') onToken?.(evento.text)
-          else if (evento.type === 'done') onDone?.(evento)
-          else if (evento.type === 'error') onError?.(evento.detail)
-        } catch {
-          console.warn('Error parseando bloque SSE del chat:', bloque)
-        }
+        const evento = parseBlock(bloque, streamLog, counters)
+        if (evento) dispatch(evento, handlers, streamLog)
       }
     }
+
+    streamLog.event(doneEvent, {
+      duration_ms: performance.now() - start,
+      corrupt_blocks: counters.corruptBlocks,
+    })
   } catch (error) {
-    onError?.(error.message)
+    // A cancel made by the caller is not a failure.
+    if (error?.name === 'AbortError') return traceId
+    streamLog.error('Streaming failed', {
+      error,
+      duration_ms: performance.now() - start,
+    })
+    callbacks.onError?.(error.message)
   }
+  return traceId
+}
+
+/**
+ * Streams a report for a district and a PGM zone (/api/reports/stream).
+ *
+ * @param {number} codiDistricte
+ * @param {string} zonaPgm
+ * @param {object} [callbacks]
+ * @param {{ signal?: AbortSignal }} [options]
+ */
+export async function generarInformeStream(codiDistricte, zonaPgm, callbacks = {}, options = {}) {
+  return streamSSE({
+    operation: 'generarInformeStream',
+    path: '/api/reports/stream',
+    body: { codi_districte: codiDistricte, zona_pgm: zonaPgm },
+    callbacks,
+    doneEvent: 'informe.generado',
+    httpError: 'Error al llamar a la API',
+    logContext: { codi_districte: codiDistricte, zona_pgm: zonaPgm },
+    signal: options.signal,
+  })
+}
+
+/**
+ * Unified chat stream (POST /api, see routers/chat.py).
+ *
+ * With an address the backend answers with a report. With a thread id and no
+ * address it answers as the assistant and sends a 'modo' event first. Without
+ * a thread id and without an address it asks for more input ('aclaracion').
+ *
+ * @param {string} mensaje - What the user typed
+ * @param {object} [callbacks]
+ * @param {{ threadId?: string, signal?: AbortSignal }} [options]
+ */
+export async function chatInformeStream(mensaje, callbacks = {}, options = {}) {
+  // The backend rejects unknown fields, so thread_id is sent only when set.
+  const body = { mensaje }
+  if (options.threadId) body.thread_id = options.threadId
+
+  return streamSSE({
+    operation: 'chatInformeStream',
+    path: '/api',
+    body,
+    callbacks,
+    doneEvent: 'chat.completado',
+    httpError: 'Error al llamar a la API',
+    logContext: { has_thread: Boolean(options.threadId) },
+    signal: options.signal,
+  })
 }
 
 /**
@@ -276,51 +337,19 @@ export async function chatInformeStream(mensaje, callbacks = {}) {
  *
  * @param {string} prompt - Prompt or user query
  * @param {string} threadId - Conversation thread ID (e.g. username:ordinal)
- * @param {object} callbacks - Optional callbacks: onToken, onDone, onError
+ * @param {object} [callbacks]
+ * @param {{ signal?: AbortSignal }} [options]
  */
-export async function assistantStream(prompt, threadId, callbacks = {}) {
-  const { onToken, onDone, onError } = callbacks
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/assistant`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, thread_id: threadId }),
-    })
-
-    if (!response.ok) {
-      const body = await response.json().catch(() => null)
-      throw new Error(body?.detail || `Error ${response.status} al llamar al asistente`)
-    }
-
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-
-      buffer += decoder.decode(value, { stream: true })
-      const bloques = buffer.split('\n\n')
-      buffer = bloques.pop() ?? ''
-
-      for (const bloque of bloques) {
-        if (!bloque.startsWith('data: ')) continue
-
-        try {
-          const evento = JSON.parse(bloque.slice(6))
-          if (evento.type === 'token') onToken?.(evento.text)
-          else if (evento.type === 'done') onDone?.(evento)
-          else if (evento.type === 'error') onError?.(evento.detail)
-        } catch {
-          console.warn('Error parseando bloque SSE del asistente:', bloque)
-        }
-      }
-    }
-  } catch (error) {
-    onError?.(error.message)
-  }
+export async function assistantStream(prompt, threadId, callbacks = {}, options = {}) {
+  return streamSSE({
+    operation: 'assistantStream',
+    path: '/api/assistant',
+    body: { prompt, thread_id: threadId },
+    callbacks,
+    doneEvent: 'asistente.completado',
+    httpError: 'Error al llamar al asistente',
+    signal: options.signal,
+  })
 }
 
 /**
