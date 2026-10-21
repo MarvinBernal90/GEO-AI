@@ -20,6 +20,8 @@ Design:
       instead of letting FastAPI leak a raw stack trace to the frontend.
     - /reports/stream delivers the response via Server-Sent Events instead
       of waiting for it to be complete -- see generar_informe_viabilidad_stream.
+    - Both endpoints are measured (time, tokens, cost) and the metrics are
+      saved in the background; see backend/observability/metrics.
 """
 
 import json
@@ -39,6 +41,7 @@ from backend.ia.agent import (
     zonas_pgm_disponibles,
 )
 from backend.observability import get_logger
+from backend.observability.metrics.streaming import measure_request, new_collector, stream_with_metrics
 
 logger = get_logger("api.informes")
 
@@ -96,8 +99,11 @@ def listar_zonas_pgm(db: Session = Depends(get_session)):
 @router.post("/reports", response_model=InformeResponse)
 def crear_informe(payload: InformeRequest, db: Session = Depends(get_session)):
     """Generates the full viability report synchronously (Waits until finished)."""
+    # Created here, inside the endpoint, because the trace id of the middleware is visible here.
+    collector = new_collector()
     try:
-        informe = generar_informe_viabilidad(db, codi_districte=payload.codi_districte, zona_pgm=payload.zona_pgm)
+        with measure_request(collector, route="/api/reports"):
+            informe = generar_informe_viabilidad(db, codi_districte=payload.codi_districte, zona_pgm=payload.zona_pgm)
     except Exception as exc:
         # District and zone go in `context`, not interpolated into the
         # message, so Logs Insights can filter on them directly.
@@ -126,12 +132,17 @@ def crear_informe_stream(payload: InformeRequest, db: Session = Depends(get_sess
     This drastically improves Perceived Latency. Instead of staring at a
     loading spinner for 20 seconds, the user sees the LLM typing in real-time.
     """
+    # Created here, inside the endpoint, because the trace id of the middleware is visible here.
+    collector = new_collector()
 
     def eventos():
         try:
-            for evento in generar_informe_viabilidad_stream(
+            informe = generar_informe_viabilidad_stream(
                 db, codi_districte=payload.codi_districte, zona_pgm=payload.zona_pgm
-            ):
+            )
+            # stream_with_metrics keeps the whole stream in one context and
+            # saves the metrics when it ends, fails or is closed by the client.
+            for evento in stream_with_metrics(informe, collector, route="/api/reports/stream"):
                 # Format required by the SSE protocol: 'data: {json}\n\n'
                 yield f"data: {json.dumps(evento, ensure_ascii=False, default=_json_default)}\n\n"
         except Exception:
