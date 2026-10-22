@@ -11,7 +11,9 @@ between the AI backend and the Frontend UI.
 
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from backend.ia.chat_history import is_valid_thread_id
 
 
 class Semaforo(str, Enum):  # noqa: UP042 -- StrEnum would change str()/f-string output; kept as-is.
@@ -42,6 +44,17 @@ class InformeRequest(BaseModel):
     # an API code redeployment just to update the Enum list. A raw string
     # decouples the API schema from the database content.
     zona_pgm: str = Field(..., min_length=1, description="Zona urbanística del PGM -- ver GET /api/zonas-pgm")
+
+    # Optional: only when the user is logged in. Used to keep the report in the conversation.
+    thread_id: str | None = Field(default=None, min_length=1, description="Conversation thread (username:ordinal)")
+
+    @field_validator("thread_id")
+    @classmethod
+    def thread_id_must_be_safe(cls, value: str | None) -> str | None:
+        """The thread id is used as a file name, so it must be safe."""
+        if value is not None and not is_valid_thread_id(value):
+            raise ValueError("Invalid thread_id.")
+        return value
 
 
 class DatosDistrito(BaseModel):
