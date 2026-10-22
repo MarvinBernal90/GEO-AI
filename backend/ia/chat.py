@@ -37,6 +37,7 @@ from sqlalchemy.orm import Session
 
 from backend.db.connection import resolve_database_url
 from backend.geo.geocoding import geocodificar_direccion
+from backend.ia.thinking_filter import ThinkingStripper
 from backend.rag.query_engine import build_context, retrieve_relevant_chunks_with_rerank
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -260,6 +261,8 @@ Cuando respondas a las consultas de los usuarios, asegúrate de proporcionar inf
 Usa solamente datos que te proporcionen las herrmientas, de ningún otro lugar.
 Lista las fuentes.
 Si no eres capaz dem responder a la petición del usuario con la información disponible, dilo claramente.
+Responde siempre en español, aunque el usuario escriba en otro idioma.
+No escribas tu razonamiento interno ni uses etiquetas como <thinking>: escribe solo la respuesta final para el usuario.
 """
 )
 
@@ -360,6 +363,7 @@ def _request_stream(
     messages = [{"role": "user", "content": content}]
     configurable = {"thread_id": thread}
     full_response: list[str] = []
+    stripper = ThinkingStripper()  # hides <thinking> blocks, even when split across tokens
 
     try:
         for chunk, metadata in active_graph.stream(
@@ -381,10 +385,16 @@ def _request_stream(
                 if is_tool_call:
                     continue
 
-                text = _extract_text_content(chunk.content)
+                text = stripper.feed(_extract_text_content(chunk.content) or "")
                 if text:
                     full_response.append(text)
                     yield {"type": "token", "text": text}
+
+        # Release any text still held back by the filter (e.g. a lone "<").
+        rest = stripper.flush()
+        if rest:
+            full_response.append(rest)
+            yield {"type": "token", "text": rest}
 
         full_text = "".join(full_response)
         yield {"type": "done", "text": full_text}
