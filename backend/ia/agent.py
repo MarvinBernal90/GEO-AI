@@ -121,9 +121,9 @@ def _construir_mensaje_sintesis(
         bloque_datos = (
             f"Distrito: {datos['nom_districte']}\n"
             f"Renta media: {datos['renta_media']}€\n"
-            f"Afluencia peatonal diaria: {datos['daily_foot_traffic']}\n"
+            f"Afluencia respecto a los residentes (1.00 = igual que ellos): {datos['daily_foot_traffic']}\n"
             f"Competidores de hostelería en el distrito: {datos['total_competitors']}\n"
-            f"Viajes intraprovinciales (MITMA): {datos['viajes_intraprovinciales']}\n"
+            f"Población flotante (personas presentes un día medio): {datos['viajes_intraprovinciales']}\n"
             f"Índice de oportunidad (0-100): {datos['opportunity_score']}"
         )
 
