@@ -377,3 +377,51 @@ export async function getHistory(threadId) {
     method: 'GET',
   })
 }
+
+/**
+ * ==============================================================================
+ * REQUEST METRICS (read-only, feeds the /metrics dashboard)
+ * ==============================================================================
+ * The backend saves one record per measured request. These calls only read them.
+ */
+
+/** Builds a query string, skipping empty values so the backend applies its defaults. */
+function buildQuery(params) {
+  const query = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && value !== '') query.set(key, value)
+  }
+  return query.toString()
+}
+
+/**
+ * KPIs, time series and breakdowns of a time window.
+ *
+ * @param {'24h'|'7d'|'30d'|'all'} [range]
+ */
+export async function getMetricsOverview(range = '24h') {
+  return request('getMetricsOverview', `${API_BASE_URL}/api/metrics/overview?${buildQuery({ range })}`)
+}
+
+/**
+ * One page of request records.
+ *
+ * @param {object} [filters]
+ * @param {string} [filters.range]     24h | 7d | 30d | all
+ * @param {string} [filters.status]    ok | error | cancelled
+ * @param {string} [filters.route]
+ * @param {string} [filters.model]     model name, or 'unknown'
+ * @param {string} [filters.trace_id]  part of a trace id
+ * @param {string} [filters.sort]      created_at | elapsed_ms | ttft_ms | tokens_out | cost_usd
+ * @param {string} [filters.direction] asc | desc
+ * @param {number} [filters.limit]
+ * @param {number} [filters.offset]
+ */
+export async function getMetricsRequests(filters = {}) {
+  return request('getMetricsRequests', `${API_BASE_URL}/api/metrics/requests?${buildQuery(filters)}`)
+}
+
+/** One request with all its steps (spans). */
+export async function getMetricsRequest(id) {
+  return request('getMetricsRequest', `${API_BASE_URL}/api/metrics/requests/${encodeURIComponent(id)}`)
+}

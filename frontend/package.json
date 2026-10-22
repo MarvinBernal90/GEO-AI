@@ -13,8 +13,13 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
-    "maplibre-gl": "^6.15.0",
-    "vue": "^3.5.43"
+    "@vue-leaflet/vue-leaflet": "^0.10.1",
+    "echarts": "^6.1.0",
+    "leaflet": "^1.9.4",
+    "leaflet.markercluster": "^1.5.3",
+    "vue": "^3.5.43",
+    "vue-leaflet-markercluster": "^0.6.1",
+    "vue-router": "^4.6.4"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
