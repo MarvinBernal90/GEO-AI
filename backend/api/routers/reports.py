@@ -40,6 +40,7 @@ from backend.ia.agent import (
     generar_informe_viabilidad_stream,
     zonas_pgm_disponibles,
 )
+from backend.ia.report_context import track_report
 from backend.observability import get_logger
 from backend.observability.metrics.streaming import measure_request, new_collector, stream_with_metrics
 
@@ -137,8 +138,10 @@ def crear_informe_stream(payload: InformeRequest, db: Session = Depends(get_sess
 
     def eventos():
         try:
-            informe = generar_informe_viabilidad_stream(
-                db, codi_districte=payload.codi_districte, zona_pgm=payload.zona_pgm
+            informe = track_report(
+                generar_informe_viabilidad_stream(db, codi_districte=payload.codi_districte, zona_pgm=payload.zona_pgm),
+                payload.thread_id,
+                zona_pgm=payload.zona_pgm,
             )
             # stream_with_metrics keeps the whole stream in one context and
             # saves the metrics when it ends, fails or is closed by the client.
