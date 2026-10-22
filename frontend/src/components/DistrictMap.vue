@@ -22,6 +22,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import { obtenerCompetidores } from '../services/api.js'
 import { createLogger } from '../services/logger.js'
+import distritos from '../assets/distritos-bcn.json'
 
 const log = createLogger('component.mapa')
 
@@ -49,6 +50,7 @@ const SRC_COMPETIDORES = 'competidores'
 const SRC_ANILLOS = 'anillos'
 const SRC_UBICACION = 'ubicacion'
 const SRC_SELECCION = 'seleccion'
+const SRC_LIMITE = 'distrito-limite'
 const CAPAS_COMPETIDORES = [
   'competidores-cluster-halo',
   'competidores-cluster',
@@ -237,6 +239,22 @@ function anadirCapas() {
   map.addSource(SRC_ANILLOS, { type: 'geojson', data: EMPTY })
   map.addSource(SRC_UBICACION, { type: 'geojson', data: EMPTY })
   map.addSource(SRC_SELECCION, { type: 'geojson', data: EMPTY })
+  map.addSource(SRC_LIMITE, { type: 'geojson', data: EMPTY })
+
+  // District outline: a faint fill plus a solid line, below everything else.
+  map.addLayer({
+    id: 'limite-relleno',
+    type: 'fill',
+    source: SRC_LIMITE,
+    paint: { 'fill-color': COLOR_ACENTO, 'fill-opacity': 0.07 },
+  })
+  map.addLayer({
+    id: 'limite-linea',
+    type: 'line',
+    source: SRC_LIMITE,
+    layout: { 'line-join': 'round' },
+    paint: { 'line-color': COLOR_ACENTO, 'line-width': 2.5, 'line-opacity': 0.9 },
+  })
 
   map.addLayer({
     id: 'anillos-relleno',
@@ -450,6 +468,39 @@ function limpiarSeleccion() {
   seleccionados.value = 0
 }
 
+/** Finds the bundled outline of a district by its code. */
+function limiteDelDistrito(codi) {
+  return distritos.features.find((f) => f.properties.codi_districte === codi) ?? null
+}
+
+/** Bounds [[west, south], [east, north]] of a Polygon or MultiPolygon. */
+function limitesGeometria(geometria) {
+  const poligonos = geometria.type === 'MultiPolygon' ? geometria.coordinates : [geometria.coordinates]
+  let oeste = Infinity
+  let sur = Infinity
+  let este = -Infinity
+  let norte = -Infinity
+  for (const poligono of poligonos) {
+    for (const [lon, lat] of poligono[0]) {
+      oeste = Math.min(oeste, lon)
+      este = Math.max(este, lon)
+      sur = Math.min(sur, lat)
+      norte = Math.max(norte, lat)
+    }
+  }
+  return [
+    [oeste, sur],
+    [este, norte],
+  ]
+}
+
+/** Draws the outline of a district and returns its bounds (null if unknown). */
+function pintarLimite(codi) {
+  const distrito = codi ? limiteDelDistrito(codi) : null
+  map.getSource(SRC_LIMITE).setData(distrito ?? EMPTY)
+  return distrito ? limitesGeometria(distrito.geometry) : null
+}
+
 function irACiudad() {
   map.fitBounds(CITY_BOUNDS, { padding: 40, duration: 1000 })
 }
@@ -459,11 +510,13 @@ function vaciarCapas() {
   map.getSource(SRC_ANILLOS).setData(EMPTY)
   map.getSource(SRC_UBICACION).setData(EMPTY)
   limpiarSeleccion()
+  map.getSource(SRC_LIMITE).setData(EMPTY)
 }
 
 /** Draws the answer of the competitors endpoint and moves the camera. */
 function pintar(datos) {
   limpiarSeleccion()
+  const limitesDistrito = pintarLimite(props.codiDistricte)
   const lista = datos.competidores ?? []
   map.getSource(SRC_COMPETIDORES).setData(puntosGeoJSON(lista))
 
@@ -483,8 +536,13 @@ function pintar(datos) {
 
   map.getSource(SRC_ANILLOS).setData(EMPTY)
   map.getSource(SRC_UBICACION).setData(EMPTY)
-  if (datos.centro) map.flyTo({ center: [datos.centro.lng, datos.centro.lat], zoom: 13.5, duration: 1400 })
-  else irACiudad()
+  if (limitesDistrito) {
+    map.fitBounds(limitesDistrito, { padding: { top: 90, bottom: 50, left: 50, right: 70 }, duration: 1200 })
+  } else if (datos.centro) {
+    map.flyTo({ center: [datos.centro.lng, datos.centro.lat], zoom: 13.5, duration: 1400 })
+  } else {
+    irACiudad()
+  }
 }
 
 // ---------------------------------------------------------------------------
