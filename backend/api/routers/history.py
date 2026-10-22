@@ -28,7 +28,7 @@ def resolve_chat_history_file(thread_id: str) -> Path:
 
     Validates against directory traversal and ensures the file exists.
     """
-    clean_id = (thread_id or "").strip()
+    clean_id = (thread_id or "").strip().replace(":", "_")
     if not clean_id:
         raise HTTPException(
             status_code=422,
