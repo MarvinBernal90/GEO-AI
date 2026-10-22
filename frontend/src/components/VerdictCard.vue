@@ -118,7 +118,7 @@ const afluencia = computed(() => {
         <dd class="mt-0.5 font-mono text-sm font-medium">{{ afluencia }}</dd>
       </div>
       <div class="bg-ink-light px-5 py-3">
-        <dt class="text-[10px] tracking-wide text-paper/45 uppercase">Competidores</dt>
+        <dt class="text-[10px] tracking-wide text-paper/45 uppercase">Competidores en el distrito</dt>
         <dd class="mt-0.5 font-mono text-sm font-medium">
           {{ datos.total_competitors != null ? formatoNumero.format(datos.total_competitors) : '—' }}
         </dd>
