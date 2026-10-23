@@ -127,3 +127,14 @@ class TestCrearInforme:
 
         # 422 Unprocessable Entity
         assert response.status_code == 422 
+
+
+def test_datos_distrito_accepts_every_column_of_the_district_scorecard():
+    """
+    Regression: `agent.py` selects `predominant_age` from district_mobility. The schema
+    forbids extra fields, so a missing field turned every report into an HTTP 500.
+    """
+    from backend.api.schemas.reports import DatosDistrito
+
+    datos = DatosDistrito(codi_districte=2, predominant_age="25-45")
+    assert datos.predominant_age == "25-45"
