@@ -126,7 +126,7 @@ class TestCrearInforme:
         app.dependency_overrides.clear()
 
         # 422 Unprocessable Entity
-        assert response.status_code == 422 
+        assert response.status_code == 422
 
 
 def test_datos_distrito_accepts_every_column_of_the_district_scorecard():

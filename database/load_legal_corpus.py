@@ -59,7 +59,7 @@ def load_corpus_from_directory(
 
     # 2. Batch Vectorization (Performance Optimization)
     # We do NOT embed articles one by one inside the previous loop.
-    # We collect them all and pass the entire list to the Embedding model. 
+    # We collect them all and pass the entire list to the Embedding model.
     # ML models (like Torch) are highly optimized for batch processing.
     logger.info(f"Generando embeddings para {len(all_current_chunks)} artículos...")
     embeddings = embed_fn([chunk.contenido for chunk, _ in all_current_chunks])
@@ -73,7 +73,7 @@ def load_corpus_from_directory(
             "contenido": chunk.contenido,
             "expedient": chunk.expedient,
             "versio": chunk.versio.value,
-            # Pre-compute the relation between Article and Zoning at ingestion time, 
+            # Pre-compute the relation between Article and Zoning at ingestion time,
             # saving processing power during user queries (Compute once, read often).
             "zona_pgm": ARTICLE_TO_ZONA_PGM.get(chunk.numero_articulo),
             "documento_origen": source_filename,

@@ -16,7 +16,6 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from database.load_users import load_users_from_csv, parse_users_file
-from backend.db.base import Base
 from backend.db.models import User
 
 

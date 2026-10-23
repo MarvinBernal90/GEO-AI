@@ -28,12 +28,12 @@ class TestResolverDistritoDesdeSuburb:
         """
         assert resolver_distrito_desde_suburb("Les Corts") == 4
 
-    def test_strips_leading_apostrophe_article(self):     
+    def test_strips_leading_apostrophe_article(self):
         assert resolver_distrito_desde_suburb("l'Eixample") == 2
 
     def test_strips_leading_la_article(self):
         # Hypothetical variant to ensure full regex coverage
-        assert resolver_distrito_desde_suburb("la Eixample") == 2  
+        assert resolver_distrito_desde_suburb("la Eixample") == 2
 
     def test_case_insensitive(self):
         assert resolver_distrito_desde_suburb("CIUTAT VELLA") == 1
@@ -52,7 +52,7 @@ class TestResolverDistritoDesdeSuburb:
         assert resolver_distrito_desde_suburb("") is None
 
     def test_regression_real_nominatim_responses(self):
-        # Empirical test cases based on actual payloads returned by Nominatim 
+        # Empirical test cases based on actual payloads returned by Nominatim
         # during the 'probar_geocodificacion.py' API Spike phase.
         assert resolver_distrito_desde_suburb("Ciutat Vella") == 1
         assert resolver_distrito_desde_suburb("Sant Martí") == 10
