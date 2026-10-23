@@ -37,7 +37,6 @@ from .routers import (
     assistant,
     chat,
     competitors,
-    etl,
     geocoding,
     history,
     login,
@@ -86,7 +85,6 @@ app.include_router(chat.router)
 app.include_router(assistant.router)
 app.include_router(login.router)
 app.include_router(logs.router)
-app.include_router(etl.router)
 app.include_router(history.router)
 app.include_router(request_metrics.router)
 

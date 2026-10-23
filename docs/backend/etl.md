@@ -14,7 +14,6 @@ Pure transformation pipelines (pandas) that turn open-data CSVs into the tables 
 ## Running
 
 - Command line: `database/load_all.sh` (see [structure.md](../structure.md)). Schema comes from Alembic migrations in `database/alembic/versions`.
-- Through the API: `POST /api/etl/mitma` starts `run_etl` as a background task, and `GET /api/etl/mitma/progress` returns `{status, progress, elapsed, message}`. Only one run at a time. `PROGRESS` is in memory, so it resets on restart.
 
 ## Target tables (`backend/db/models.py`)
 
