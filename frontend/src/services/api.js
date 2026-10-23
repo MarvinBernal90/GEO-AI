@@ -92,15 +92,6 @@ export async function obtenerZonasPgm() {
   return request('obtenerZonasPgm', `${API_BASE_URL}/api/pgm-zones`)
 }
 
-/** Generates a synchronous AI report (blocks until the full JSON is ready). */
-export async function generarInforme(codiDistricte, zonaPgm) {
-  return request('generarInforme', `${API_BASE_URL}/api/reports`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ codi_districte: codiDistricte, zona_pgm: zonaPgm }),
-  })
-}
-
 /** Retrieves the full text of a specific legal article for verification. */
 export async function obtenerArticulo(fuenteLegal, numeroArticulo) {
   const params = new URLSearchParams({ fuente_legal: fuenteLegal, numero_articulo: numeroArticulo })
