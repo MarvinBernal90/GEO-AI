@@ -17,7 +17,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import HomeView from '../views/HomeView.vue'
 
-export const routes = [
+const routes = [
   { path: '/', name: 'home', component: HomeView, meta: { title: 'Geo-Yield-AI · Dossier de viabilidad' } },
   {
     path: '/metrics',

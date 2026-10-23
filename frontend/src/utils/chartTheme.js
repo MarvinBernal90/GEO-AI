@@ -25,7 +25,7 @@ export const STATUS = { ok: '#0ca30c', error: '#d03b3b', cancelled: '#898781' }
 export const STATUS_LABEL = { ok: 'Correcta', error: 'Con error', cancelled: 'Cancelada' }
 
 /** One color per pipeline actor. Same order as the backend `Actor` type. */
-export const ACTORS = {
+const ACTORS = {
   agent: { label: 'Agente', color: SERIES[0] },
   llm: { label: 'LLM', color: SERIES[1] },
   rag: { label: 'RAG', color: SERIES[2] },
@@ -58,7 +58,7 @@ export const INK = {
 const FONT = "'IBM Plex Sans', system-ui, sans-serif"
 
 /** Escapes text that comes from the API (route and model names) before it goes into tooltip HTML. */
-export function esc(value) {
+function esc(value) {
   return String(value ?? '').replace(
     /[&<>"']/g,
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
