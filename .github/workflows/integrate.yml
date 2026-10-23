@@ -109,6 +109,11 @@ jobs:
       - name: Check formatting
         run: npm run format:check
 
+      # The build used to run only at deploy time, after the merge. Running it
+      # here makes a broken import or missing dependency fail the PR instead.
+      - name: Build
+        run: npm run build
+
   # ==============================================================================
   # BACKEND LINT AND FORMATTING
   # ==============================================================================
