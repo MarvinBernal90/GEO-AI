@@ -185,4 +185,4 @@ class TestProcessWideWriter:
 
         assert len(store["added"]) == 1
         assert store["added"][0].route == "/api/x"
-        assert writer_module.get_writer() is None
+        assert writer_module._writer is None
