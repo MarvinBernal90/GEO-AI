@@ -75,3 +75,10 @@ chat_history/
 
 # Local/test artifacts
 test-results/
+
+# --- RAG evals ---
+# Run results and corpus reports are the evidence behind the /evals dashboard, so they are kept
+# (the general *.json rule above would otherwise drop them). Caches and drafts are rebuilt on demand.
+!evals/results/**/*.json
+evals/results/cache/
+evals/results/drafts/

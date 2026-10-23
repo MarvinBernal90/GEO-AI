@@ -25,6 +25,8 @@ const routes = [
     component: () => import('../views/MetricsView.vue'),
     meta: { title: 'Geo-Yield-AI · Métricas' },
   },
+  // The RAG quality dashboard lives in a tab of /metrics; the old address keeps working.
+  { path: '/evals', redirect: { path: '/metrics', query: { tab: 'rag' } } },
   // Any other path goes back to the main page instead of showing a blank screen.
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ]

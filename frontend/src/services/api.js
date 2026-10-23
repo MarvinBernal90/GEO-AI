@@ -416,3 +416,25 @@ export async function getMetricsRequests(filters = {}) {
 export async function getMetricsRequest(id) {
   return request('getMetricsRequest', `${API_BASE_URL}/api/metrics/requests/${encodeURIComponent(id)}`)
 }
+
+/**
+ * ==============================================================================
+ * RAG EVALUATIONS (read-only, feeds the /evals dashboard)
+ * ==============================================================================
+ * The evaluation harness (evals/run_eval.py) saves one JSON file per run. These calls only read them.
+ */
+
+/** One summary per run, newest first (no per-question rows). */
+export async function getEvalRuns() {
+  return request('getEvalRuns', `${API_BASE_URL}/api/evals/runs`)
+}
+
+/** One run with every question: ranking, answer and judge verdict. */
+export async function getEvalRun(runId) {
+  return request('getEvalRun', `${API_BASE_URL}/api/evals/runs/${encodeURIComponent(runId)}`)
+}
+
+/** What the evaluation corpus contains: chunks per law, language mix, gaps. */
+export async function getEvalCorpus() {
+  return request('getEvalCorpus', `${API_BASE_URL}/api/evals/corpus`)
+}

@@ -1,0 +1,4532 @@
+{
+ "run_id": "20261023-132616-rerank-holdout",
+ "created_at": "2026-10-23T13:26:16+00:00",
+ "name": "rerank",
+ "set": "holdout",
+ "set_hash": "1f9e5153d1a6",
+ "config": {
+  "name": "rerank",
+  "rewrite": "none",
+  "rerank": true,
+  "top_k": 10,
+  "answers": true,
+  "answer_k": 3,
+  "temperature": 0.0,
+  "embedding_model": "amazon.titan-embed-text-v2:0",
+  "generation_model": "eu.amazon.nova-2-lite-v1:0",
+  "judge_model": "arn:aws:bedrock:eu-central-1:192445490421:inference-profile/eu.amazon.nova-2-lite-v1:0"
+ },
+ "n_questions": 28,
+ "n_answerable": 25,
+ "n_unanswerable": 3,
+ "retrieval": {
+  "hit@1": {
+   "value": 0.8,
+   "lo": 0.6086866446346177,
+   "hi": 0.9113954589934752,
+   "n": 25
+  },
+  "hit@3": {
+   "value": 0.96,
+   "lo": 0.8045552759497747,
+   "hi": 0.9929039496133008,
+   "n": 25
+  },
+  "hit@6": {
+   "value": 0.96,
+   "lo": 0.8045552759497747,
+   "hi": 0.9929039496133008,
+   "n": 25
+  },
+  "hit@10": {
+   "value": 0.96,
+   "lo": 0.8045552759497747,
+   "hi": 0.9929039496133008,
+   "n": 25
+  },
+  "doc_hit@10": {
+   "value": 0.96,
+   "lo": 0.8045552759497747,
+   "hi": 0.9929039496133008,
+   "n": 25
+  },
+  "mrr": {
+   "value": 0.88,
+   "lo": 0.78,
+   "hi": 0.96,
+   "n": 25
+  },
+  "ndcg@10": {
+   "value": 0.9009487605714332,
+   "lo": 0.8018975211428665,
+   "hi": 0.9704743802857166,
+   "n": 25
+  },
+  "recall@6_multi": {
+   "value": null,
+   "lo": 0.0,
+   "hi": 0.0,
+   "n": 0
+  }
+ },
+ "slices": {
+  "direction": {
+   "ca→ca": {
+    "hit@1": {
+     "value": 1.0,
+     "lo": 0.20654329147389294,
+     "hi": 1.0,
+     "n": 1
+    },
+    "hit@3": {
+     "value": 1.0,
+     "lo": 0.20654329147389294,
+     "hi": 1.0,
+     "n": 1
+    },
+    "hit@6": {
+     "value": 1.0,
+     "lo": 0.20654329147389294,
+     "hi": 1.0,
+     "n": 1
+    },
+    "mrr": {
+     "value": 1.0,
+     "lo": 1.0,
+     "hi": 1.0,
+     "n": 1
+    }
+   },
+   "ca→es": {
+    "hit@1": {
+     "value": 1.0,
+     "lo": 0.43849391955098227,
+     "hi": 1.0,
+     "n": 3
+    },
+    "hit@3": {
+     "value": 1.0,
+     "lo": 0.43849391955098227,
+     "hi": 1.0,
+     "n": 3
+    },
+    "hit@6": {
+     "value": 1.0,
+     "lo": 0.43849391955098227,
+     "hi": 1.0,
+     "n": 3
+    },
+    "mrr": {
+     "value": 1.0,
+     "lo": 1.0,
+     "hi": 1.0,
+     "n": 3
+    }
+   },
+   "es→ca": {
+    "hit@1": {
+     "value": 0.8,
+     "lo": 0.3755282641185388,
+     "hi": 0.9637768390302125,
+     "n": 5
+    },
+    "hit@3": {
+     "value": 1.0,
+     "lo": 0.5655085052479191,
+     "hi": 1.0,
+     "n": 5
+    },
+    "hit@6": {
+     "value": 1.0,
+     "lo": 0.5655085052479191,
+     "hi": 1.0,
+     "n": 5
+    },
+    "mrr": {
+     "value": 0.9,
+     "lo": 0.7,
+     "hi": 1.0,
+     "n": 5
+    }
+   },
+   "es→es": {
+    "hit@1": {
+     "value": 0.75,
+     "lo": 0.5050123107060135,
+     "hi": 0.8981809801576265,
+     "n": 16
+    },
+    "hit@3": {
+     "value": 0.9375,
+     "lo": 0.7167073163197013,
+     "hi": 0.9888809426916687,
+     "n": 16
+    },
+    "hit@6": {
+     "value": 0.9375,
+     "lo": 0.7167073163197013,
+     "hi": 0.9888809426916687,
+     "n": 16
+    },
+    "mrr": {
+     "value": 0.84375,
+     "lo": 0.6875,
+     "hi": 0.96875,
+     "n": 16
+    }
+   }
+  },
+  "doc_lang": {
+   "ca": {
+    "hit@1": {
+     "value": 0.8333333333333334,
+     "lo": 0.43649056343635395,
+     "hi": 0.9699474141282697,
+     "n": 6
+    },
+    "hit@3": {
+     "value": 1.0,
+     "lo": 0.6096569663469354,
+     "hi": 0.9999999999999999,
+     "n": 6
+    },
+    "hit@6": {
+     "value": 1.0,
+     "lo": 0.6096569663469354,
+     "hi": 0.9999999999999999,
+     "n": 6
+    },
+    "mrr": {
+     "value": 0.9166666666666666,
+     "lo": 0.75,
+     "hi": 1.0,
+     "n": 6
+    }
+   },
+   "es": {
+    "hit@1": {
+     "value": 0.7894736842105263,
+     "lo": 0.5666528575973392,
+     "hi": 0.9149246150840843,
+     "n": 19
+    },
+    "hit@3": {
+     "value": 0.9473684210526315,
+     "lo": 0.7536078466345479,
+     "hi": 0.99064824750947,
+     "n": 19
+    },
+    "hit@6": {
+     "value": 0.9473684210526315,
+     "lo": 0.7536078466345479,
+     "hi": 0.99064824750947,
+     "n": 19
+    },
+    "mrr": {
+     "value": 0.868421052631579,
+     "lo": 0.7368421052631579,
+     "hi": 0.9736842105263158,
+     "n": 19
+    }
+   }
+  },
+  "lang": {
+   "ca": {
+    "hit@1": {
+     "value": 1.0,
+     "lo": 0.5100999795960008,
+     "hi": 1.0,
+     "n": 4
+    },
+    "hit@3": {
+     "value": 1.0,
+     "lo": 0.5100999795960008,
+     "hi": 1.0,
+     "n": 4
+    },
+    "hit@6": {
+     "value": 1.0,
+     "lo": 0.5100999795960008,
+     "hi": 1.0,
+     "n": 4
+    },
+    "mrr": {
+     "value": 1.0,
+     "lo": 1.0,
+     "hi": 1.0,
+     "n": 4
+    }
+   },
+   "es": {
+    "hit@1": {
+     "value": 0.7619047619047619,
+     "lo": 0.5490841802765406,
+     "hi": 0.8937214361088773,
+     "n": 21
+    },
+    "hit@3": {
+     "value": 0.9523809523809523,
+     "lo": 0.7733018341376452,
+     "hi": 0.9915442305280766,
+     "n": 21
+    },
+    "hit@6": {
+     "value": 0.9523809523809523,
+     "lo": 0.7733018341376452,
+     "hi": 0.9915442305280766,
+     "n": 21
+    },
+    "mrr": {
+     "value": 0.8571428571428571,
+     "lo": 0.7142857142857143,
+     "hi": 0.9523809523809523,
+     "n": 21
+    }
+   }
+  },
+  "kind": {
+   "catalan_question": {
+    "hit@1": {
+     "value": 1.0,
+     "lo": 0.5100999795960008,
+     "hi": 1.0,
+     "n": 4
+    },
+    "hit@3": {
+     "value": 1.0,
+     "lo": 0.5100999795960008,
+     "hi": 1.0,
+     "n": 4
+    },
+    "hit@6": {
+     "value": 1.0,
+     "lo": 0.5100999795960008,
+     "hi": 1.0,
+     "n": 4
+    },
+    "mrr": {
+     "value": 1.0,
+     "lo": 1.0,
+     "hi": 1.0,
+     "n": 4
+    }
+   },
+   "pgm": {
+    "hit@1": {
+     "value": 1.0,
+     "lo": 0.20654329147389294,
+     "hi": 1.0,
+     "n": 1
+    },
+    "hit@3": {
+     "value": 1.0,
+     "lo": 0.20654329147389294,
+     "hi": 1.0,
+     "n": 1
+    },
+    "hit@6": {
+     "value": 1.0,
+     "lo": 0.20654329147389294,
+     "hi": 1.0,
+     "n": 1
+    },
+    "mrr": {
+     "value": 1.0,
+     "lo": 1.0,
+     "hi": 1.0,
+     "n": 1
+    }
+   },
+   "pgm_zone": {
+    "hit@1": {
+     "value": 1.0,
+     "lo": 0.34237195288961925,
+     "hi": 1.0,
+     "n": 2
+    },
+    "hit@3": {
+     "value": 1.0,
+     "lo": 0.34237195288961925,
+     "hi": 1.0,
+     "n": 2
+    },
+    "hit@6": {
+     "value": 1.0,
+     "lo": 0.34237195288961925,
+     "hi": 1.0,
+     "n": 2
+    },
+    "mrr": {
+     "value": 1.0,
+     "lo": 1.0,
+     "hi": 1.0,
+     "n": 2
+    }
+   },
+   "single": {
+    "hit@1": {
+     "value": 0.7222222222222222,
+     "lo": 0.49126922453805477,
+     "hi": 0.8750043085364452,
+     "n": 18
+    },
+    "hit@3": {
+     "value": 0.9444444444444444,
+     "lo": 0.7424220019799247,
+     "hi": 0.9901250641690756,
+     "n": 18
+    },
+    "hit@6": {
+     "value": 0.9444444444444444,
+     "lo": 0.7424220019799247,
+     "hi": 0.9901250641690756,
+     "n": 18
+    },
+    "mrr": {
+     "value": 0.8333333333333334,
+     "lo": 0.6944444444444444,
+     "hi": 0.9444444444444444,
+     "n": 18
+    }
+   }
+  }
+ },
+ "abstention_signal": {
+  "auroc": 1.0,
+  "answerable_median_distance": 0.4919253587722634,
+  "unanswerable_median_distance": 0.7415772445419946,
+  "n_answerable": 25,
+  "n_unanswerable": 3
+ },
+ "answers": {
+  "fact_recall": {
+   "value": 0.97,
+   "lo": 0.92,
+   "hi": 1.0,
+   "n": 25
+  },
+  "faithfulness": {
+   "value": 0.92,
+   "lo": 0.7503348787704218,
+   "hi": 0.977780066308908,
+   "n": 25
+  },
+  "over_abstention": {
+   "value": 0.0,
+   "lo": 0.0,
+   "hi": 0.13319649395317873,
+   "n": 25
+  },
+  "correct_abstention": {
+   "value": 0.6666666666666666,
+   "lo": 0.2076549551264879,
+   "hi": 0.9385096847238394,
+   "n": 3
+  },
+  "citation_validity": {
+   "value": 0.9230769230769231,
+   "lo": 0.7585805251948495,
+   "hi": 0.9786453608166245,
+   "n": 26
+  },
+  "answer_language": {
+   "value": 0.9285714285714286,
+   "lo": 0.7735426157408214,
+   "hi": 0.9801883525522292,
+   "n": 28
+  },
+  "latency_p50_s": 2.6906870829698164,
+  "latency_p95_s": 4.7150821079150775
+ },
+ "failures": {
+  "retrieval_miss": 1,
+  "unsupported": 2,
+  "wrongly_answered": 1
+ },
+ "corpus": {
+  "total_chunks": 539,
+  "lang_chunks": {
+   "ca": 20,
+   "unknown": 6,
+   "es": 513
+  },
+  "empty_sources": [
+   {
+    "fuente_legal": "Decreto 1122010, de 31 de agosto, por el que se aprueba el Reglamento de espectáculos públicos y actividades recreativas",
+    "note": "scanned PDF without a text layer: 0 chunks, needs OCR",
+    "error": null
+   }
+  ],
+  "oversized_chunks": 0,
+  "truncated_for_embedding": 0,
+  "sources": [
+   {
+    "fuente_legal": "código de consumo de Cataluña.",
+    "chunks": 234,
+    "max_chars": 7894,
+    "langs": {
+     "es": 234
+    },
+    "lang": "es",
+    "note": "Ley 22/2010"
+   },
+   {
+    "fuente_legal": "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+    "chunks": 65,
+    "max_chars": 7839,
+    "langs": {
+     "es": 64,
+     "unknown": 1
+    },
+    "lang": "es",
+    "note": "file name says Ley 7/1996 but the content is Ley 11/2009"
+   },
+   {
+    "fuente_legal": "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+    "chunks": 63,
+    "max_chars": 16170,
+    "langs": {
+     "es": 62,
+     "unknown": 1
+    },
+    "lang": "es",
+    "note": ""
+   },
+   {
+    "fuente_legal": "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+    "chunks": 62,
+    "max_chars": 10656,
+    "langs": {
+     "es": 59,
+     "unknown": 3
+    },
+    "lang": "es",
+    "note": "file name says Ley 18/2017 but the content is Ley 7/1996"
+   },
+   {
+    "fuente_legal": "política lingüística",
+    "chunks": 39,
+    "max_chars": 10556,
+    "langs": {
+     "es": 38,
+     "ca": 1
+    },
+    "lang": "es",
+    "note": ""
+   },
+   {
+    "fuente_legal": "Ley 172009, de 23 de noviembre, sobre el libre acceso a las actividades de servicios y su ejercicio",
+    "chunks": 32,
+    "max_chars": 9855,
+    "langs": {
+     "es": 32
+    },
+    "lang": "es",
+    "note": ""
+   },
+   {
+    "fuente_legal": "horarios de los establecimientos abiertos al público, de los espectáculos públicos y de las actividades recreativas sometidos a la Ley 112009",
+    "chunks": 18,
+    "max_chars": 2715,
+    "langs": {
+     "es": 18
+    },
+    "lang": "es",
+    "note": ""
+   },
+   {
+    "fuente_legal": "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+    "chunks": 13,
+    "max_chars": 2867,
+    "langs": {
+     "ca": 13
+    },
+    "lang": "ca",
+    "note": "file name says _es but the text is Catalan"
+   },
+   {
+    "fuente_legal": "horarios comerciales",
+    "chunks": 6,
+    "max_chars": 4916,
+    "langs": {
+     "es": 6
+    },
+    "lang": "es",
+    "note": ""
+   },
+   {
+    "fuente_legal": "Decreto 322005, sobre la señalización de las limitaciones en la venta de bebidas alcohólicas.",
+    "chunks": 4,
+    "max_chars": 1249,
+    "langs": {
+     "ca": 3,
+     "unknown": 1
+    },
+    "lang": "ca",
+    "note": "file name says _es but the text is Catalan"
+   },
+   {
+    "fuente_legal": "PGM (Secció V)",
+    "chunks": 3,
+    "max_chars": 2942,
+    "langs": {
+     "ca": 3
+    },
+    "lang": "ca",
+    "note": ""
+   }
+  ],
+  "skipped_files": [
+   {
+    "file": "BOE-A-2010-13115 - Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas.pdf",
+    "note": "byte-identical duplicate of the Código de consumo (Ley 22/2010) under a wrong name"
+   },
+   {
+    "file": "BOE-A-2017-11320 - Ley 222010, de 20 de julio, del Código de Consumo de Cataluña.pdf",
+    "note": "BOE amendment text of the Código de consumo, not a stand-alone law; not loaded by load_all.sh"
+   },
+   {
+    "file": "OMAIIAA_Barcelona.pdf",
+    "note": "Catalan; its load line is commented out in database/load_all.sh and the parser makes 80 000-character chunks"
+   }
+  ]
+ },
+ "questions": [
+  {
+   "id": "q001",
+   "question": "¿Si deseo abrir un nuevo negocio como un bar, restaurante o tienda en una zona de Barcelona clasificada como de densificación urbana (intensiva o semiintensiva), qué tipos de actividades relacionadas con el comercio o el ocio se permiten en esta área?",
+   "lang": "es",
+   "kind": "pgm_zone",
+   "answerable": true,
+   "zona_pgm": "densificacio_urbana",
+   "doc_lang": "ca",
+   "direction": "es→ca",
+   "gold": [
+    [
+     "PGM (Secció V)",
+     "303"
+    ]
+   ],
+   "ranked": [
+    [
+     "PGM (Secció V)",
+     "303"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "27"
+    ],
+    [
+     "Ley 172009, de 23 de noviembre, sobre el libre acceso a las actividades de servicios y su ejercicio",
+     "4"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "6"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "65"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "211-1"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "5"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "19"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "2"
+    ],
+    [
+     "horarios de los establecimientos abiertos al público, de los espectáculos públicos y de las actividades recreativas sometidos a la Ley 112009",
+     "7"
+    ]
+   ],
+   "query_used": null,
+   "rank_of_gold": 1,
+   "best_distance": 0.5356610396110384,
+   "top": [
+    {
+     "fuente_legal": "PGM (Secció V)",
+     "numero_articulo": "303",
+     "titulo": "Zones en densificació urbana (intensiva i semiintensiva)",
+     "distance": 0.5357,
+     "is_gold": true
+    },
+    {
+     "fuente_legal": "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "numero_articulo": "27",
+     "titulo": "Planificación urbanística",
+     "distance": 0.6788,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 172009, de 23 de noviembre, sobre el libre acceso a las actividades de servicios y su ejercicio",
+     "numero_articulo": "4",
+     "titulo": "Libertad de establecimiento",
+     "distance": 0.6949,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "numero_articulo": "6",
+     "titulo": "Apertura, traslado o ampliación de establecimientos comerciales",
+     "distance": 0.5766,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "numero_articulo": "65",
+     "titulo": "Medidas provisionales inmediatas",
+     "distance": 0.6705,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "211-1",
+     "titulo": "Ámbito de aplicación",
+     "distance": 0.6713,
+     "is_gold": false
+    }
+   ],
+   "retrieval_seconds": 1.5359566250117496,
+   "facts": [
+    "El uso Comercial está admitido.",
+    "El uso Recreativo está admitido."
+   ],
+   "answer": "Según el Artículo 303 del Pla General Metropolità (PGM) en la Secció V, en les zones de densificació urbana (intensiva i semiintensiva) s'admeten els següents usos, incloent activitats relacionades amb el comerç i l'oció:\n\n1. **Habitatge**: Plurifamiliar i apartaments. També s'admet l'habitatge unifamiliar en casos específics.\n2. **Residencial**: S'admet.\n3. **Comercial**: S'admet. Això inclou activitats com bars, restaurants i botigues.\n4. **Sanitari**: S'admet.\n5. **Recreatiu**: S'admet. Això pot incloure activitats de lleure i espectacles públics.\n6. **Esportiu**: S'admet.\n7. **Religiós i cultural**: S'admet.\n8. **Oficines**: S'admet.\n9. **Indústria**: S'admet l'ús industrial en categories específiques.\n\nAdemás, la Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas, en su Artículo 27, establece que la planificación urbanística debe considerar la localización de establecimientos abiertos al público, incluyendo bares, restaurantes y tiendas, con el objetivo de impulsar una oferta de ocio de calidad y garantizar la seguridad y convivencia ciudadana. \n\nPor lo tanto, en una zona de Barcelona clasificada como de densificación urbana (intensiva o semiintensiva), estás autorizado a abrir un bar, restaurante o tienda, ya que el uso comercial está explícitamente permitido bajo el Artículo 303 del PGM. Sin embargo, es importante tener en cuenta las disposiciones adicionales de la Ley 112009 respecto a la localización y requisitos específicos para establecimientos abiertos al público. \n\nTe recomiendo consultar con el ayuntamiento de Barcelona o un professional del dret urbanístic per assegurar-te que el teu projecte compleix tots els requisits normatius aplicables.",
+   "gen_seconds": 3.4406828340142965,
+   "abstained": false,
+   "judge": {
+    "fact_recall": 1.0,
+    "facts_present": [
+     true,
+     true
+    ],
+    "unsupported": []
+   },
+   "citations": {
+    "cited": [
+     "27",
+     "303"
+    ],
+    "valid": [
+     "27",
+     "303"
+    ],
+    "cross_reference": [],
+    "invalid": []
+   },
+   "answer_lang": "es",
+   "context_articles": [
+    "PGM (Secció V) · art. 303",
+    "Ley 112009, de 6 de julio, de regulación · art. 27",
+    "Ley 172009, de 23 de noviembre, sobre el · art. 4"
+   ],
+   "failure": null
+  },
+  {
+   "id": "q006",
+   "question": "Com a propietari d'un nou negoci, voldria entendre les diferències entre una 'queixa', una 'reclamació' i una 'denúncia' per part d'un consumidor, i què implica cadascuna per al meu establiment.",
+   "lang": "ca",
+   "kind": "catalan_question",
+   "answerable": true,
+   "zona_pgm": null,
+   "doc_lang": "ca",
+   "direction": "ca→ca",
+   "gold": [
+    [
+     "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "2"
+    ]
+   ],
+   "ranked": [
+    [
+     "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "2"
+    ],
+    [
+     "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "7"
+    ],
+    [
+     "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "8"
+    ],
+    [
+     "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "3"
+    ],
+    [
+     "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "1"
+    ],
+    [
+     "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "5"
+    ],
+    [
+     "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "10"
+    ],
+    [
+     "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "6"
+    ],
+    [
+     "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "13"
+    ],
+    [
+     "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "9"
+    ]
+   ],
+   "query_used": null,
+   "rank_of_gold": 1,
+   "best_distance": 0.48976522562089275,
+   "top": [
+    {
+     "fuente_legal": "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "numero_articulo": "2",
+     "titulo": "Definicions",
+     "distance": 0.4898,
+     "is_gold": true
+    },
+    {
+     "fuente_legal": "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "numero_articulo": "7",
+     "titulo": "Disponibilitat dels fulls per part de la persona consumidora",
+     "distance": 0.6192,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "numero_articulo": "8",
+     "titulo": "Contingut mínim dels fulls",
+     "distance": 0.6457,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "numero_articulo": "3",
+     "titulo": "Composició dels fulls",
+     "distance": 0.5806,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "numero_articulo": "1",
+     "titulo": "Objecte i àmbit d’aplicació",
+     "distance": 0.6224,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "numero_articulo": "5",
+     "titulo": "Sol·licitud i lliurament dels fulls a l’empresari o empresària",
+     "distance": 0.6149,
+     "is_gold": false
+    }
+   ],
+   "retrieval_seconds": 0.752415333990939,
+   "facts": [
+    "Una 'queixa' és una petició sobre fets que han afectat el funcionament normal de la relació de consum, però que no són constitutius d'infracció administrativa, i que poden servir per millorar la qualitat dels béns, serveis o l'atenció.",
+    "Una 'reclamació' és una petició sobre fets que han afectat el funcionament normal de la relació de consum, en la qual el consumidor sol·licita obtenir la reparació d'un dany, l'anul·lació d'una prestació, el rescabalament de quantitats, la rescissió d'un contracte i/o l'anul·lació d'un deute.",
+    "Una 'denúncia' és una petició sobre fets que poden ser constitutius d'infracció administrativa, a fi que les administracions públiques o els col·legis professionals competents els investiguin i actuïn d'ofici per corregir la conducta infractora."
+   ],
+   "answer": "Según el Decreto 1212013, las diferencias entre una 'queixa', una 'reclamació' y una 'denúncia' por parte de un consumidor se definen claramente en el Artículo 2:\n\n1. Queixa: Es una petición del consumidor que tiene como objetivo poner en conocimiento, tanto de la empresa como de un organismo habilitado, hechos, eventos o circunstancias que han afectado el funcionamiento normal de la relación de consumo. Aunque estos hechos no constituyan una infracción administrativa, pueden servir para mejorar la calidad de los bienes y servicios ofrecidos o la atención prestada a los consumidores. La queixa busca mejorar procesos o condiciones sin solicitar una reparación específica.\n\n2. Reclamació: También es una petición del consumidor dirigida tanto a la empresa como a un organismo habilitado, pero en este caso el consumidor solicita la reparación de un daño, la anulación de una prestación, el reembolso de cantidades, la rescisión de un contrato y/o la anulación de una deuda. La reclamación implica una solicitud concreta de solución o compensación por un problema específico.\n\n3. Denúncia: Es una petición del consumidor dirigida a la Administración o a un colegio profesional, en la cual se ponen en conocimiento hechos, eventos o circunstancias que pueden constituir una infracción administrativa. El objetivo de la denuncia es que las administraciones públicas o los colegios profesionales competentes investiguen y actúen de oficio para corregir la conducta infractora y defender los intereses generales de los consumidores.\n\nEn cuanto a lo que implica cada una para su establecimiento:\n\n- Queixa: Aunque no implica una obligación directa de reparación, una queixa puede indicar áreas de mejora en sus operaciones, servicios o productos. Responder a las quejas de manera constructiva puede mejorar la satisfacción del cliente y prevenir problemas mayores.\n\n- Reclamació: Una reclamación requiere una respuesta específica por parte de su establecimiento, ya que el consumidor está solicitando una reparación, compensación o anulación. Debe evaluar la reclamación y decidir si procede atenderla, ya sea proporcionando la reparación solicitada, reembolsando cantidades, anulando un contrato, entre otras acciones.\n\n- Denúncia: Una denuncia puede llevar a que la Administración o un colegio profesional investigue su establecimiento por posibles infracciones administrativas. Si la denuncia es fundada, podría enfrentar sanciones o medidas correctivas por parte de las autoridades competentes.\n\nAdemás, según el Artículo 7 del mismo Decreto, usted está obligado a tener disponibles los formularios oficiales de queixa, reclamación y denuncia en su establecimiento, y también puede ponerlos a disposición en su sitio web o mediante correo electrónico si los tiene. Esto incluye informar a los consumidores sobre la existencia y disponibilidad de estos formularios, especialmente en relaciones de consumo fuera del establecimiento o a distancia. Los formularios deben contener el contenido mínimo establecido en el Artículo 8, que incluye la identidad del consumidor, la identificación del establecimiento, una exposición clara de los hechos, y la firma del consumidor.",
+   "gen_seconds": 4.774372166022658,
+   "abstained": false,
+   "judge": {
+    "fact_recall": 1.0,
+    "facts_present": [
+     true,
+     true,
+     true
+    ],
+    "unsupported": []
+   },
+   "citations": {
+    "cited": [
+     "2",
+     "7",
+     "8"
+    ],
+    "valid": [
+     "2",
+     "7",
+     "8"
+    ],
+    "cross_reference": [],
+    "invalid": []
+   },
+   "answer_lang": "es",
+   "context_articles": [
+    "Decreto 1212013, sobre las hojas oficial · art. 2",
+    "Decreto 1212013, sobre las hojas oficial · art. 7",
+    "Decreto 1212013, sobre las hojas oficial · art. 8"
+   ],
+   "failure": null
+  },
+  {
+   "id": "q007",
+   "question": "Si abro un nuevo bar o tienda en Barcelona y tengo que proporcionar hojas de reclamación, ¿qué características básicas deben tener estas hojas en cuanto a su formato y los idiomas en los que deben estar disponibles?",
+   "lang": "es",
+   "kind": "single",
+   "answerable": true,
+   "zona_pgm": null,
+   "doc_lang": "ca",
+   "direction": "es→ca",
+   "gold": [
+    [
+     "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "3"
+    ]
+   ],
+   "ranked": [
+    [
+     "código de consumo de Cataluña.",
+     "211-14"
+    ],
+    [
+     "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "3"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "126-9"
+    ],
+    [
+     "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "5"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "50"
+    ],
+    [
+     "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "6"
+    ],
+    [
+     "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "7"
+    ],
+    [
+     "política lingüística",
+     "32"
+    ],
+    [
+     "política lingüística",
+     "34"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "211-3"
+    ]
+   ],
+   "query_used": null,
+   "rank_of_gold": 2,
+   "best_distance": 0.3914556917982007,
+   "top": [
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "211-14",
+     "titulo": "Hojas de reclamación o denuncia",
+     "distance": 0.3915,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "numero_articulo": "3",
+     "titulo": "Composició dels fulls",
+     "distance": 0.6476,
+     "is_gold": true
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "126-9",
+     "titulo": "Información sobre los sistemas de reclamación",
+     "distance": 0.5696,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "numero_articulo": "5",
+     "titulo": "Sol·licitud i lliurament dels fulls a l’empresari o empresària",
+     "distance": 0.6696,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "numero_articulo": "50",
+     "titulo": "Advertencias obligatorias",
+     "distance": 0.675,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "numero_articulo": "6",
+     "titulo": "Publicitat de l’existència dels fulls",
+     "distance": 0.6542,
+     "is_gold": false
+    }
+   ],
+   "retrieval_seconds": 0.6917480829870328,
+   "facts": [
+    "Están integrados por tres ejemplares: uno para la persona consumidora, uno para el organismo habilitado, y el tercero para el empresario o empresaria.",
+    "Deben estar disponibles en catalán, castellano y, si es el caso, en inglés.",
+    "Las instrucciones para rellenar y tramitar el impreso, así como la leyenda informativa sobre los derechos de protección de datos, deben ir impresas al menos en la copia que debe permanecer en posesión de la persona consumidora."
+   ],
+   "answer": "Según la normativa que regula las hojas de reclamación o denuncia en Cataluña, los empresarios deben disponer de hojas de reclamación o denuncia en la forma establecida por reglamento. Concretamente, el Decreto 1212013 sobre las hojas oficiales de queja, reclamación y denuncia establece que estas hojas deben cumplir con ciertos requisitos.\n\nEn cuanto al formato, los artículos 3.1 y 3.2 del Decreto 1212013 indican que las hojas oficiales de queja, reclamación y denuncia deben estar integradas por tres ejemplares: uno para la persona consumidora, otro para el organismo habilitado y el tercero para el empresario o empresaria. Además, estas hojas deben estar disponibles en catalán y castellano, y, si es el caso, también en inglés. En la Val d’Aran, también deben estar disponibles en occitano.\n\nAdemás, según el artículo 3.3 del mismo decreto, las instrucciones para rellenar y tramitar el formulario, así como la información sobre los derechos recogidos en el artículo 5.1 de la Ley Orgánica 15/1999, de 13 de diciembre, de protección de datos de carácter personal, deben estar impresas al menos en la copia que se entrega a la persona consumidora.\n\nPor lo tanto, para tu nuevo bar o tienda en Barcelona, las hojas de reclamación deben tener tres copias, estar disponibles en catalán y castellano (y en inglés si es apropiado para tu zona), y deben incluir las instrucciones necesarias para su correcto uso y la información sobre los derechos de protección de datos.",
+   "gen_seconds": 2.5586350839585066,
+   "abstained": false,
+   "judge": {
+    "fact_recall": 1.0,
+    "facts_present": [
+     true,
+     true,
+     true
+    ],
+    "unsupported": []
+   },
+   "citations": {
+    "cited": [
+     "3",
+     "5"
+    ],
+    "valid": [
+     "3"
+    ],
+    "cross_reference": [
+     "5"
+    ],
+    "invalid": []
+   },
+   "answer_lang": "es",
+   "context_articles": [
+    "código de consumo de Cataluña. · art. 211-14",
+    "Decreto 1212013, sobre las hojas oficial · art. 3",
+    "código de consumo de Cataluña. · art. 126-9"
+   ],
+   "failure": null
+  },
+  {
+   "id": "q012",
+   "question": "Si un cliente presenta una queja, reclamación o denuncia contra mi establecimiento, pero la envía con información incompleta o a un organismo que no es el competente, ¿qué pasos se siguen para tramitar o gestionar esa situación?",
+   "lang": "es",
+   "kind": "single",
+   "answerable": true,
+   "zona_pgm": null,
+   "doc_lang": "ca",
+   "direction": "es→ca",
+   "gold": [
+    [
+     "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "10"
+    ]
+   ],
+   "ranked": [
+    [
+     "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "10"
+    ],
+    [
+     "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "5"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "311-7"
+    ],
+    [
+     "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "2"
+    ],
+    [
+     "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "8"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "311-6"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "126-12"
+    ],
+    [
+     "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "9"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "211-4"
+    ],
+    [
+     "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "11"
+    ]
+   ],
+   "query_used": null,
+   "rank_of_gold": 1,
+   "best_distance": 0.5915538072586031,
+   "top": [
+    {
+     "fuente_legal": "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "numero_articulo": "10",
+     "titulo": "Admissió a tràmit i esmena",
+     "distance": 0.5916,
+     "is_gold": true
+    },
+    {
+     "fuente_legal": "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "numero_articulo": "5",
+     "titulo": "Sol·licitud i lliurament dels fulls a l’empresari o empresària",
+     "distance": 0.6101,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "311-7",
+     "titulo": "Tramitación de la denuncia",
+     "distance": 0.5097,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "numero_articulo": "2",
+     "titulo": "Definicions",
+     "distance": 0.6553,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "numero_articulo": "8",
+     "titulo": "Contingut mínim dels fulls",
+     "distance": 0.6867,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "311-6",
+     "titulo": "La denuncia en materia de consumo",
+     "distance": 0.6117,
+     "is_gold": false
+    }
+   ],
+   "retrieval_seconds": 0.7431215830147266,
+   "facts": [
+    "Si la queja, reclamación o denuncia carece de datos relevantes (como la petición del consumidor, la respuesta del empresario o la acreditación de haber tramitado el folio sin respuesta, o la documentación de prueba), el organismo habilitado requerirá al consumidor que la subsane.",
+    "El consumidor tendrá un plazo de 10 días para corregir la información requerida.",
+    "Si no se subsana en el plazo establecido, se considerará que el consumidor desiste de su petición y se archivarán las actuaciones.",
+    "Si el documento no se dirige al organismo habilitado competente, el organismo receptor debe remitir el original al que sea competente por razón de la materia e informar de ello a la persona consumidora."
+   ],
+   "answer": "Si un cliente presenta una queja, reclamación o denuncia contra tu establecimiento con información incompleta o la envía a un organismo que no es el competente, se siguen los siguientes pasos según la normativa:\n\nEn primer lugar, según el Artículo 10.1 del Decreto 1212013, si la queja, reclamación o denuncia presentada carece de datos relevantes —como la petición formulada por el consumidor, la respuesta del empresario, la acreditación de haber enviado el formulario sin obtener respuesta, o la documentación que respalde la pretensión—, el organismo habilitado debe requerir al consumidor que la enmiende en un plazo de 10 días, advirtiéndole que, si no lo hace en ese plazo, se considerará que desiste de la petición y se archivarán las actuaciones. Si transcurrido este plazo no se ha corregido, el organismo debe resolver archivando las actuaciones. Además, si hay indicios de infracción administrativa, el órgano competente debe iniciar las diligencias previas para determinar su alcance y responsabilidad.\n\nPor otro lado, según el Artículo 10.2 del mismo Decreto, si la hoja oficial de queja, reclamación o denuncia no está dirigida al organismo competente en función de la pretensión formulada, el órgano receptor debe enviar el original al organismo que sea competente por razón de la materia e informar de ello al consumidor.\n\nAdemás, según el Artículo 311-7 del Código de Consumo de Cataluña, si en la denuncia faltan requisitos formales y la persona denunciante puede enmendar esa carencia, la administración competente que la recibe debe darle un plazo no inferior a diez días para que lo haga. Si el órgano al que se ha dirigido la denuncia no es el competente por razón de la materia o del territorio, este órgano debe enviarla al órgano que tenga atribuida la competencia material o territorial y debe comunicarlo a la persona denunciante. Si la administración competente no aprecia infracciones con relación a la denuncia presentada, debe adoptar un acuerdo motivado de archivo y comunicarlo a la persona denunciante.\n\nEn resumen, el proceso implica requerir la enmienda de los datos faltantes en un plazo de diez días, archivar si no se corrige, reenviar a la entidad competente si es el caso, y, finalmente, archivar con motivación si no se detectan infracciones.",
+   "gen_seconds": 3.6566533749573864,
+   "abstained": false,
+   "judge": {
+    "fact_recall": 1.0,
+    "facts_present": [
+     true,
+     true,
+     true,
+     true
+    ],
+    "unsupported": []
+   },
+   "citations": {
+    "cited": [
+     "10",
+     "311-7"
+    ],
+    "valid": [
+     "10",
+     "311-7"
+    ],
+    "cross_reference": [],
+    "invalid": []
+   },
+   "answer_lang": "es",
+   "context_articles": [
+    "Decreto 1212013, sobre las hojas oficial · art. 10",
+    "Decreto 1212013, sobre las hojas oficial · art. 5",
+    "código de consumo de Cataluña. · art. 311-7"
+   ],
+   "failure": null
+  },
+  {
+   "id": "q018",
+   "question": "Como futuro propietario de un bar o tienda en Barcelona, ¿cuáles son las obligaciones generales que debo cumplir para garantizar la salud y seguridad de los bienes y servicios que ofreceré a mis clientes, y cómo debo gestionar los riesgos asociados?",
+   "lang": "es",
+   "kind": "single",
+   "answerable": true,
+   "zona_pgm": null,
+   "doc_lang": "es",
+   "direction": "es→es",
+   "gold": [
+    [
+     "código de consumo de Cataluña.",
+     "122-1"
+    ]
+   ],
+   "ranked": [
+    [
+     "código de consumo de Cataluña.",
+     "212-2"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "122-1"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "211-1"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "252-2"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "122-2"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "211-2"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "122-4"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "122-8"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "123-6"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "122-5"
+    ]
+   ],
+   "query_used": null,
+   "rank_of_gold": 2,
+   "best_distance": 0.5487255635915811,
+   "top": [
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "212-2",
+     "titulo": "Obligaciones",
+     "distance": 0.5487,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "122-1",
+     "titulo": "Obligación general",
+     "distance": 0.5216,
+     "is_gold": true
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "211-1",
+     "titulo": "Ámbito de aplicación",
+     "distance": 0.6226,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "252-2",
+     "titulo": "Servicios a las personas",
+     "distance": 0.5986,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "122-2",
+     "titulo": "Obligación de los empresarios",
+     "distance": 0.5086,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "211-2",
+     "titulo": "Requisitos exigibles en materia de seguridad y salud",
+     "distance": 0.5304,
+     "is_gold": false
+    }
+   ],
+   "retrieval_seconds": 0.6300374169950373,
+   "facts": [
+    "Los bienes y servicios destinados a las personas consumidoras no pueden comportar riesgos para su salud ni para su seguridad, salvo los que sean usuales o legalmente admisibles en condiciones normales o previsibles de utilización.",
+    "Los riesgos usual o reglamentariamente admitidos en condiciones normales y previsibles de utilización deben ponerse en conocimiento de las personas consumidoras de forma clara y con los medios adecuados.",
+    "Los bienes y servicios deben sujetarse a lo determinado por la normativa sectorial aplicable, especialmente la relativa a seguridad industrial, sanidad y salud pública, así como cualquier otra que tenga como finalidad garantizar la salud y seguridad de las personas."
+   ],
+   "answer": "Como futuro propietario de un bar o tienda en Barcelona, debes cumplir varias obligaciones generales para garantizar la salud y seguridad de los bienes y servicios que ofrecerás a tus clientes, según el Código de Consumo de Cataluña. \n\nPrimero, según el Artículo 122-1 del Código de Consumo de Cataluña, los bienes y servicios destinados a las personas consumidoras no pueden comportar riesgos para su salud ni para su seguridad, salvo los que sean usuales o legalmente admisibles en condiciones normales o previsibles de utilización. Esto significa que debes asegurarte de que los productos que vendas o los servicios que ofrezcas sean seguros bajo las condiciones normales de uso.\n\nAdemás, los riesgos usuales o reglamentariamente admitidos en condiciones normales y previsibles de utilización deben ponerse en conocimiento de las personas consumidoras de forma clara y con los medios adecuados. Por lo tanto, si hay algún riesgo asociado a los bienes o servicios que ofreces, debes informarlo claramente a tus clientes.\n\nTambién está establecido que los bienes y servicios deben sujetarse a lo determinado por la normativa sectorial aplicable, especialmente la relativa a seguridad industrial, sanidad y salud pública, así como cualquier otra que tenga como finalidad garantizar la salud y seguridad de las personas. Esto implica que debes cumplir con todas las regulaciones específicas de tu sector, que pueden incluir requisitos de higiene, seguridad alimentaria, seguridad en el manejo de productos químicos, entre otros.\n\nEl Artículo 122-1 también menciona que el acceso a la información, especialmente la relacionada con la salud y la seguridad, debe garantizarse a todas las personas con discapacidad, mediante la regulación reglamentaria sobre bienes y servicios. Por lo tanto, debes asegurarte de que la información sobre la seguridad de tus productos y servicios sea accesible para personas con discapacidad.\n\nPor último, los poderes públicos deben fomentar la inclusión del sistema Braille en el etiquetado de los bienes, especialmente respecto a los bienes que afecten a la salud y la seguridad. Aunque esto es una obligación de los poderes públicos, como propietario, es buena práctica considerar la accesibilidad de tu información para todas las personas, incluyendo aquellas con discapacidad visual.\n\nEn resumen, tus obligaciones principales incluyen garantizar la seguridad de los bienes y servicios, informar claramente sobre cualquier riesgo, cumplir con la normativa sectorial aplicable, asegurar el acceso a la información para personas con discapacidad, y considerar la inclusión de sistemas de etiquetado accesibles como el Braille.",
+   "gen_seconds": 3.006850667006802,
+   "abstained": false,
+   "judge": {
+    "fact_recall": 1.0,
+    "facts_present": [
+     true,
+     true,
+     true
+    ],
+    "unsupported": []
+   },
+   "citations": {
+    "cited": [
+     "122-1"
+    ],
+    "valid": [
+     "122-1"
+    ],
+    "cross_reference": [],
+    "invalid": []
+   },
+   "answer_lang": "es",
+   "context_articles": [
+    "código de consumo de Cataluña. · art. 212-2",
+    "código de consumo de Cataluña. · art. 122-1",
+    "código de consumo de Cataluña. · art. 211-1"
+   ],
+   "failure": null
+  },
+  {
+   "id": "q023",
+   "question": "¿Si mi negocio en Cataluña está sujeto tanto a la normativa general de consumo como a una regulación específica para mi sector (como hostelería o comercio), ¿cuál de las dos prevalece a la hora de proteger los derechos de los consumidores?",
+   "lang": "es",
+   "kind": "single",
+   "answerable": true,
+   "zona_pgm": null,
+   "doc_lang": "es",
+   "direction": "es→es",
+   "gold": [
+    [
+     "código de consumo de Cataluña.",
+     "121-1"
+    ]
+   ],
+   "ranked": [
+    [
+     "código de consumo de Cataluña.",
+     "121-1"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "311-1"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "121-2"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "123-1"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "111-1"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "312-1"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "112-5"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "112-1"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "321-1"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "133-4"
+    ]
+   ],
+   "query_used": null,
+   "rank_of_gold": 1,
+   "best_distance": 0.3967486979515126,
+   "top": [
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "121-1",
+     "titulo": "Disposición general",
+     "distance": 0.3967,
+     "is_gold": true
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "311-1",
+     "titulo": "Tutela de los derechos de las personas consumidoras",
+     "distance": 0.4944,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "121-2",
+     "titulo": "Derechos protegidos",
+     "distance": 0.5663,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "123-1",
+     "titulo": "Disposición general",
+     "distance": 0.5322,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "111-1",
+     "titulo": "Objeto y ámbito",
+     "distance": 0.4864,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "312-1",
+     "titulo": "Cuestiones generales",
+     "distance": 0.5411,
+     "is_gold": false
+    }
+   ],
+   "retrieval_seconds": 0.6914420410175808,
+   "facts": [
+    "Las relaciones de consumo que se desarrollen en el territorio de Cataluña se rigen por los preceptos de la presente ley (normativa general de consumo).",
+    "La normativa general de consumo se aplicará, excepto en los casos en que la regulación sectorial específica dispensa una mayor protección a los derechos de las personas consumidoras."
+   ],
+   "answer": "Según el Artículo 121-1 del Código de Consumo de Cataluña, las relaciones de consumo en Cataluña se rigen por los preceptos de la ley de consumo, excepto cuando la regulación sectorial específica ofrezca una mayor protección a los derechos de los consumidores. Esto significa que, si tu negocio está sujeto tanto a la normativa general de consumo como a una regulación específica para tu sector (como hostelería o comercio), la normativa sectorial específica prevalecerá siempre que esta ofrezca una protección mayor a los derechos de los consumidores.\n\nEn otras palabras, la normativa que más protege los derechos de los consumidores será la que se aplicará en tu caso. Si la regulación específica de tu sector incluye disposiciones más favorables o protectoras para los consumidores que las establecidas por la normativa general de consumo, será esa normativa sectorial la que deba aplicarse.",
+   "gen_seconds": 1.5728851670282893,
+   "abstained": false,
+   "judge": {
+    "fact_recall": 1.0,
+    "facts_present": [
+     true,
+     true
+    ],
+    "unsupported": []
+   },
+   "citations": {
+    "cited": [
+     "121-1"
+    ],
+    "valid": [
+     "121-1"
+    ],
+    "cross_reference": [],
+    "invalid": []
+   },
+   "answer_lang": "es",
+   "context_articles": [
+    "código de consumo de Cataluña. · art. 121-1",
+    "código de consumo de Cataluña. · art. 311-1",
+    "código de consumo de Cataluña. · art. 121-2"
+   ],
+   "failure": null
+  },
+  {
+   "id": "q030",
+   "question": "Si estoy a punto de abrir mi propio restaurante o tienda en Barcelona, ¿qué obligaciones específicas debo cumplir en cuanto a la información de precios para mis clientes y la aceptación de métodos de pago electrónicos?",
+   "lang": "es",
+   "kind": "single",
+   "answerable": true,
+   "zona_pgm": null,
+   "doc_lang": "es",
+   "direction": "es→es",
+   "gold": [
+    [
+     "código de consumo de Cataluña.",
+     "212-1"
+    ]
+   ],
+   "ranked": [
+    [
+     "código de consumo de Cataluña.",
+     "212-1"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "212-2"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "251-3"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "224-2"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "126-6"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "221-2"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "223-3"
+    ],
+    [
+     "Ley 172009, de 23 de noviembre, sobre el libre acceso a las actividades de servicios y su ejercicio",
+     "22"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "242-3"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "211-3"
+    ]
+   ],
+   "query_used": null,
+   "rank_of_gold": 1,
+   "best_distance": 0.4828103164208276,
+   "top": [
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "212-1",
+     "titulo": "Requisitos de los precios y las condiciones de pago",
+     "distance": 0.4828,
+     "is_gold": true
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "212-2",
+     "titulo": "Obligaciones",
+     "distance": 0.4943,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "251-3",
+     "titulo": "Obligaciones comunes para todo tipo de servicios",
+     "distance": 0.5265,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "224-2",
+     "titulo": "Información obligatoria",
+     "distance": 0.6066,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "126-6",
+     "titulo": "Precios y condiciones de venta",
+     "distance": 0.6424,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "221-2",
+     "titulo": "Información a las personas consumidoras",
+     "distance": 0.6124,
+     "is_gold": false
+    }
+   ],
+   "retrieval_seconds": 0.8152847080491483,
+   "facts": [
+    "En los establecimientos debe informarse del precio completo, con tributos incluidos, de los bienes o servicios ofrecidos a las personas consumidoras.",
+    "Esta información debe ser visible para la persona consumidora, de modo que no induzca a error o engaño.",
+    "En las invitaciones a comprar, el precio debe ser completo y debe incluir los gastos y tributos.",
+    "Si se aceptan tarjetas u otros medios de pago de modo habitual, no puede limitarse su uso en determinados períodos o condiciones, siempre y cuando se cumplan los requisitos normales para estos medios de pago."
+   ],
+   "answer": "Cuando abras un restaurante o tienda en Barcelona, debes cumplir varias obligaciones en cuanto a la información de precios y la aceptación de métodos de pago electrónicos, según la normativa de consumo de Cataluña.\n\nEn cuanto a la información de precios, según el Artículo 212-1 del Código de Consumo de Cataluña, debes mostrar el precio completo de los bienes o servicios ofrecidos, incluyendo todos los tributos, de manera visible y sin inducir a error. Esto significa que no puedes ocultar impuestos o cargos adicionales que no estén claramente indicados en el precio que ve el cliente.\n\nAdemás, el Artículo 251-3 del mismo código establece que debes informar del precio completo del servicio mediante un letrero visible, una tarifa o un folleto de precios. Este precio total debe incluir todos los tributos, cargas y gravámenes, así como cualquier concepto accesorio al servicio. Si tu negocio implica servicios donde el precio no sea fácil de calcular directamente por el cliente, debes ofrecer un presupuesto previo cuando lo solicite, detallando todos los conceptos de gasto, plazos y condiciones.\n\nRespecto a los métodos de pago electrónicos, el Artículo 212-1 también indica que si aceptas tarjetas u otros medios de pago de forma habitual, no puedes limitar su uso en períodos o condiciones específicas, siempre que se cumplan los requisitos normales para esos medios de pago. Esto quiere decir que una vez que ofrezcas pagos con tarjeta, debes estar disponible para esos pagos en todas las transacciones habituales, sin excepciones arbitrarias.\n\nAsimismo, según el Artículo 212-2, estás obligado a entregar un justificante de la transacción (factura, tique o recibo) que debe incluir tu nombre o razón social, NIF, dirección completa, descripción de los bienes o servicios, importes totales con tributos desglosados, y fecha de la transacción. Esto aplica tanto a ventas en efectivo como a pagos con tarjeta o otros medios electrónicos.\n\nEn resumen, para tu restaurante o tienda en Barcelona debes:\n\n- Mostrar precios completos con todos los tributos incluidos y de forma visible.\n- Ofrecer presupuestos previos cuando el cliente no pueda calcular directamente el precio de un servicio.\n- Aceptar métodos de pago electrónicos sin limitaciones, siempre que cumplan los requisitos normales.\n- Entregar facturas, tiques o justificantes detallados para cada transacción, independientemente del medio de pago utilizado. \n\nRecuerda que estas son obligaciones mínimas y que pueden existir requisitos adicionales específicos según el tipo de negocio o actividad que realices. Es recomendable consultar con el ayuntamiento de Barcelona o un asesor legal especializado para asegurarte de cumplir con todas las normativas aplicables.",
+   "gen_seconds": 3.6696386670228094,
+   "abstained": false,
+   "judge": {
+    "fact_recall": 1.0,
+    "facts_present": [
+     true,
+     true,
+     true,
+     true
+    ],
+    "unsupported": []
+   },
+   "citations": {
+    "cited": [
+     "212-1",
+     "212-2",
+     "251-3"
+    ],
+    "valid": [
+     "212-1",
+     "212-2",
+     "251-3"
+    ],
+    "cross_reference": [],
+    "invalid": []
+   },
+   "answer_lang": "es",
+   "context_articles": [
+    "código de consumo de Cataluña. · art. 212-1",
+    "código de consumo de Cataluña. · art. 212-2",
+    "código de consumo de Cataluña. · art. 251-3"
+   ],
+   "failure": null
+  },
+  {
+   "id": "q031",
+   "question": "Como propietario de un establecimiento que vende bebidas alcohólicas, me preocupa si mi negocio podría ser cerrado por las autoridades locales. ¿Es posible que un Ayuntamiento ordene el cierre de mi establecimiento y, de ser así, bajo qué condiciones?",
+   "lang": "es",
+   "kind": "single",
+   "answerable": true,
+   "zona_pgm": null,
+   "doc_lang": "es",
+   "direction": "es→es",
+   "gold": [
+    [
+     "horarios comerciales",
+     "6"
+    ]
+   ],
+   "ranked": [
+    [
+     "código de consumo de Cataluña.",
+     "333-5"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "4"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "71"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "341-7"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "323-4"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "39"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "63"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "37"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "54"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "56"
+    ]
+   ],
+   "query_used": null,
+   "rank_of_gold": null,
+   "best_distance": 0.598712110596167,
+   "top": [
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "333-5",
+     "titulo": "Cierre o cese de la actividad de la empresa infractora",
+     "distance": 0.5987,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "4",
+     "titulo": "Corresponde al consejero o consejera del departamento competente en materia",
+     "distance": 0.6684,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "numero_articulo": "71",
+     "titulo": "Suspensión temporal de la actividad",
+     "distance": 0.6967,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "341-7",
+     "titulo": "Órganos competentes para imponer sanciones",
+     "distance": 0.639,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "323-4",
+     "titulo": "Competencias municipales",
+     "distance": 0.5742,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "numero_articulo": "39",
+     "titulo": "Licencia municipal o autorización de la Generalidad para los establecimientos",
+     "distance": 0.6503,
+     "is_gold": false
+    }
+   ],
+   "retrieval_seconds": 1.0130116249783896,
+   "facts": [
+    "Las Comunidades Autónomas pueden dictar las normas necesarias para que los Ayuntamientos puedan acordar cierres.",
+    "Los Ayuntamientos solo pueden acordar el cierre por razones de orden público.",
+    "El cierre debe ser de manera singularizada.",
+    "Esta medida aplica a establecimientos que vendan bebidas alcohólicas."
+   ],
+   "answer": "El cierre de un establecimiento comercial, como el que usted menciona al vender bebidas alcohólicas, puede ser ordenado por las autoridades competentes bajo determinadas condiciones, aunque no directamente por el Ayuntamiento en sí mismo, sino a través de los departamentos competentes en materia de consumo o ordenación del comercio. \n\nSegún el **Artículo 4 del Código de Consumo de Cataluña**, corresponde al consejero o consejera del departamento competente en materia de consumo imponer sanciones de hasta 500.000 euros por infracciones muy graves, así como ordenar el cierre de la empresa infractora o el cese de su actividad. Esto indica que el cierre puede ser una medida aplicable por infracciones muy graves cometidas por el establecimiento.\n\nAdemás, el **Artículo 333-5 del Código de Consumo de Cataluña** establece que, en el caso de infracciones calificadas como muy graves, puede decretarse el cierre de la empresa, establecimiento o industria infractores, o el cese de su actividad, por un período máximo de cinco años. Este cierre puede ir acompañado de medidas complementarias para garantizar su eficacia, y el acuerdo de cierre debe comunicarse a la empresa sancionada y trasladarse al ayuntamiento del término municipal donde se halla dicha empresa. Una vez que la resolución sancionadora sea firme, el acuerdo de cierre debe ser ejecutado por el órgano competente.\n\nPor lo tanto, si su establecimiento incurre en infracciones muy graves reguladas por la normativa de consumo, podría estar sujeto a un cierre ordenado por el departamento competente en materia de consumo, no directamente por el Ayuntamiento, aunque este último será informado del acuerdo de cierre. Es importante asegurarse de cumplir con todas las normativas aplicables para evitar tales sanciones.",
+   "gen_seconds": 2.8130270409747027,
+   "abstained": false,
+   "judge": {
+    "fact_recall": 0.5,
+    "facts_present": [
+     true,
+     false,
+     false,
+     true
+    ],
+    "unsupported": [
+     "Los Ayuntamientos solo pueden acordar el cierre por razones de orden público"
+    ]
+   },
+   "citations": {
+    "cited": [
+     "333-5",
+     "4"
+    ],
+    "valid": [
+     "333-5",
+     "4"
+    ],
+    "cross_reference": [],
+    "invalid": []
+   },
+   "answer_lang": "es",
+   "context_articles": [
+    "código de consumo de Cataluña. · art. 333-5",
+    "código de consumo de Cataluña. · art. 4",
+    "Ley 71996, de 15 de enero, de ordenación · art. 71"
+   ],
+   "failure": "retrieval_miss"
+  },
+  {
+   "id": "q032",
+   "question": "Si un treballador per compte aliè d'un negoci detecta que el seu empresari no ha complert amb l'obligació d'afiliar-lo i donar-lo d'alta a la Seguretat Social, quins passos pot seguir per resoldre aquesta situació?",
+   "lang": "ca",
+   "kind": "catalan_question",
+   "answerable": true,
+   "zona_pgm": null,
+   "doc_lang": "es",
+   "direction": "ca→es",
+   "gold": [
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "25"
+    ]
+   ],
+   "ranked": [
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "25"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "33"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "9"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "24"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "26"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "6"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "40"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "27"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "23"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "5"
+    ]
+   ],
+   "query_used": null,
+   "rank_of_gold": 1,
+   "best_distance": 0.5287364652785111,
+   "top": [
+    {
+     "fuente_legal": "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "numero_articulo": "25",
+     "titulo": "Afiliación a instancia del trabajador",
+     "distance": 0.5287,
+     "is_gold": true
+    },
+    {
+     "fuente_legal": "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "numero_articulo": "33",
+     "titulo": "Reconocimiento del derecho",
+     "distance": 0.6067,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "numero_articulo": "9",
+     "titulo": "Efectos generales de las afiliaciones y altas debidas e indebidas",
+     "distance": 0.6311,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "numero_articulo": "24",
+     "titulo": "Afiliación a instancia del empresario",
+     "distance": 0.4701,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "numero_articulo": "26",
+     "titulo": "Afiliación de oficio",
+     "distance": 0.5877,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "numero_articulo": "6",
+     "titulo": "La afiliación al sistema de la Seguridad Social",
+     "distance": 0.6005,
+     "is_gold": false
+    }
+   ],
+   "retrieval_seconds": 0.9223622499848716,
+   "facts": [
+    "Los trabajadores por cuenta ajena o asimilados podrán solicitar directamente su afiliación y alta inicial.",
+    "Pueden solicitarla a la Dirección Provincial de la Tesorería General de la Seguridad Social o a una Administración de la misma.",
+    "La solicitud puede realizarse en cualquier momento posterior a la constatación del incumplimiento de las obligaciones por parte del empresario.",
+    "La Dirección Provincial o Administración de la Tesorería General de la Seguridad Social dará cuenta de estas solicitudes a la Inspección de Trabajo y Seguridad Social."
+   ],
+   "answer": "Segons la normativa proporcionada, si un treballador per compte aliè detecta que el seu empresari no ha complert amb l’obligació d’afiliar-lo i donar-lo d’alta a la Seguretat Social, pot seguir els següents passos per resoldre la situació:\n\n1. **Sol·licitar directament l’afiliació i l’alta inicial**: El treballador pot sol·licitar directament la seva afiliació i alta inicial a la Direcció Provincial de la Tesorería General de la Seguretat Social o a l’Administració corresponent en qualsevol moment després de constatar que l’empresari no ha complert amb les seves obligacions. Això es regula pel **Article 25.2** del Reglamento General sobre inscripción de empreses i afiliació, altes, baixes i variacions de dades de treballadors en la Seguretat Social.\n\n2. **Presentar la sol·licitud**: La sol·licitud ha de presentar-se en la forma, lloc i terminis establerts en el capítol corresponent del Reglament. Encara que la normativa no detalla els terminis exactes en aquest cas, el treballador ha d’assegurar-se que compleix amb tots els requisits i documentació necessària.\n\n3. **Notificació a l’Inspecció de Treball i Seguretat Social**: Un cop presentada la sol·licitud, la Direcció Provincial de la Tesorería General de la Seguretat Social o l’Administració competent ha de donar compte de la sol·licitud a l’Inspecció de Treball i Seguretat Social perquè realitzi les comprobacions i els efectes legals corresponents. Això està establert també en l’**Article 25.2**.\n\n4. **Competència per reconèixer el dret**: El dret a l’afiliació, a l’alta o a la baixa en la Seguretat Social serà reconegut per la Direcció Provincial de la Tesorería General de la Seguretat Social o per l’Administració competent en la província on es trobi oberta el compte de cotització de l’empresari o, en el seu defecte, on tingui el seu domicili el treballador per compte propi. Això es regula per l’**Article 33.1** del mateix Reglament.\n\n5. **Procediment de reconeixement**: El reconeixement del dret a l’afiliació, alta o baixa es realitzarà un cop efectuades les operacions de comprovació pertinents en el moment de la presentació de la sol·licitud. Si la sol·licitud no compleix els requisits o falta documentació, s’aplicaran les disposicions de l’**Article 71.1 de la Llei 30/1992**, i si cal, es seguirà el procediment establert per a l’inscripció de l’empresari.\n\n6. **Resolució motivada en cas de desestiment**: Si la sol·licitud és desestimada, la Direcció Provincial o l’Administració competent adoptarà una resolució motivada amb referència sucinta dels fets i fundaments de dret, i indicarà la forma i el termini per a la seva impugnació. Això està previst en l’**Article 33.2**.\n\nEn resum, el treballador pot sol·licitar directament la seva afiliació i alta a la Seguretat Social a la Direcció Provincial corresponent, la qual notificarà la sol·licitud a l’Inspecció de Treball per a les comprobacions necessàries. El dret serà reconegut un cop verificats els requisits, i si la sol·licitud és rechazada, es pot impugnar segons les regles establertes.",
+   "gen_seconds": 7.369167500000913,
+   "abstained": false,
+   "judge": {
+    "fact_recall": 1.0,
+    "facts_present": [
+     true,
+     true,
+     true,
+     true
+    ],
+    "unsupported": []
+   },
+   "citations": {
+    "cited": [
+     "25",
+     "33",
+     "71"
+    ],
+    "valid": [
+     "25",
+     "33"
+    ],
+    "cross_reference": [
+     "71"
+    ],
+    "invalid": []
+   },
+   "answer_lang": "ca",
+   "context_articles": [
+    "Reglamento General sobre inscripción de  · art. 25",
+    "Reglamento General sobre inscripción de  · art. 33",
+    "Reglamento General sobre inscripción de  · art. 9"
+   ],
+   "failure": null
+  },
+  {
+   "id": "q038",
+   "question": "Si mi negocio, sea un bar, restaurante o tienda, comete una infracción en materia de publicidad y es sancionado, ¿qué tipo de medida correctora pública se me podría exigir y en qué momento tendría que realizarla?",
+   "lang": "es",
+   "kind": "single",
+   "answerable": true,
+   "zona_pgm": null,
+   "doc_lang": "es",
+   "direction": "es→es",
+   "gold": [
+    [
+     "código de consumo de Cataluña.",
+     "333-8"
+    ]
+   ],
+   "ranked": [
+    [
+     "código de consumo de Cataluña.",
+     "333-8"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "333-5"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "333-12"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "4"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "46"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "333-7"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "333-9"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "53"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "65"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "331-3"
+    ]
+   ],
+   "query_used": null,
+   "rank_of_gold": 1,
+   "best_distance": 0.30267958029034137,
+   "top": [
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "333-8",
+     "titulo": "Rectificaciones públicas",
+     "distance": 0.3027,
+     "is_gold": true
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "333-5",
+     "titulo": "Cierre o cese de la actividad de la empresa infractora",
+     "distance": 0.6337,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "333-12",
+     "titulo": "Medidas sustitutivas de las sanciones",
+     "distance": 0.6197,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "4",
+     "titulo": "Corresponde al consejero o consejera del departamento competente en materia",
+     "distance": 0.6327,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "numero_articulo": "46",
+     "titulo": "Infracciones y sanciones",
+     "distance": 0.6085,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "333-7",
+     "titulo": "Indemnización por daños y perjuicios probados",
+     "distance": 0.6237,
+     "is_gold": false
+    }
+   ],
+   "retrieval_seconds": 0.7176210419856943,
+   "facts": [
+    "El órgano competente puede exigir al infractor o infractora que publique un comunicado de rectificación.",
+    "Este comunicado de rectificación debe publicarse en las mismas condiciones o en condiciones similares a las condiciones en que se hizo la actuación sancionada.",
+    "La ejecución de la rectificación pública debe llevarse a cabo una vez la resolución sancionadora sea firme."
+   ],
+   "answer": "Si tu negocio (bar, restaurante o tienda) comete una infracción en materia de publicidad y es sancionado, la autoridad competente podría exigirte publicar una rectificación pública, según el Artículo 333-8 del Código de Consumo de Cataluña. Esta rectificación debe realizarse en las mismas condiciones o en condiciones similares a las que se usaron para la infracción original.\n\nLa rectificación pública debe llevarse a cabo una vez que la resolución sancionadora sea firme, es decir, cuando ya no haya recursos pendientes y la decisión ya esté definitiva. Esto garantiza que la medida correctora se aplique solo después de que el proceso administrativo haya concluido definitivamente.\n\nAdemás, si la infracción se califica como muy grave, podría aplicarse el cierre o cese de la actividad por un período máximo de cinco años, según el Artículo 333-5 del mismo código. En ese caso, el acuerdo de cierre debe comunicarse al ayuntamiento del municipio donde está tu negocio y ejecutarse una vez que la resolución sea firme.\n\nEn resumen, para infracciones de publicidad, la medida correctora más directa sería la publicación de una rectificación pública, que deberías realizar una vez que la sanción sea firme. Si la infracción es muy grave, podría aplicarse el cierre del negocio, también tras la firmeza de la resolución.",
+   "gen_seconds": 2.045386874990072,
+   "abstained": false,
+   "judge": {
+    "fact_recall": 1.0,
+    "facts_present": [
+     true,
+     true,
+     true
+    ],
+    "unsupported": []
+   },
+   "citations": {
+    "cited": [
+     "333-5",
+     "333-8"
+    ],
+    "valid": [
+     "333-5",
+     "333-8"
+    ],
+    "cross_reference": [],
+    "invalid": []
+   },
+   "answer_lang": "es",
+   "context_articles": [
+    "código de consumo de Cataluña. · art. 333-8",
+    "código de consumo de Cataluña. · art. 333-5",
+    "código de consumo de Cataluña. · art. 333-12"
+   ],
+   "failure": null
+  },
+  {
+   "id": "q043",
+   "question": "Si como trabajador autónomo quiero contratar a mi hijo o hija menor de 30 años para que me ayude en mi nueva tienda en Barcelona, ¿qué particularidades debo tener en cuenta respecto a la declaración específica para su alta en la Seguridad Social y sus cotizaciones?",
+   "lang": "es",
+   "kind": "single",
+   "answerable": true,
+   "zona_pgm": null,
+   "doc_lang": "es",
+   "direction": "es→es",
+   "gold": [
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "40"
+    ]
+   ],
+   "ranked": [
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "40"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "30"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "46"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "35"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "41"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "43"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "7"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "29"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "63"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "39"
+    ]
+   ],
+   "query_used": null,
+   "rank_of_gold": 1,
+   "best_distance": 0.4919253587722634,
+   "top": [
+    {
+     "fuente_legal": "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "numero_articulo": "40",
+     "titulo": "Relativas a los familiares del empresario y del trabajador autónomo y a los",
+     "distance": 0.4919,
+     "is_gold": true
+    },
+    {
+     "fuente_legal": "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "numero_articulo": "30",
+     "titulo": "Solicitudes de alta y baja",
+     "distance": 0.605,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "numero_articulo": "46",
+     "titulo": "En el Régimen Especial de los Trabajadores por Cuenta Propia o Autónomos",
+     "distance": 0.6599,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "numero_articulo": "35",
+     "titulo": "Efectos especiales de las altas y bajas de los trabajadores",
+     "distance": 0.6977,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "numero_articulo": "41",
+     "titulo": "De la pluriactividad, pluriempleo y opción previa a la inclusión en diversos",
+     "distance": 0.6738,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "numero_articulo": "43",
+     "titulo": "De determinados colectivos integrados en el Régimen General o en los",
+     "distance": 0.676,
+     "is_gold": false
+    }
+   ],
+   "retrieval_seconds": 1.533904708980117,
+   "facts": [
+    "Cuando un trabajador autónomo contrata a un hijo o hija menor de 30 años como trabajador por cuenta ajena, incluso si conviven, no es necesario presentar la declaración específica del empresario y del familiar con detalles como categoría profesional o retribución.",
+    "Esta circunstancia (ser hijo/a menor de 30 de un trabajador autónomo contratado por él) debe hacerse constar en los documentos o sistemas establecidos para solicitar el alta de trabajadores por cuenta ajena.",
+    "Si estos hijos cumplen los 30 años y desean seguir incluidos como trabajadores por cuenta ajena en el régimen de la Seguridad Social, la declaración mencionada deberá presentarse en los 30 días naturales siguientes al cumplimiento de dicha edad.",
+    "Los hijos que convivan con trabajadores autónomos no cotizarán por la contingencia de desempleo hasta que cumplan la edad de 30 años."
+   ],
+   "answer": "Según la normativa proporcionada, cuando desee contratar a su hijo o hija menor de 30 años como trabajador por cuenta ajena en su nueva tienda en Barcelona, debe tener en cuenta las siguientes particularidades respecto a la declaración específica para su alta en la Seguridad Social y sus cotizaciones:\n\n**Declaración específica para la alta en la Seguridad Social:**\n\n1. **Exención de presentación de declaración:** Según el Artículo 40 del Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social, **no es necesario presentar la declaración del empresario y del familiar** cuando se trate de hijos menores de 30 años de trabajadores autónomos que sean contratados como trabajadores por cuenta ajena. Esto se debe a las disposiciones adicionales tercera de la Ley 18/2007 y décima de la Ley 20/2007.\n\n2. **Constancia en documentos:** Sin embargo, esta circunstancia **debe constar en los documentos o sistemas especialmente establecidos para solicitar el alta de los trabajadores por cuenta ajena**. Esto asegura que la administración tenga conocimiento de esta exención.\n\n**Cotizaciones:**\n\n1. **Cotización por contingencia de desempleo:** Según el mismo Artículo 40, **los hijos que convivan con los trabajadores autónomos no cotizarán por la contingencia de desempleo hasta que cumplan la edad de 30 años**. Esto es una ventaja significativa, ya que reduce la carga de cotización para el empresario durante los primeros años.\n\n**Otras consideraciones:**\n\n1. **Documentación general:** A pesar de la exención de la declaración específica, aún deberá presentar **la documentación prevista con carácter general** para el alta de trabajadores por cuenta ajena. Esto incluye, entre otros, el nombre y apellidos del trabajador, su número de la Seguridad Social, número de identificación, domicilio, fecha de iniciación de la actividad, grupo de cotización, etc. (Artículo 30.2.a del Reglamento).\n\n2. **Firma de la solicitud:** La solicitud de alta debe ser firmada por usted como empresario y por su hijo como trabajador. Los solicitantes pueden firmar a través de cualquier medio que permita acreditar la autenticidad de su voluntad y consentimiento (Artículo 30.4).\n\n3. **Medios electrónicos:** Las solicitudes de alta pueden realizarse por medios electrónicos, los cuales gozan de plena validez y eficacia siempre que se garantice la autenticidad, integridad y conservación de los datos, así como su recepción por la Tesorería General de la Seguridad Social (Artículo 30.5).\n\nEn resumen, aunque no necesita presentar una declaración específica para la contratación de su hijo menor de 30 años, debe asegurarse de que esta circunstancia se constate en los documentos de alta y beneficiarse de la exención de cotización por desempleo hasta que su hijo cumpla 30 años. Además, debe cumplir con el resto de requisitos y documentación generales para el alta de trabajadores por cuenta ajena.",
+   "gen_seconds": 4.604972000000998,
+   "abstained": false,
+   "judge": {
+    "fact_recall": 1.0,
+    "facts_present": [
+     true,
+     true,
+     true,
+     true
+    ],
+    "unsupported": []
+   },
+   "citations": {
+    "cited": [
+     "30",
+     "40"
+    ],
+    "valid": [
+     "30",
+     "40"
+    ],
+    "cross_reference": [],
+    "invalid": []
+   },
+   "answer_lang": "es",
+   "context_articles": [
+    "Reglamento General sobre inscripción de  · art. 40",
+    "Reglamento General sobre inscripción de  · art. 30",
+    "Reglamento General sobre inscripción de  · art. 46"
+   ],
+   "failure": null
+  },
+  {
+   "id": "q052",
+   "question": "Como propietario de un negocio, ¿cuántos domingos y días festivos puedo esperar que mi establecimiento pueda abrir al público anualmente, quién decide cuáles son esos días específicos y qué criterios se consideran para su selección?",
+   "lang": "es",
+   "kind": "single",
+   "answerable": true,
+   "zona_pgm": null,
+   "doc_lang": "es",
+   "direction": "es→es",
+   "gold": [
+    [
+     "horarios comerciales",
+     "4"
+    ]
+   ],
+   "ranked": [
+    [
+     "horarios comerciales",
+     "4"
+    ],
+    [
+     "horarios comerciales",
+     "6"
+    ],
+    [
+     "horarios comerciales",
+     "1"
+    ],
+    [
+     "horarios comerciales",
+     "5"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "39"
+    ],
+    [
+     "horarios comerciales",
+     "3"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "212-3"
+    ],
+    [
+     "horarios de los establecimientos abiertos al público, de los espectáculos públicos y de las actividades recreativas sometidos a la Ley 112009",
+     "15"
+    ],
+    [
+     "horarios de los establecimientos abiertos al público, de los espectáculos públicos y de las actividades recreativas sometidos a la Ley 112009",
+     "7"
+    ],
+    [
+     "horarios de los establecimientos abiertos al público, de los espectáculos públicos y de las actividades recreativas sometidos a la Ley 112009",
+     "5"
+    ]
+   ],
+   "query_used": null,
+   "rank_of_gold": 1,
+   "best_distance": 0.3337334194818927,
+   "top": [
+    {
+     "fuente_legal": "horarios comerciales",
+     "numero_articulo": "4",
+     "titulo": "Domingos y festivos",
+     "distance": 0.3337,
+     "is_gold": true
+    },
+    {
+     "fuente_legal": "horarios comerciales",
+     "numero_articulo": "6",
+     "titulo": "Régimen sancionador",
+     "distance": 0.6563,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "horarios comerciales",
+     "numero_articulo": "1",
+     "titulo": "Libertad de horarios",
+     "distance": 0.5334,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "horarios comerciales",
+     "numero_articulo": "5",
+     "titulo": "Establecimientos con régimen especial de horarios",
+     "distance": 0.5077,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "numero_articulo": "39",
+     "titulo": "Licencia municipal o autorización de la Generalidad para los establecimientos",
+     "distance": 0.5889,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "horarios comerciales",
+     "numero_articulo": "3",
+     "titulo": "Horario global",
+     "distance": 0.6104,
+     "is_gold": false
+    }
+   ],
+   "retrieval_seconds": 0.7108257499639876,
+   "facts": [
+    "El número mínimo de domingos y días festivos en los que los comercios podrán permanecer abiertos al público será de dieciséis.",
+    "Las Comunidades Autónomas podrán modificar dicho número, incrementándolo o reduciéndolo, sin que en ningún caso se pueda limitar por debajo de diez el número mínimo de domingos y festivos de apertura autorizada.",
+    "La determinación de los domingos o días festivos concretos en los que podrán permanecer abiertos los comercios corresponderá a cada Comunidad Autónoma para su respectivo ámbito territorial.",
+    "Para la determinación de estos días, las Comunidades Autónomas deben atender de forma prioritaria al atractivo comercial para los consumidores, siguiendo criterios como la apertura en al menos un día festivo si hay dos o más continuados, los domingos y festivos de los períodos de rebajas, los de mayor afluencia turística y los de la campaña de Navidad."
+   ],
+   "answer": "Según la normativa que regula los horarios comerciales, el número mínimo de domingos y días festivos en los que los comercios podrán permanecer abiertos al público será de dieciséis al año, como se establece en el Artículo 4.1 de la Ley. Sin embargo, las Comunidades Autónomas tienen la facultad de modificar este número, pudiendo incrementarlo o reducirlo, aunque en ningún caso el número mínimo de domingos y festivos de apertura autorizada podrá ser inferior a diez, según el Artículo 4.2.\n\nLa determinación de los domingos o días festivos en los que podrán permanecer abiertos al público los comercios, con el mínimo anual antes señalado, corresponde a cada Comunidad Autónoma para su respectivo ámbito territorial, tal como se indica en el Artículo 4.4.\n\nPara la selección de los domingos y festivos de apertura, las Comunidades Autónomas deben atender de forma prioritaria al atractivo comercial de los días para los consumidores, siguiendo los siguientes criterios establecidos en el Artículo 4.5:\n- La apertura en al menos un día festivo cuando se produzca la coincidencia de dos o más días festivos continuados.\n- La apertura en los domingos y festivos correspondientes a los períodos de rebajas.\n- La apertura en los domingos y festivos de mayor afluencia turística en la Comunidad Autónoma.\n- La apertura en los domingos o festivos de la campaña de Navidad.\n\nAdemás, cada comerciante determinará libremente el horario correspondiente a cada domingo o día festivo en que ejerza su actividad, según el Artículo 4.3.\n\nEn caso de que una Comunidad Autónoma decida no ejercitar la opción de determinar los domingos y festivos de apertura, se entenderá que los comerciantes disponen de plena libertad para determinar los domingos y festivos de apertura de sus establecimientos, según la Disposición adicional segunda.",
+   "gen_seconds": 2.800594165979419,
+   "abstained": false,
+   "judge": {
+    "fact_recall": 1.0,
+    "facts_present": [
+     true,
+     true,
+     true,
+     true
+    ],
+    "unsupported": []
+   },
+   "citations": {
+    "cited": [
+     "4"
+    ],
+    "valid": [
+     "4"
+    ],
+    "cross_reference": [],
+    "invalid": []
+   },
+   "answer_lang": "es",
+   "context_articles": [
+    "horarios comerciales · art. 4",
+    "horarios comerciales · art. 6",
+    "horarios comerciales · art. 1"
+   ],
+   "failure": null
+  },
+  {
+   "id": "q054",
+   "question": "Como propietario de un establecimiento comercial o de hostelería en Barcelona, ¿qué aspectos esenciales sobre los derechos lingüísticos de mis clientes y el uso de las lenguas oficiales busca asegurar y promover la administración autonómica en todos los ámbitos?",
+   "lang": "es",
+   "kind": "single",
+   "answerable": true,
+   "zona_pgm": null,
+   "doc_lang": "es",
+   "direction": "es→es",
+   "gold": [
+    [
+     "política lingüística",
+     "5"
+    ]
+   ],
+   "ranked": [
+    [
+     "política lingüística",
+     "4"
+    ],
+    [
+     "política lingüística",
+     "5"
+    ],
+    [
+     "política lingüística",
+     "32"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "128-1"
+    ],
+    [
+     "política lingüística",
+     "12"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "211-5"
+    ],
+    [
+     "política lingüística",
+     "39"
+    ],
+    [
+     "política lingüística",
+     "11"
+    ],
+    [
+     "política lingüística",
+     "9"
+    ],
+    [
+     "política lingüística",
+     "37"
+    ]
+   ],
+   "query_used": null,
+   "rank_of_gold": 2,
+   "best_distance": 0.5129175942764513,
+   "top": [
+    {
+     "fuente_legal": "política lingüística",
+     "numero_articulo": "4",
+     "titulo": "Los derechos lingüísticos",
+     "distance": 0.5129,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "política lingüística",
+     "numero_articulo": "5",
+     "titulo": "Los principios rectores de la actuación de la Generalidad",
+     "distance": 0.5721,
+     "is_gold": true
+    },
+    {
+     "fuente_legal": "política lingüística",
+     "numero_articulo": "32",
+     "titulo": "La atención al público",
+     "distance": 0.5484,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "128-1",
+     "titulo": "Derechos lingüísticos de las personas consumidoras",
+     "distance": 0.5218,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "política lingüística",
+     "numero_articulo": "12",
+     "titulo": "La Administración del Estado",
+     "distance": 0.5735,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "211-5",
+     "titulo": "Requisitos lingüísticos",
+     "distance": 0.596,
+     "is_gold": false
+    }
+   ],
+   "retrieval_seconds": 0.8247552920365706,
+   "facts": [
+    "La administración autonómica ha de garantizar los derechos lingüísticos de los ciudadanos y ciudadanas.",
+    "La administración autonómica ha de garantizar el uso normal y oficial del catalán y del castellano en todos los ámbitos.",
+    "La administración autonómica ha de garantizar la igualdad plena de los ciudadanos y ciudadanas en cuanto a derechos y deberes lingüísticos, en todos los ámbitos.",
+    "La administración autonómica ha de realizar actuaciones de amparo, protección y fomento del uso de la lengua catalana en todos los ámbitos."
+   ],
+   "answer": "Según la normativa lingüística de Cataluña, la administración autonómica busca asegurar y promover varios aspectos esenciales en relación con los derechos lingüísticos de los clientes y el uso de las lenguas oficiales, especialmente para propietarios de establecimientos comerciales o de hostelería en Barcelona.\n\nEn primer lugar, la administración garantiza el derecho de todos los ciudadanos a expresarse en cualquiera de las dos lenguas oficiales, tanto oralmente como por escrito, en todos los ámbitos, públicos y privados, sin discriminación por la lengua que utilicen (Artículo 4.1 de la política lingüística). Esto incluye el derecho a ser atendidos en cualquiera de las dos lenguas oficiales en las relaciones con establecimientos abiertos al público.\n\nAdemás, la normativa establece que las empresas y establecimientos que operan en Cataluña deben estar preparados para atender a consumidores que se dirijan a ellos en cualquiera de las dos lenguas oficiales (Artículo 32.1). Esto implica que los empleados deben poder comprender y responder en catalán o castellano según prefiera el cliente.\n\nLa administración también promueve el incremento del uso del catalán en estos contextos, aunque sin imponer su uso exclusivo (Artículo 32.2). Esto puede implicar campañas de sensibilización o formación lingüística.\n\nEn cuanto a la señalización y documentación, la normativa requiere que los carteles de información general fijos y los documentos de oferta de servicios para clientes estén redactados al menos en catalán. Sin embargo, esto no aplica a marcas comerciales, nombres de establecimientos o rótulos protegidos por la legislación de propiedad industrial (Artículo 32.3).\n\nPor último, la Generalidad está comprometida a garantizar la igualdad plena en derechos y deberes lingüísticos para todos los ciudadanos, promoviendo el uso y la enseñanza de ambas lenguas (Artículo 5.1). Esto forma parte de una política más amplia de protección y promoción de la lengua catalana en todos los ámbitos de la sociedad.",
+   "gen_seconds": 3.006907374947332,
+   "abstained": false,
+   "judge": {
+    "fact_recall": 1.0,
+    "facts_present": [
+     true,
+     true,
+     true,
+     true
+    ],
+    "unsupported": []
+   },
+   "citations": {
+    "cited": [
+     "32",
+     "4",
+     "5"
+    ],
+    "valid": [
+     "32",
+     "4",
+     "5"
+    ],
+    "cross_reference": [],
+    "invalid": []
+   },
+   "answer_lang": "es",
+   "context_articles": [
+    "política lingüística · art. 4",
+    "política lingüística · art. 5",
+    "política lingüística · art. 32"
+   ],
+   "failure": null
+  },
+  {
+   "id": "q055",
+   "question": "¿Si mi negocio en Barcelona decidiera lanzar una publicación periódica (por ejemplo, una revista de barrio o un boletín informativo mensual) que aborde temas de interés local o comarcal, existirían mecanismos de fomento o subvenciones públicas para apoyar su edición?",
+   "lang": "es",
+   "kind": "single",
+   "answerable": true,
+   "zona_pgm": null,
+   "doc_lang": "es",
+   "direction": "es→es",
+   "gold": [
+    [
+     "política lingüística",
+     "27"
+    ]
+   ],
+   "ranked": [
+    [
+     "política lingüística",
+     "27"
+    ],
+    [
+     "política lingüística",
+     "37"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "127-10"
+    ],
+    [
+     "política lingüística",
+     "28"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "131-1"
+    ],
+    [
+     "política lingüística",
+     "38"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "126-14"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "28"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "126-15"
+    ],
+    [
+     "política lingüística",
+     "8"
+    ]
+   ],
+   "query_used": null,
+   "rank_of_gold": 1,
+   "best_distance": 0.6259155646512242,
+   "top": [
+    {
+     "fuente_legal": "política lingüística",
+     "numero_articulo": "27",
+     "titulo": "Los medios de comunicación escritos",
+     "distance": 0.6259,
+     "is_gold": true
+    },
+    {
+     "fuente_legal": "política lingüística",
+     "numero_articulo": "37",
+     "titulo": "Las medidas de fomento",
+     "distance": 0.7203,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "127-10",
+     "titulo": "Fomento de las organizaciones de personas consumidoras de Cataluña",
+     "distance": 0.6815,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "política lingüística",
+     "numero_articulo": "28",
+     "titulo": "Las industrias culturales y las artes del espectáculo",
+     "distance": 0.7498,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "131-1",
+     "titulo": "Fomento de los sistemas voluntarios de resolución de conflictos",
+     "distance": 0.7422,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "política lingüística",
+     "numero_articulo": "38",
+     "titulo": "Los centros de apoyo",
+     "distance": 0.7241,
+     "is_gold": false
+    }
+   ],
+   "retrieval_seconds": 0.5577471249853261,
+   "facts": [
+    "El Gobierno de la Generalidad puede fomentar y subvencionar las publicaciones periódicas de difusión general redactadas total o mayoritariamente en catalán.",
+    "El Gobierno de la Generalidad y las Corporaciones locales pueden fomentar y subvencionar las publicaciones periódicas de ámbito local o comarcal redactadas total o mayoritariamente en catalán.",
+    "El otorgamiento de estas subvenciones ha de seguir criterios objetivos de difusión, comercialización y uso del catalán.",
+    "Las subvenciones se otorgan dentro de las previsiones presupuestarias y bajo control del Parlamento o de los Plenos de las Corporaciones locales."
+   ],
+   "answer": "Sí, existirían mecanismos de fomento y posibles subvenciones públicas para apoyar la edición de una publicación periódica de ámbito local o comarcal, como una revista de barrio o un boletín informativo mensual, según la normativa catalana.\n\nConcretamente, el Artículo 37.3 de la política lingüística establece que \"El Gobierno de la Generalidad y las Corporaciones locales han de fomentar y pueden subvencionar las publicaciones periódicas de ámbito local o comarcal redactadas total o mayoritariamente en catalán\". Esto significa que, si tu publicación está redactada mayoritariamente en catalán y aborda temas de interés local o comarcal, podrías ser elegible para solicitar subvenciones destinadas a este tipo de iniciativas.\n\nAdemás, el Artículo 37.4 de la misma política lingüística especifica que \"El otorgamiento de las subvenciones [...] ha de seguir criterios objetivos de difusión, comercialización y uso del catalán, dentro de las previsiones presupuestarias y bajo control del Parlamento o de los Plenos de las Corporaciones locales\". Por lo tanto, para acceder a estas subvenciones, deberías cumplir con requisitos objetivos relacionados con la difusión y la comercialización de la publicación, así como con el uso del catalán como lengua principal.\n\nTambién es relevante mencionar que, según el Artículo 127‑10 del Código de Consumo de Cataluña, \"La Generalidad debe fomentar las organizaciones para la defensa y representación de los intereses de las personas consumidoras\". Si tu publicación tiene como objetivo informar o defender los intereses de los consumidores locales, podría estar incluida en este marco de fomento, aunque este artículo no menciona explícitamente subvenciones.\n\nEn resumen, sí existen mecanismos de fomento y posibles subvenciones para publicaciones periódicas locales o comarcales redactadas en catalán, siempre que se cumplan los criterios establecidos por las autoridades competentes. Te recomiendo ponerte en contacto con el Ajuntament de Barcelona o con la Generalitat de Catalunya para obtener información detallada sobre los programas de subvenciones actuales y los requisitos específicos para solicitarlas.",
+   "gen_seconds": 2.580779999960214,
+   "abstained": false,
+   "judge": {
+    "fact_recall": 1.0,
+    "facts_present": [
+     true,
+     true,
+     true,
+     true
+    ],
+    "unsupported": []
+   },
+   "citations": {
+    "cited": [
+     "127",
+     "37"
+    ],
+    "valid": [
+     "37"
+    ],
+    "cross_reference": [],
+    "invalid": [
+     "127"
+    ]
+   },
+   "answer_lang": "es",
+   "context_articles": [
+    "política lingüística · art. 27",
+    "política lingüística · art. 37",
+    "código de consumo de Cataluña. · art. 127-10"
+   ],
+   "failure": "unsupported"
+  },
+  {
+   "id": "q057",
+   "question": "¿Como gerente de mi establecimiento, si por error afilio a la Seguridad Social a una persona que está excluida de su ámbito de aplicación y realizo pagos de cotizaciones por ella, qué sucede con esas cotizaciones y tengo derecho a recuperarlas?",
+   "lang": "es",
+   "kind": "single",
+   "answerable": true,
+   "zona_pgm": null,
+   "doc_lang": "es",
+   "direction": "es→es",
+   "gold": [
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "59"
+    ]
+   ],
+   "ranked": [
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "59"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "60"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "6"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "1"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "33"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "9"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "58"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "24"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "61"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "25"
+    ]
+   ],
+   "query_used": null,
+   "rank_of_gold": 1,
+   "best_distance": 0.4687813399331505,
+   "top": [
+    {
+     "fuente_legal": "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "numero_articulo": "59",
+     "titulo": "Efectos de las afiliaciones indebidas",
+     "distance": 0.4688,
+     "is_gold": true
+    },
+    {
+     "fuente_legal": "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "numero_articulo": "60",
+     "titulo": "Efectos de las altas indebidas",
+     "distance": 0.6457,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "numero_articulo": "6",
+     "titulo": "La afiliación al sistema de la Seguridad Social",
+     "distance": 0.6201,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "numero_articulo": "1",
+     "titulo": "Ambito de aplicación",
+     "distance": 0.5607,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "numero_articulo": "33",
+     "titulo": "Reconocimiento del derecho",
+     "distance": 0.6103,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "numero_articulo": "9",
+     "titulo": "Efectos generales de las afiliaciones y altas debidas e indebidas",
+     "distance": 0.651,
+     "is_gold": false
+    }
+   ],
+   "retrieval_seconds": 1.3729911249829456,
+   "facts": [
+    "Las cotizaciones efectuadas respecto de personas excluidas del ámbito de aplicación del sistema de la Seguridad Social no surtirán efecto alguno.",
+    "Los sujetos que hubieran ingresado dichas cuotas indebidas tendrán derecho a su devolución, salvo que hubieran sido ingresadas maliciosamente.",
+    "De la cantidad a devolver se deducirá el importe de las prestaciones que resultasen indebidamente percibidas.",
+    "La devolución de cuotas y la deducción de prestaciones solo procederán si no son anteriores a los últimos cuatro años."
+   ],
+   "answer": "Según el Artículo 59 del Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social, si se hubieran efectuado cotizaciones respecto de personas excluidas del ámbito de aplicación del sistema de la Seguridad Social, estas no surtirán efecto alguno. Además, los sujetos respecto de los que se hubieran ingresado dichas cuotas indebidas, hayan causado o no prestaciones y salvo que hubieran sido ingresadas maliciosamente, tendrán derecho a su devolución, previa deducción, en todo caso, del importe de las prestaciones que resultasen indebidamente percibidas, siempre que unas y otras no sean anteriores a los últimos cuatro años.\n\nPor lo tanto, como gerente de su establecimiento, si por error ha afiliado a la Seguridad Social a una persona excluida de su ámbito de aplicación y ha realizado pagos de cotizaciones por ella, esas cotizaciones no surtirán efecto y usted tiene derecho a recuperarlas, siempre que no hayan sido ingresadas maliciosamente y que tanto las cotizaciones como las posibles prestaciones indebidamente percibidas no sean anteriores a los últimos cuatro años. Sin embargo, deberá deducir de la devolución el importe de cualquier prestación que haya recibido indebidamente.\n\nEs importante recordar que esta respuesta es orientativa y no constituye un dictamen legal vinculante. Se recomienda confirmar esta situación con el ayuntamiento o un profesional antes de tomar cualquier decisión.",
+   "gen_seconds": 1.9328729159897193,
+   "abstained": false,
+   "judge": {
+    "fact_recall": 1.0,
+    "facts_present": [
+     true,
+     true,
+     true,
+     true
+    ],
+    "unsupported": []
+   },
+   "citations": {
+    "cited": [
+     "59"
+    ],
+    "valid": [
+     "59"
+    ],
+    "cross_reference": [],
+    "invalid": []
+   },
+   "answer_lang": "es",
+   "context_articles": [
+    "Reglamento General sobre inscripción de  · art. 59",
+    "Reglamento General sobre inscripción de  · art. 60",
+    "Reglamento General sobre inscripción de  · art. 6"
+   ],
+   "failure": null
+  },
+  {
+   "id": "q058",
+   "question": "¿Si como empresario no cumplo con la obligación de afiliar a un trabajador a la Seguridad Social, la propia Administración puede llevar a cabo su afiliación de forma automática y bajo qué circunstancias?",
+   "lang": "es",
+   "kind": "single",
+   "answerable": true,
+   "zona_pgm": null,
+   "doc_lang": "es",
+   "direction": "es→es",
+   "gold": [
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "26"
+    ]
+   ],
+   "ranked": [
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "25"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "26"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "24"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "20"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "5"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "9"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "33"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "27"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "23"
+    ],
+    [
+     "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "38"
+    ]
+   ],
+   "query_used": null,
+   "rank_of_gold": 2,
+   "best_distance": 0.30040105576502607,
+   "top": [
+    {
+     "fuente_legal": "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "numero_articulo": "25",
+     "titulo": "Afiliación a instancia del trabajador",
+     "distance": 0.3004,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "numero_articulo": "26",
+     "titulo": "Afiliación de oficio",
+     "distance": 0.3998,
+     "is_gold": true
+    },
+    {
+     "fuente_legal": "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "numero_articulo": "24",
+     "titulo": "Afiliación a instancia del empresario",
+     "distance": 0.2766,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "numero_articulo": "20",
+     "titulo": "Actuación de oficio",
+     "distance": 0.5467,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "numero_articulo": "5",
+     "titulo": "Obligatoriedad de la inscripción y de otras comunicaciones del empresario",
+     "distance": 0.4798,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social",
+     "numero_articulo": "9",
+     "titulo": "Efectos generales de las afiliaciones y altas debidas e indebidas",
+     "distance": 0.5465,
+     "is_gold": false
+    }
+   ],
+   "retrieval_seconds": 1.1399383330135606,
+   "facts": [
+    "La afiliación puede efectuarse de oficio por las Direcciones Provinciales de la Tesorería General de la Seguridad Social o Administraciones de la misma.",
+    "Esto ocurre cuando se comprueba el incumplimiento de la obligación de solicitar la afiliación por parte de los trabajadores o empresarios a los que incumba tal obligación.",
+    "La comprobación puede ser consecuencia de la actuación de la Inspección de Trabajo y Seguridad Social, de datos obrantes en las entidades gestoras y servicios comunes de la Seguridad Social, o por cualquier otro procedimiento.",
+    "Cuando la afiliación de oficio no sea consecuencia de una actuación de la Inspección de Trabajo y Seguridad Social, la Dirección Provincial de la Tesorería o Administración informará a dicha Inspección para las comprobaciones y efectos que procedan."
+   ],
+   "answer": "Si como empresario no cumples con la obligación de afiliar a un trabajador a la Seguridad Social, la propia Administración puede llevar a cabo su afiliación de forma automática, es decir, de oficio. Según el Artículo 26 del Reglamento General sobre inscripción de empresas y afiliación, altas, bajas y variaciones de datos de trabajadores en la Seguridad Social, la afiliación de oficio puede efectuarse por las Direcciones Provinciales de la Tesorería General de la Seguridad Social o Administraciones de la misma cuando se compruebe el incumplimiento de la obligación de solicitar la afiliación por parte de los empresarios.\n\nLas circunstancias bajo las cuales la afiliación de oficio puede tener lugar incluyen:\n\n1. Cuando la actuación de la Inspección de Trabajo y Seguridad Social revela el incumplimiento.\n2. Cuando los datos obrantes en las entidades gestoras y servicios comunes de la Seguridad Social indican tal incumplimiento.\n3. Cuando cualquier otro procedimiento revela el incumplimiento de la obligación de solicitar la afiliación.\n\nAdemás, cuando la afiliación de oficio no sea consecuencia directa de la actuación de la Inspección de Trabajo y Seguridad Social, la Dirección Provincial de la Tesorería General de la Seguridad Social o Administración de la misma dará cuenta a la Inspección de Trabajo y Seguridad Social para que realice las comprobaciones y demás efectos que procedan, según el Artículo 26 del mismo Reglamento.\n\nEn resumen, la Administración puede proceder a la afiliación de oficio cuando detecta el incumplimiento de la obligación de afiliación por parte del empresario, ya sea a través de la Inspección de Trabajo y Seguridad Social, datos de las entidades gestoras, o cualquier otro procedimiento disponible.",
+   "gen_seconds": 2.1686639999970794,
+   "abstained": false,
+   "judge": {
+    "fact_recall": 1.0,
+    "facts_present": [
+     true,
+     true,
+     true,
+     true
+    ],
+    "unsupported": []
+   },
+   "citations": {
+    "cited": [
+     "26"
+    ],
+    "valid": [
+     "26"
+    ],
+    "cross_reference": [],
+    "invalid": []
+   },
+   "answer_lang": "es",
+   "context_articles": [
+    "Reglamento General sobre inscripción de  · art. 25",
+    "Reglamento General sobre inscripción de  · art. 26",
+    "Reglamento General sobre inscripción de  · art. 24"
+   ],
+   "failure": null
+  },
+  {
+   "id": "q067",
+   "question": "Si tinc artistes o personal que realitza actuacions o activitats al meu establiment, en quines circumstàncies concretes podrien legalment negar-se a actuar o alterar la seva actuació?",
+   "lang": "ca",
+   "kind": "catalan_question",
+   "answerable": true,
+   "zona_pgm": null,
+   "doc_lang": "es",
+   "direction": "ca→es",
+   "gold": [
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "7"
+    ]
+   ],
+   "ranked": [
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "7"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "3"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "6"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "8"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "29"
+    ],
+    [
+     "Ley 172009, de 23 de noviembre, sobre el libre acceso a las actividades de servicios y su ejercicio",
+     "25"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "65"
+    ],
+    [
+     "horarios de los establecimientos abiertos al público, de los espectáculos públicos y de las actividades recreativas sometidos a la Ley 112009",
+     "8"
+    ],
+    [
+     "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "11"
+    ],
+    [
+     "Ley 172009, de 23 de noviembre, sobre el libre acceso a las actividades de servicios y su ejercicio",
+     "7"
+    ]
+   ],
+   "query_used": null,
+   "rank_of_gold": 1,
+   "best_distance": 0.5475341621000573,
+   "top": [
+    {
+     "fuente_legal": "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "numero_articulo": "7",
+     "titulo": "Derechos y obligaciones de los artistas, intérpretes o ejecutantes y demás",
+     "distance": 0.5475,
+     "is_gold": true
+    },
+    {
+     "fuente_legal": "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "numero_articulo": "3",
+     "titulo": "Definiciones",
+     "distance": 0.6727,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "numero_articulo": "6",
+     "titulo": "Derechos y obligaciones de los organizadores y de los titulares",
+     "distance": 0.6246,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "numero_articulo": "8",
+     "titulo": "Derechos de las personas interesadas",
+     "distance": 0.6672,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "numero_articulo": "29",
+     "titulo": "Actividades sometidas a licencia o autorización",
+     "distance": 0.657,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 172009, de 23 de noviembre, sobre el libre acceso a las actividades de servicios y su ejercicio",
+     "numero_articulo": "25",
+     "titulo": "Actividades multidisciplinares",
+     "distance": 0.6746,
+     "is_gold": false
+    }
+   ],
+   "retrieval_seconds": 0.9853215829934925,
+   "facts": [
+    "Los artistas, intérpretes o ejecutantes y demás personal pueden negarse a actuar o alterar su actuación solamente por causa legítima o por razones de fuerza mayor.",
+    "Se entiende por causa legítima la carencia o insuficiencia de las medidas de seguridad y de higiene requeridas.",
+    "Los artistas, intérpretes o ejecutantes pueden comprobar el estado de estas medidas de seguridad y de higiene antes del inicio del espectáculo o la actividad."
+   ],
+   "answer": "Segons la **Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas**, els artistes, intèrpretes o executants i el demà personal al servei dels establiments oberts al públic, d'espectacles públics o d'activitats recreatives poden legalment negar-se a actuar o alterar la seva actuació només en les següents circumstàncies concretes:\n\n1. **Per causa legítima**: Això es defineix com la carència o insuficiència de les mesures de seguretat i d'higiene requerides. Els artistes, intèrpretes o executants poden comprovar aquest estat abans del començament de l'espectacle o activitat. Això vol dir que si les condicions de seguretat o higiene no són les adequades, tenen dret a negar-se a actuar o a alterar la seva actuació (**Article 7.1.a**).\n\n2. **Per raons de força major**: Aquestes són esdeveniments fora del control de les parts que impedeixen la realització normal de l'activitat, com desastres naturals, accidents, o altres circumstàncies imprevistes i inevitables que es consideren fora del control humà.\n\nEn qualsevol altre cas, els artistes, intèrpretes o executants estan obligats a portar a terme l'actuació o activitat contractada d'acord amb les condicions establertes (**Article 7.2.b**).",
+   "gen_seconds": 3.7986099169938825,
+   "abstained": false,
+   "judge": {
+    "fact_recall": 1.0,
+    "facts_present": [
+     true,
+     true,
+     true
+    ],
+    "unsupported": []
+   },
+   "citations": {
+    "cited": [
+     "7"
+    ],
+    "valid": [
+     "7"
+    ],
+    "cross_reference": [],
+    "invalid": []
+   },
+   "answer_lang": "ca",
+   "context_articles": [
+    "Ley 112009, de 6 de julio, de regulación · art. 7",
+    "Ley 112009, de 6 de julio, de regulación · art. 3",
+    "Ley 112009, de 6 de julio, de regulación · art. 6"
+   ],
+   "failure": null
+  },
+  {
+   "id": "q068",
+   "question": "¿Si mi establecimiento, clasificado para actividades recreativas, recibe una sanción administrativa, dónde se inscribiría esta infracción y bajo qué circunstancias podría ser cancelada o eliminada de dicho registro oficial?",
+   "lang": "es",
+   "kind": "single",
+   "answerable": true,
+   "zona_pgm": null,
+   "doc_lang": "es",
+   "direction": "es→es",
+   "gold": [
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "58"
+    ]
+   ],
+   "ranked": [
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "58"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "46"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "54"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "37"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "333-5"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "51"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "48"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "312-4"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "62"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "19"
+    ]
+   ],
+   "query_used": null,
+   "rank_of_gold": 1,
+   "best_distance": 0.3020223199115689,
+   "top": [
+    {
+     "fuente_legal": "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "numero_articulo": "58",
+     "titulo": "Registro de infracciones y sanciones",
+     "distance": 0.302,
+     "is_gold": true
+    },
+    {
+     "fuente_legal": "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "numero_articulo": "46",
+     "titulo": "Infracciones y sanciones",
+     "distance": 0.4991,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "numero_articulo": "54",
+     "titulo": "Medidas sin carácter sancionador",
+     "distance": 0.5456,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "numero_articulo": "37",
+     "titulo": "Extinción de las licencias y autorizaciones",
+     "distance": 0.6181,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "333-5",
+     "titulo": "Cierre o cese de la actividad de la empresa infractora",
+     "distance": 0.5363,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "numero_articulo": "51",
+     "titulo": "Sanciones por la comisión de faltas graves",
+     "distance": 0.5936,
+     "is_gold": false
+    }
+   ],
+   "retrieval_seconds": 0.8431951249949634,
+   "facts": [
+    "La Generalidad debe crear un registro administrativo de sanciones e infracciones en materia de espectáculos públicos y actividades recreativas, donde deben inscribirse todas las infracciones y sanciones impuestas por resolución firme.",
+    "Las sanciones inscritas en el registro deben ser canceladas si no se ha impuesto a la misma persona otra sanción por una infracción tipificada por la presente ley, durante un plazo de tres años para faltas muy graves, dos años para faltas graves y un año para faltas leves, a contar desde la firmeza administrativa de la resolución sancionadora.",
+    "Para la cancelación, también se requiere haber cumplido totalmente las sanciones impuestas.",
+    "Asimismo, la cancelación procede si se ha producido la anulación administrativa o judicial de la sanción impuesta."
+   ],
+   "answer": "Según la Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas, si tu establecimiento clasificado para actividades recreativas recibe una sanción administrativa, la infracción se inscribiría en un registro administrativo de sanciones e infracciones creado por la Generalidad. Este registro debe incluir todas las infracciones y sanciones impuestas por resolución firme en materia de espectáculos públicos y actividades recreativas, tal como se establece en el Artículo 58 de esta ley.\n\nLas sanciones inscritas en este registro pueden ser canceladas bajo varias circunstancias, también según el Artículo 58:\n\n- **Por tiempo**: Las sanciones se cancelan automáticamente si no se ha impuesto otra sanción a la misma persona por una infracción tipificada por la ley durante ciertos plazos. Estos plazos son de tres años para faltas muy graves, dos años para faltas graves y un año para faltas leves, contados desde que la resolución sancionadora devenga firme en vía administrativa.\n\n- **Cumplimiento de la sanción**: La sanción se cancela cuando la persona ha cumplido totalmente las sanciones impuestas.\n\n- **Anulación**: La sanción también se cancela si ha habido una anulación administrativa o judicial de la sanción impuesta.\n\nAdemás, el registro está organizado y sus condiciones de inscripción se establecen por reglamento, siempre respetando la legislación sobre protección de datos de carácter personal. Solo ciertos órganos y autoridades pueden acceder a este registro, principalmente aquellos que instruyen procedimientos sancionadores y entes municipales interesados.\n\nEn resumen, la inscripción ocurre en el registro administrativo creado por la Generalidad, y la cancelación puede ocurrir por el paso del tiempo sin nuevas infracciones, por el cumplimiento total de la sanción o por anulación administrativa o judicial.",
+   "gen_seconds": 2.58037395903375,
+   "abstained": false,
+   "judge": {
+    "fact_recall": 1.0,
+    "facts_present": [
+     true,
+     true,
+     true,
+     true
+    ],
+    "unsupported": []
+   },
+   "citations": {
+    "cited": [
+     "58"
+    ],
+    "valid": [
+     "58"
+    ],
+    "cross_reference": [],
+    "invalid": []
+   },
+   "answer_lang": "es",
+   "context_articles": [
+    "Ley 112009, de 6 de julio, de regulación · art. 58",
+    "Ley 112009, de 6 de julio, de regulación · art. 46",
+    "Ley 112009, de 6 de julio, de regulación · art. 54"
+   ],
+   "failure": null
+  },
+  {
+   "id": "q072",
+   "question": "¿Puede el Ayuntamiento de Barcelona exigirme cumplir con ciertos requisitos, controles o garantías para abrir mi negocio (un bar, restaurante o tienda) si ya he demostrado cumplir con trámites equivalentes en otra ciudad española o en un país de la Unión Europea?",
+   "lang": "es",
+   "kind": "single",
+   "answerable": true,
+   "zona_pgm": null,
+   "doc_lang": "es",
+   "direction": "es→es",
+   "gold": [
+    [
+     "Ley 172009, de 23 de noviembre, sobre el libre acceso a las actividades de servicios y su ejercicio",
+     "9"
+    ]
+   ],
+   "ranked": [
+    [
+     "Ley 172009, de 23 de noviembre, sobre el libre acceso a las actividades de servicios y su ejercicio",
+     "9"
+    ],
+    [
+     "Ley 172009, de 23 de noviembre, sobre el libre acceso a las actividades de servicios y su ejercicio",
+     "17"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "65"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "6"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "223-2"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "39"
+    ],
+    [
+     "Ley 172009, de 23 de noviembre, sobre el libre acceso a las actividades de servicios y su ejercicio",
+     "5"
+    ],
+    [
+     "Ley 172009, de 23 de noviembre, sobre el libre acceso a las actividades de servicios y su ejercicio",
+     "10"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "252-12"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "31"
+    ]
+   ],
+   "query_used": null,
+   "rank_of_gold": 1,
+   "best_distance": 0.5644546631953715,
+   "top": [
+    {
+     "fuente_legal": "Ley 172009, de 23 de noviembre, sobre el libre acceso a las actividades de servicios y su ejercicio",
+     "numero_articulo": "9",
+     "titulo": "Principios aplicables a los requisitos exigidos",
+     "distance": 0.5645,
+     "is_gold": true
+    },
+    {
+     "fuente_legal": "Ley 172009, de 23 de noviembre, sobre el libre acceso a las actividades de servicios y su ejercicio",
+     "numero_articulo": "17",
+     "titulo": "Simplificación de procedimientos",
+     "distance": 0.6386,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "numero_articulo": "65",
+     "titulo": "Medidas provisionales inmediatas",
+     "distance": 0.6602,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "numero_articulo": "6",
+     "titulo": "Apertura, traslado o ampliación de establecimientos comerciales",
+     "distance": 0.503,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "223-2",
+     "titulo": "Requisitos del objeto del contrato",
+     "distance": 0.65,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "numero_articulo": "39",
+     "titulo": "Licencia municipal o autorización de la Generalidad para los establecimientos",
+     "distance": 0.6049,
+     "is_gold": false
+    }
+   ],
+   "retrieval_seconds": 0.9210040000034496,
+   "facts": [
+    "Las Administraciones Públicas no podrán exigir requisitos, controles previos o garantías equivalentes o comparables a aquellos a los que ya esté sometido el prestador en España o en otro Estado miembro."
+   ],
+   "answer": "Según la **Ley 172009, de 23 de noviembre, sobre el libre acceso a las actividades de servicios y su ejercicio**, el Ayuntamiento de Barcelona **no puede exigirte requisitos, controles previos o garantías equivalentes o comparables** a los que ya estés sometido en España o en otro Estado miembro de la Unión Europea. Esto está establecido en el **Artículo 9, párrafo 1** de la ley, que dice textualmente:\n\n> *\"Las Administraciones Públicas no podrán exigir requisitos, controles previos o garantías equivalentes o comparables, por su finalidad a aquellos a los que ya esté sometido el prestador en España o en otro Estado miembro.\"*\n\nAdemás, la **Ley 172009, Artículo 17, párrafo 2** establece que las autoridades competentes **deben aceptar documentos procedentes de otros Estados miembros** que demuestren el cumplimiento de los requisitos necesarios para el acceso a una actividad de servicios. Esto incluye, por ejemplo, licencias o autorizaciones obtenidas en otra ciudad española o en un país de la UE.\n\nTambién es importante mencionar que, según el **Artículo 17, párrafo 3**, **no se exigirá la presentación de documentos originales, copias compulsadas ni traducciones juradas**, salvo en casos previstos por la normativa comunitaria o justificados por motivos de orden público y seguridad pública. La autoridad competente puede, sin embargo, solicitar la confirmación de la autenticidad del documento aportado a otra autoridad competente.\n\nEn resumen, **el Ayuntamiento de Barcelona no puede exigirte cumplir con requisitos duplicados** si ya tienes documentación válida de otro lugar en España o en la UE que demuestre que cumples con los requisitos necesarios para abrir tu bar, restaurante o tienda. Solo podría solicitarte la confirmación de la autenticidad de esos documentos, pero no una nueva tramitación completa ni garantías adicionales. \n\nSin embargo, siempre es recomendable consultar directamente con el Ayuntamiento de Barcelona o con un asesor legal para confirmar el proceso específico y los documentos que debes presentar en tu caso concreto.",
+   "gen_seconds": 3.522222374973353,
+   "abstained": false,
+   "judge": {
+    "fact_recall": 1.0,
+    "facts_present": [
+     true
+    ],
+    "unsupported": []
+   },
+   "citations": {
+    "cited": [
+     "17",
+     "9"
+    ],
+    "valid": [
+     "17",
+     "9"
+    ],
+    "cross_reference": [],
+    "invalid": []
+   },
+   "answer_lang": "es",
+   "context_articles": [
+    "Ley 172009, de 23 de noviembre, sobre el · art. 9",
+    "Ley 172009, de 23 de noviembre, sobre el · art. 17",
+    "Ley 112009, de 6 de julio, de regulación · art. 65"
+   ],
+   "failure": null
+  },
+  {
+   "id": "q074",
+   "question": "¿En qué principios legales se fundamenta el derecho a utilizar un espacio para la instalación de un bar, restaurante o tienda, y cuál es el rol de las administraciones públicas en relación con mi iniciativa empresarial para instalar y acondicionar dicho negocio?",
+   "lang": "es",
+   "kind": "single",
+   "answerable": true,
+   "zona_pgm": null,
+   "doc_lang": "es",
+   "direction": "es→es",
+   "gold": [
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "5"
+    ]
+   ],
+   "ranked": [
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "5"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "2"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "312-1"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "8"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "6"
+    ],
+    [
+     "Ley 172009, de 23 de noviembre, sobre el libre acceso a las actividades de servicios y su ejercicio",
+     "4"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "34"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "312-2"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "71"
+    ],
+    [
+     "horarios de los establecimientos abiertos al público, de los espectáculos públicos y de las actividades recreativas sometidos a la Ley 112009",
+     "15"
+    ]
+   ],
+   "query_used": null,
+   "rank_of_gold": 1,
+   "best_distance": 0.3950227984745256,
+   "top": [
+    {
+     "fuente_legal": "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "numero_articulo": "5",
+     "titulo": "Libertad de establecimiento comercial",
+     "distance": 0.395,
+     "is_gold": true
+    },
+    {
+     "fuente_legal": "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "numero_articulo": "2",
+     "titulo": "Establecimientos comerciales",
+     "distance": 0.6174,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "312-1",
+     "titulo": "Cuestiones generales",
+     "distance": 0.6755,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "numero_articulo": "8",
+     "titulo": "Derechos de las personas interesadas",
+     "distance": 0.6125,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "numero_articulo": "6",
+     "titulo": "Apertura, traslado o ampliación de establecimientos comerciales",
+     "distance": 0.5299,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 172009, de 23 de noviembre, sobre el libre acceso a las actividades de servicios y su ejercicio",
+     "numero_articulo": "4",
+     "titulo": "Libertad de establecimiento",
+     "distance": 0.5796,
+     "is_gold": false
+    }
+   ],
+   "retrieval_seconds": 1.0307139169890434,
+   "facts": [
+    "La utilización legítima del suelo para la instalación de establecimientos comerciales constituye una facultad que se ampara en el principio de libertad de empresa.",
+    "Los poderes públicos protegerán la libre iniciativa empresarial para la instalación y acondicionamiento de los establecimientos comerciales.",
+    "Dicha protección se realizará en el marco de lo dispuesto en la legislación vigente."
+   ],
+   "answer": "El derecho a utilizar un espacio para la instalación de un bar, restaurante o tienda se fundamenta en el principio de libertad de empresa, tal como se recoge en el Artículo 3 de la Ley 71996, de 15 de enero, de ordenación del comercio minorista. Este principio garantiza la libertad de establecimiento comercial, permitiendo a los empresarios utilizar el suelo de manera legítima para instalar establecimientos comerciales, siempre que se realice dentro del marco legal vigente.\n\nAdemás, según el Artículo 5 de la misma ley, los poderes públicos tienen la obligación de proteger la libre iniciativa empresarial en lo que respecta a la instalación y acondicionamiento de establecimientos comerciales. Esto significa que las administraciones públicas deben facilitar y respaldar tus esfuerzos para abrir y operar un negocio, siempre ajustándose a la normativa vigente.\n\nPor otro lado, el Artículo 312-1 del Código de consumo de Cataluña establece que las administraciones públicas deben actuar conforme a los principios generales del derecho y a la normativa vigente, buscando un equilibrio que proteja los derechos e intereses de los consumidores. Esto implica que, mientras promueven la libertad empresarial, también deben garantizar que las actividades comerciales cumplan con las leyes y protejan a los consumidores.\n\nEn resumen, tu derecho a instalar un bar, restaurante o tienda se basa en la libertad de empresa, y las administraciones públicas tienen un doble rol: proteger tu iniciativa empresarial y garantizar el cumplimiento de la normativa para proteger los derechos de los consumidores.",
+   "gen_seconds": 2.412880290998146,
+   "abstained": false,
+   "judge": {
+    "fact_recall": 1.0,
+    "facts_present": [
+     true,
+     true,
+     true
+    ],
+    "unsupported": []
+   },
+   "citations": {
+    "cited": [
+     "3",
+     "312-1",
+     "5"
+    ],
+    "valid": [
+     "312-1",
+     "5"
+    ],
+    "cross_reference": [
+     "3"
+    ],
+    "invalid": []
+   },
+   "answer_lang": "es",
+   "context_articles": [
+    "Ley 71996, de 15 de enero, de ordenación · art. 5",
+    "Ley 71996, de 15 de enero, de ordenación · art. 2",
+    "código de consumo de Cataluña. · art. 312-1"
+   ],
+   "failure": null
+  },
+  {
+   "id": "q076",
+   "question": "¿Si mi negocio en Barcelona planea utilizar máquinas para vender productos, ¿qué características definen a este tipo de venta y qué requisito específico deben cumplir los modelos de máquinas?",
+   "lang": "es",
+   "kind": "single",
+   "answerable": true,
+   "zona_pgm": null,
+   "doc_lang": "es",
+   "direction": "es→es",
+   "gold": [
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "49"
+    ]
+   ],
+   "ranked": [
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "49"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "50"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "52"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "224-2"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "211-1"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "51"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "224-1"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "212-2"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "242-1"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "36"
+    ]
+   ],
+   "query_used": null,
+   "rank_of_gold": 1,
+   "best_distance": 0.5757998535215503,
+   "top": [
+    {
+     "fuente_legal": "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "numero_articulo": "49",
+     "titulo": "Concepto",
+     "distance": 0.5758,
+     "is_gold": true
+    },
+    {
+     "fuente_legal": "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "numero_articulo": "50",
+     "titulo": "Advertencias obligatorias",
+     "distance": 0.5353,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "numero_articulo": "52",
+     "titulo": "Responsabilidad",
+     "distance": 0.5702,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "224-2",
+     "titulo": "Información obligatoria",
+     "distance": 0.5427,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "211-1",
+     "titulo": "Ámbito de aplicación",
+     "distance": 0.7034,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "numero_articulo": "51",
+     "titulo": "Recuperación del importe",
+     "distance": 0.66,
+     "is_gold": false
+    }
+   ],
+   "retrieval_seconds": 0.6216423329897225,
+   "facts": [
+    "La venta automática es una forma de distribución detallista en la que el producto o servicio se pone a disposición del consumidor para que lo adquiera mediante el accionamiento de un mecanismo y previo pago de su importe.",
+    "Los distintos modelos de máquinas para la venta automática deberán cumplir la normativa técnica que les sea de aplicación."
+   ],
+   "answer": "Según la Ley 71996, de 15 de enero, de ordenación del comercio minorista, el concepto de venta automática se define en el Artículo 49 como la forma de distribución detallista en la cual se pone a disposición del consumidor el producto o servicio para que éste lo adquiera mediante el accionamiento de cualquier tipo de mecanismo y previo pago de su importe.\n\nAdemás, el Artículo 49 establece que los distintos modelos de máquinas para la venta automática deben cumplir la normativa técnica que les sea de aplicación. Esto significa que cada tipo de máquina automática debe ajustarse a las regulaciones técnicas específicas diseñadas para su categoría o función particular.\n\nPor lo tanto, para tu negocio en Barcelona que planea utilizar máquinas de venta automática, es esencial asegurarse de que las máquinas cumplan con las normativas técnicas correspondientes y que cuenten con las informaciones obligatorias requeridas por el Artículo 50, como el tipo de producto, precio, identidad del oferente, dirección y teléfono para reclamaciones, tipo de monedas aceptadas e instrucciones para obtener el producto.",
+   "gen_seconds": 2.212039250007365,
+   "abstained": false,
+   "judge": {
+    "fact_recall": 1.0,
+    "facts_present": [
+     true,
+     true
+    ],
+    "unsupported": []
+   },
+   "citations": {
+    "cited": [
+     "49",
+     "50"
+    ],
+    "valid": [
+     "49",
+     "50"
+    ],
+    "cross_reference": [],
+    "invalid": []
+   },
+   "answer_lang": "es",
+   "context_articles": [
+    "Ley 71996, de 15 de enero, de ordenación · art. 49",
+    "Ley 71996, de 15 de enero, de ordenación · art. 50",
+    "Ley 71996, de 15 de enero, de ordenación · art. 52"
+   ],
+   "failure": null
+  },
+  {
+   "id": "q077",
+   "question": "¿Cuál es la regla general para establecer los precios de los productos en mi negocio y bajo qué circunstancias específicas el Gobierno podría intervenir en la fijación de dichos precios o sus márgenes de comercialización?",
+   "lang": "es",
+   "kind": "single",
+   "answerable": true,
+   "zona_pgm": null,
+   "doc_lang": "es",
+   "direction": "es→es",
+   "gold": [
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "13"
+    ]
+   ],
+   "ranked": [
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "13"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "35"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "251-6"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "3"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "15"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "16"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "212-1"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "331-3"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "323-1"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "9"
+    ]
+   ],
+   "query_used": null,
+   "rank_of_gold": 1,
+   "best_distance": 0.29396970480228746,
+   "top": [
+    {
+     "fuente_legal": "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "numero_articulo": "13",
+     "titulo": "Libertad de precios",
+     "distance": 0.294,
+     "is_gold": true
+    },
+    {
+     "fuente_legal": "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "numero_articulo": "35",
+     "titulo": "Veracidad de la oferta",
+     "distance": 0.6704,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "251-6",
+     "titulo": "Precios de los servicios",
+     "distance": 0.6799,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "numero_articulo": "3",
+     "titulo": "Libertad de empresa",
+     "distance": 0.6522,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "numero_articulo": "15",
+     "titulo": "Ventas con precios reducidos para colectivos especiales",
+     "distance": 0.6815,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "numero_articulo": "16",
+     "titulo": "Régimen general",
+     "distance": 0.6223,
+     "is_gold": false
+    }
+   ],
+   "retrieval_seconds": 0.7162342910305597,
+   "facts": [
+    "Los precios de venta de los artículos serán libremente determinados y ofertados con carácter general.",
+    "No obstante, el Gobierno del Estado podrá fijar los precios o los márgenes de comercialización de determinados productos, o someter sus modificaciones a control o previa autorización administrativa.",
+    "Esto puede ocurrir, por ejemplo, cuando se trate de productos de primera necesidad o de materias primas estratégicas.",
+    "También puede suceder excepcionalmente cuando se aprecie ausencia de competencia efectiva, existan obstáculos graves al funcionamiento del mercado o se produzcan situaciones de desabastecimiento."
+   ],
+   "answer": "Según la Ley 71996, de 15 de enero, de ordenación del comercio minorista, la regla general para establecer los precios de los productos en tu negocio es que los precios de venta deben ser libremente determinados y ofertados, siempre que se ajusten a la legislación de defensa de la libre y leal competencia, salvo las excepciones establecidas en leyes especiales. Esto se establece en el Artículo 13 de dicha ley.\n\nEl Gobierno del Estado puede intervenir en la fijación de los precios o los márgenes de comercialización de ciertos productos bajo circunstancias específicas, que son las siguientes, también según el Artículo 13:\n\na) Cuando se trate de productos de primera necesidad o de materias primas estratégicas.\nb) Cuando se trate de bienes producidos o comercializados en régimen de monopolio o mediante concesión administrativa.\nc) Como medida complementaria de las políticas de regulación de producciones o de subvenciones u otras ayudas a empresas o sectores específicos.\nd) Excepcionalmente y mientras persistan las circunstancias que aconsejen la intervención, cuando, en un sector determinado, se aprecie ausencia de competencia efectiva, existan obstáculos graves al funcionamiento del mercado o se produzcan situaciones de desabastecimiento.\n\nEstas intervenciones por parte del Gobierno deben realizarse previa audiencia de los sectores afectados.",
+   "gen_seconds": 1.7157897499855608,
+   "abstained": false,
+   "judge": {
+    "fact_recall": 1.0,
+    "facts_present": [
+     true,
+     true,
+     true,
+     true
+    ],
+    "unsupported": []
+   },
+   "citations": {
+    "cited": [
+     "13"
+    ],
+    "valid": [
+     "13"
+    ],
+    "cross_reference": [],
+    "invalid": []
+   },
+   "answer_lang": "es",
+   "context_articles": [
+    "Ley 71996, de 15 de enero, de ordenación · art. 13",
+    "Ley 71996, de 15 de enero, de ordenación · art. 35",
+    "código de consumo de Cataluña. · art. 251-6"
+   ],
+   "failure": null
+  },
+  {
+   "id": "q078",
+   "question": "Si la meva empresa (per exemple, un bar o restaurant) vol vendre alguns béns mitjançant una empresa de subhastes, quins són els aspectes clau del contracte de subhasta que hauria de conèixer respecte a les despeses, la custòdia dels béns i la documentació de l'encàrrec, especialment si no s'estableix un pacte exprés?",
+   "lang": "ca",
+   "kind": "catalan_question",
+   "answerable": true,
+   "zona_pgm": null,
+   "doc_lang": "es",
+   "direction": "ca→es",
+   "gold": [
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "57"
+    ]
+   ],
+   "ranked": [
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "57"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "60"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "59"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "222-3"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "223-2"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "212-2"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "223-4"
+    ],
+    [
+     "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "9"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "58"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "11"
+    ]
+   ],
+   "query_used": null,
+   "rank_of_gold": 1,
+   "best_distance": 0.5579263894115312,
+   "top": [
+    {
+     "fuente_legal": "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "numero_articulo": "57",
+     "titulo": "Contrato de subasta",
+     "distance": 0.5579,
+     "is_gold": true
+    },
+    {
+     "fuente_legal": "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "numero_articulo": "60",
+     "titulo": "Documentación",
+     "distance": 0.6485,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "numero_articulo": "59",
+     "titulo": "Relaciones entre la empresa subastadora y los licitadores",
+     "distance": 0.685,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "222-3",
+     "titulo": "Documentación contractual",
+     "distance": 0.6758,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "223-2",
+     "titulo": "Requisitos del objeto del contrato",
+     "distance": 0.6557,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "212-2",
+     "titulo": "Obligaciones",
+     "distance": 0.604,
+     "is_gold": false
+    }
+   ],
+   "retrieval_seconds": 0.7590249999775551,
+   "facts": [
+    "En defecto de pacto expreso, se entenderá que todos los gastos de la subasta, incluidos los de custodia y, en su caso, tasación, corresponden a la empresa de subastas, sin que el propietario deba entregar por este concepto remuneración adicional alguna, fuera del precio o gratificación establecido.",
+    "También corresponderá a la referida empresa, salvo estipulación en contrario, la obligación de custodia y exposición de los bienes y, en su caso, los de inclusión en el catálogo.",
+    "El encargo de subasta deberá documentarse por escrito en el que se identificarán las partes, el objeto y condiciones de la venta, así como la retribución de la empresa subastadora.",
+    "Las relaciones con el propietario de los bienes a subastar se ajustarán a lo estipulado entre las partes de acuerdo con la normativa general sobre contratación."
+   ],
+   "answer": "Segons la Ley 71996, de 15 de enero, de ordenación del comercio minorista, els aspectes clau del contracte de subhasta que hauria de conèixer la teva empresa respecte a les despeses, la custòdia dels béns i la documentació de l'encàrrec, especialment si no s'estableix un pacte exprés, són els següents:\n\nEn primer lloc, segons l'Article 57 de la Ley 71996, en el supòs que els béns a subastar no pertanyen a la teva empresa, les relacions amb el propietari dels béns s'ajusten a allò estipulat entre les parts segons la normativa general sobre contractació. Si no hi ha un pacte exprés, es considera que tots els costos de la subhasta, inclosos els de custòdia i, si escau, la valoració, són a càrrec de l'empresa de subhastes. El propietari no ha de pagar cap remuneració addicional per aquestes despeses, més enllà del preu o gratificació establert. A més, l'empresa subastadora té l'obligació de custòdia i exposició dels béns i, si escau, la seva inclusió al catàleg, tret que es disposi el contrari.\n\nEn segon lloc, segons el mateix Article 57, l'empresa subastadora ha de comprovar, si escau, el compliment dels requisits establerts en la legislació per a la protecció del tresor artístic, històric i bibliogràfic d'Espanya.\n\nFinalment, segons l'Article 4 de la mateixa llei, l'encàrrec de subhasta ha de documentar-se per escrit, identificant les parts, l'objecte i les condicions de la venda, així com la retribució de l'empresa subastadora. Això assegura que totes les condicions i obligacions estiguin claresment establertes i documentades abans de la subhasta.\n\nPer tant, la teva empresa hauria de tenir en compte que, en absència de pacte exprés, les despeses de la subhasta són a càrrec de l'empresa de subhastes, aquesta és responsable de la custòdia i exposició dels béns, i que l'encàrrec ha de ser documentat per escrit amb totes les detalls necessaris.",
+   "gen_seconds": 4.494024415966123,
+   "abstained": false,
+   "judge": {
+    "fact_recall": 0.75,
+    "facts_present": [
+     true,
+     true,
+     false,
+     true
+    ],
+    "unsupported": [
+     "Article 4"
+    ]
+   },
+   "citations": {
+    "cited": [
+     "4",
+     "57"
+    ],
+    "valid": [
+     "57"
+    ],
+    "cross_reference": [],
+    "invalid": [
+     "4"
+    ]
+   },
+   "answer_lang": "ca",
+   "context_articles": [
+    "Ley 71996, de 15 de enero, de ordenación · art. 57",
+    "Ley 71996, de 15 de enero, de ordenación · art. 60",
+    "Ley 71996, de 15 de enero, de ordenación · art. 59"
+   ],
+   "failure": "unsupported"
+  },
+  {
+   "id": "m01",
+   "question": "¿Qué usos se permiten en el casco antiguo de Barcelona (zona de nucli antic), por ejemplo comercial y recreativo, y hasta qué superficie puede tener el local comercial?",
+   "lang": "es",
+   "kind": "pgm_zone",
+   "answerable": true,
+   "zona_pgm": "nucli_antic",
+   "doc_lang": "ca",
+   "direction": "es→ca",
+   "gold": [
+    [
+     "PGM (Secció V)",
+     "302"
+    ]
+   ],
+   "ranked": [
+    [
+     "PGM (Secció V)",
+     "302"
+    ],
+    [
+     "horarios de los establecimientos abiertos al público, de los espectáculos públicos y de las actividades recreativas sometidos a la Ley 112009",
+     "7"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "65"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "30"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "27"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "6"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "5"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "29"
+    ],
+    [
+     "horarios comerciales",
+     "5"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "2"
+    ]
+   ],
+   "query_used": null,
+   "rank_of_gold": 1,
+   "best_distance": 0.48829844524254973,
+   "top": [
+    {
+     "fuente_legal": "PGM (Secció V)",
+     "numero_articulo": "302",
+     "titulo": "Zona de nucli antic: de substitució de l'edificació antiga i de conservació del Centre his",
+     "distance": 0.4883,
+     "is_gold": true
+    },
+    {
+     "fuente_legal": "horarios de los establecimientos abiertos al público, de los espectáculos públicos y de las actividades recreativas sometidos a la Ley 112009",
+     "numero_articulo": "7",
+     "titulo": "Horarios especiales en periodos de vacaciones y en determinadas festividades",
+     "distance": 0.7193,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "numero_articulo": "65",
+     "titulo": "Medidas provisionales inmediatas",
+     "distance": 0.7654,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "numero_articulo": "30",
+     "titulo": "Contenido y condiciones técnicas",
+     "distance": 0.7524,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "numero_articulo": "27",
+     "titulo": "Planificación urbanística",
+     "distance": 0.7473,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "numero_articulo": "6",
+     "titulo": "Apertura, traslado o ampliación de establecimientos comerciales",
+     "distance": 0.6496,
+     "is_gold": false
+    }
+   ],
+   "retrieval_seconds": 0.7750014159828424,
+   "facts": [
+    "El uso comercial se admite en edificios exclusivos sin limitación y en planta baja de edificios de vivienda plurifamiliar hasta 600 m².",
+    "En áreas de vivienda unifamiliar se admiten locales de hasta 250 m².",
+    "El uso recreativo se admite."
+   ],
+   "answer": "En la zona de nucli antic del casco antiguo de Barcelona, según la Secció V del Pla General Metropolità (PGM), se permiten varios usos, incluyendo el comercial y el recreatiu. \n\nEn cuanto al uso comercial, este se admete en edificis exclusius sense limitació i a la planta baixa dels edificis d'habitatge plurifamiliar, fins a un màxim de superfície del local de 600 m². A àrees d'habitatge unifamiliar, s'admeten locals fins a 250 m². Això es regula pel Artículo 302 del PGM.\n\nEn quant al recreatiu, aquest ús també s'admet en la zona de nucli antic, però la normativa específica sobre horaris i regulacions addicionals per a activitats recreatives es troba en la Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas. Aquesta llei estableix horaris especials en determinats períodes de vacances i festivitats, així com mesures provisionals immediates en casos d'urgència absoluta.\n\nPer tant, tant els usos comercial com recreatiu són permesos en el casco antic de Barcelona, amb limitacions de superfície per als locals comercials i regulacions addicionals per a les activitats recreatives.",
+   "gen_seconds": 2.496535834041424,
+   "abstained": false,
+   "judge": {
+    "fact_recall": 1.0,
+    "facts_present": [
+     true,
+     true,
+     true
+    ],
+    "unsupported": []
+   },
+   "citations": {
+    "cited": [
+     "302"
+    ],
+    "valid": [
+     "302"
+    ],
+    "cross_reference": [],
+    "invalid": []
+   },
+   "answer_lang": "ca",
+   "context_articles": [
+    "PGM (Secció V) · art. 302",
+    "horarios de los establecimientos abierto · art. 7",
+    "Ley 112009, de 6 de julio, de regulación · art. 65"
+   ],
+   "failure": null
+  },
+  {
+   "id": "m07",
+   "question": "¿Se pueden construir hospitales o clínicas con internamiento en una zona industrial de Barcelona?",
+   "lang": "es",
+   "kind": "pgm",
+   "answerable": true,
+   "zona_pgm": null,
+   "doc_lang": "ca",
+   "direction": "es→ca",
+   "gold": [
+    [
+     "PGM (Secció V)",
+     "311"
+    ]
+   ],
+   "ranked": [
+    [
+     "PGM (Secció V)",
+     "311"
+    ],
+    [
+     "PGM (Secció V)",
+     "303"
+    ],
+    [
+     "PGM (Secció V)",
+     "302"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "122-4"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "27"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "39"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "122-7"
+    ],
+    [
+     "horarios comerciales",
+     "5"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "6"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "122-8"
+    ]
+   ],
+   "query_used": null,
+   "rank_of_gold": 1,
+   "best_distance": 0.5323968827724457,
+   "top": [
+    {
+     "fuente_legal": "PGM (Secció V)",
+     "numero_articulo": "311",
+     "titulo": "Zona industrial",
+     "distance": 0.5324,
+     "is_gold": true
+    },
+    {
+     "fuente_legal": "PGM (Secció V)",
+     "numero_articulo": "303",
+     "titulo": "Zones en densificació urbana (intensiva i semiintensiva)",
+     "distance": 0.6107,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "PGM (Secció V)",
+     "numero_articulo": "302",
+     "titulo": "Zona de nucli antic: de substitució de l'edificació antiga i de conservació del Centre his",
+     "distance": 0.6833,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "122-4",
+     "titulo": "Bienes y servicios destinados a la salud y el cuidado higiénico",
+     "distance": 0.7478,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "numero_articulo": "27",
+     "titulo": "Planificación urbanística",
+     "distance": 0.7832,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "numero_articulo": "39",
+     "titulo": "Licencia municipal o autorización de la Generalidad para los establecimientos",
+     "distance": 0.7849,
+     "is_gold": false
+    }
+   ],
+   "retrieval_seconds": 0.9215347080025822,
+   "facts": [
+    "No se admiten los centros sanitarios de internamiento prolongado como hospitales, sanatorios o clínicas.",
+    "Solo se admiten dispensarios, consultorios y ambulatorios."
+   ],
+   "answer": "Según el Artículo 311 de la Sección V del Pla General Metropolità (PGM), en una zona industrial no se admiten los centros sanitarios de internamiento prolongado, como hospitales, sanatorios o clínicas. El artículo especifica que solo se admiten dispensarios, consultorios y ambulatorios, pero expresamente prohíbe los establecimientos sanitarios que requieran internamiento prolongado.\n\nPor lo tanto, no es posible construir hospitales o clínicas con servicio de internamiento en una zona industrial de Barcelona bajo la normativa urbanística actual. Si se requiere este tipo de uso, habría que buscar una zona diferente que permita tal actividad, según las especificaciones del PGM. \n\nRecuerde siempre verificar con el ayuntamiento de Barcelona o un profesional urbanístico antes de iniciar cualquier proyecto, ya que las normativas pueden tener matices o excepciones específicas para ciertos casos.",
+   "gen_seconds": 1.8185017500072718,
+   "abstained": false,
+   "judge": {
+    "fact_recall": 1.0,
+    "facts_present": [
+     true,
+     true
+    ],
+    "unsupported": []
+   },
+   "citations": {
+    "cited": [
+     "311"
+    ],
+    "valid": [
+     "311"
+    ],
+    "cross_reference": [],
+    "invalid": []
+   },
+   "answer_lang": "es",
+   "context_articles": [
+    "PGM (Secció V) · art. 311",
+    "PGM (Secció V) · art. 303",
+    "PGM (Secció V) · art. 302"
+   ],
+   "failure": null
+  },
+  {
+   "id": "u02",
+   "question": "¿Cuánto cuesta la tasa municipal por instalar una terraza en la vía pública en Barcelona?",
+   "lang": "es",
+   "kind": "unanswerable",
+   "answerable": false,
+   "zona_pgm": null,
+   "doc_lang": null,
+   "direction": null,
+   "gold": [],
+   "ranked": [
+    [
+     "código de consumo de Cataluña.",
+     "262-5"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "122-7"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "251-6"
+    ],
+    [
+     "horarios de los establecimientos abiertos al público, de los espectáculos públicos y de las actividades recreativas sometidos a la Ley 112009",
+     "11"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "19"
+    ],
+    [
+     "PGM (Secció V)",
+     "302"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "126-6"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "123-9"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "133-4"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "251-7"
+    ]
+   ],
+   "query_used": null,
+   "rank_of_gold": null,
+   "best_distance": 0.8402104675769795,
+   "top": [
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "262-5",
+     "titulo": "Tasación del bien y otros servicios accesorios",
+     "distance": 0.8402,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "122-7",
+     "titulo": "Transportes y espacios de uso público",
+     "distance": 0.8646,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "251-6",
+     "titulo": "Precios de los servicios",
+     "distance": 0.7969,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "horarios de los establecimientos abiertos al público, de los espectáculos públicos y de las actividades recreativas sometidos a la Ley 112009",
+     "numero_articulo": "11",
+     "titulo": "Horarios de terrazas y veladores",
+     "distance": 0.7778,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "numero_articulo": "19",
+     "titulo": "Registros de establecimientos abiertos al público y de organizadores",
+     "distance": 0.8613,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "PGM (Secció V)",
+     "numero_articulo": "302",
+     "titulo": "Zona de nucli antic: de substitució de l'edificació antiga i de conservació del Centre his",
+     "distance": 0.8286,
+     "is_gold": false
+    }
+   ],
+   "retrieval_seconds": 0.6988362499978393,
+   "facts": [],
+   "answer": "Me temo que la información que estás buscando no está disponible en las normas que me has proporcionado. El contexto normativo incluye disposiciones sobre tasación de bienes, servicios accesorios, transporte y espacios públicos, y precios de servicios, pero no menciona específicamente las tasas municipales por instalar terrazas en vías públicas en Barcelona.\n\nPara obtener información precisa sobre el costo de la tasa municipal por instalar una terraza en la vía pública en Barcelona, te recomendaría que consultes directamente con el Ayuntamiento de Barcelona o te pongas en contacto con el departamento correspondiente de urbanismo o licencias. También podrías consultar la normativa municipal específica relacionada con terrazas y ocupación de espacio público, que podría detallar las tasas y costes asociados.\n\nRecuerda siempre verificar la información más reciente y precisa con las autoridades locales antes de tomar cualquier decisión.",
+   "gen_seconds": 1.4300107500166632,
+   "abstained": true,
+   "judge": {
+    "fact_recall": null,
+    "facts_present": [],
+    "unsupported": []
+   },
+   "citations": {
+    "cited": [],
+    "valid": [],
+    "cross_reference": [],
+    "invalid": []
+   },
+   "answer_lang": "es",
+   "context_articles": [
+    "código de consumo de Cataluña. · art. 262-5",
+    "código de consumo de Cataluña. · art. 122-7",
+    "código de consumo de Cataluña. · art. 251-6"
+   ],
+   "failure": null
+  },
+  {
+   "id": "u06",
+   "question": "¿Qué licencia necesito para vender tabaco en mi bar?",
+   "lang": "es",
+   "kind": "unanswerable",
+   "answerable": false,
+   "zona_pgm": null,
+   "doc_lang": null,
+   "direction": null,
+   "gold": [],
+   "ranked": [
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "54"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "29"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "212-2"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "34"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "7"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "39"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "211-1"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "1"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "40"
+    ],
+    [
+     "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "6"
+    ]
+   ],
+   "query_used": null,
+   "rank_of_gold": null,
+   "best_distance": 0.7327998162269802,
+   "top": [
+    {
+     "fuente_legal": "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "numero_articulo": "54",
+     "titulo": "Autorización",
+     "distance": 0.7328,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "numero_articulo": "29",
+     "titulo": "Actividades sometidas a licencia o autorización",
+     "distance": 0.6895,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "212-2",
+     "titulo": "Obligaciones",
+     "distance": 0.6973,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "numero_articulo": "34",
+     "titulo": "Información",
+     "distance": 0.738,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 71996, de 15 de enero, de ordenación del comercio minorista",
+     "numero_articulo": "7",
+     "titulo": "Tramitación de las licencias",
+     "distance": 0.7309,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "numero_articulo": "39",
+     "titulo": "Licencia municipal o autorización de la Generalidad para los establecimientos",
+     "distance": 0.7447,
+     "is_gold": false
+    }
+   ],
+   "retrieval_seconds": 0.7154421670129523,
+   "facts": [],
+   "answer": "Para vender tabaco en tu bar, debes asegurarte de cumplir con las normativas específicas que rigen la venta de productos del tabaco. Aunque las leyes proporcionadas no mencionan explícitamente la venta de tabaco, podemos extraer información relevante de la normativa sobre establecimientos abiertos al público y actividades recreativas.\n\nSegún el Artículo 29 de la Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas, la apertura de establecimientos abiertos al público para llevar a cabo actividades recreativas requiere la obtención previa de licencias o autorizaciones. La venta de tabaco podría considerarse una actividad que forma parte de las actividades recreativas que se llevan a cabo en establecimientos abiertos al público.\n\nAdemás, el Artículo 29.3 establece que los espectáculos públicos y actividades recreativas que se llevan a cabo de forma habitual en establecimientos abiertos al público debidamente autorizados no necesitan ninguna otra licencia ni autorización, siempre que las características del espectáculo o actividad y las condiciones del establecimiento sean las idóneas para garantizar los principios de seguridad, convivencia y calidad. Esto sugiere que, una vez que tu bar tenga la licencia necesaria para operar como establecimiento abierto al público, podrías estar cubierto para vender tabaco, siempre que cumplas con las condiciones de seguridad, convivencia y calidad.\n\nSin embargo, es importante destacar que la venta de tabaco está sujeta a regulaciones específicas que pueden estar incluidas en otras leyes o normativas no mencionadas en el contexto proporcionado. Por lo tanto, te recomiendo que consultes con el ayuntamiento o con un profesional del derecho para asegurarte de cumplir con todas las licencias y autorizaciones necesarias para vender tabaco en tu bar.\n\nEn resumen, aunque la licencia específica para vender tabaco no se menciona explícitamente en las leyes proporcionadas, es probable que necesites la licencia de establecimiento abierto al público, y deberías verificar cualquier normativa adicional relacionada con la venta de productos del tabaco.",
+   "gen_seconds": 2.998107582970988,
+   "abstained": false,
+   "judge": {
+    "fact_recall": null,
+    "facts_present": [],
+    "unsupported": []
+   },
+   "citations": {
+    "cited": [
+     "29"
+    ],
+    "valid": [
+     "29"
+    ],
+    "cross_reference": [],
+    "invalid": []
+   },
+   "answer_lang": "es",
+   "context_articles": [
+    "Ley 71996, de 15 de enero, de ordenación · art. 54",
+    "Ley 112009, de 6 de julio, de regulación · art. 29",
+    "código de consumo de Cataluña. · art. 212-2"
+   ],
+   "failure": "wrongly_answered"
+  },
+  {
+   "id": "u09",
+   "question": "Quin és el procediment per sol·licitar una subvenció per rehabilitar la façana del meu local?",
+   "lang": "ca",
+   "kind": "unanswerable",
+   "answerable": false,
+   "zona_pgm": null,
+   "doc_lang": null,
+   "direction": null,
+   "gold": [],
+   "ranked": [
+    [
+     "Ley 172009, de 23 de noviembre, sobre el libre acceso a las actividades de servicios y su ejercicio",
+     "15"
+    ],
+    [
+     "política lingüística",
+     "37"
+    ],
+    [
+     "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "5"
+    ],
+    [
+     "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "10"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "333-8"
+    ],
+    [
+     "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "34"
+    ],
+    [
+     "PGM (Secció V)",
+     "311"
+    ],
+    [
+     "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "11"
+    ],
+    [
+     "código de consumo de Cataluña.",
+     "321-4"
+    ],
+    [
+     "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "9"
+    ]
+   ],
+   "query_used": null,
+   "rank_of_gold": null,
+   "best_distance": 0.7415772445419946,
+   "top": [
+    {
+     "fuente_legal": "Ley 172009, de 23 de noviembre, sobre el libre acceso a las actividades de servicios y su ejercicio",
+     "numero_articulo": "15",
+     "titulo": "Procedimiento aplicable para la adopción de medidas excepcionales por",
+     "distance": 0.7416,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "política lingüística",
+     "numero_articulo": "37",
+     "titulo": "Las medidas de fomento",
+     "distance": 0.7547,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "numero_articulo": "5",
+     "titulo": "Sol·licitud i lliurament dels fulls a l’empresari o empresària",
+     "distance": 0.7183,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Decreto 1212013, sobre las hojas oficiales de queja, reclamación y denuncia en las relaciones de consumo",
+     "numero_articulo": "10",
+     "titulo": "Admissió a tràmit i esmena",
+     "distance": 0.7564,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "código de consumo de Cataluña.",
+     "numero_articulo": "333-8",
+     "titulo": "Rectificaciones públicas",
+     "distance": 0.7388,
+     "is_gold": false
+    },
+    {
+     "fuente_legal": "Ley 112009, de 6 de julio, de regulación administrativa de los espectáculos públicos y de las actividades recreativas",
+     "numero_articulo": "34",
+     "titulo": "Información",
+     "distance": 0.7248,
+     "is_gold": false
+    }
+   ],
+   "retrieval_seconds": 0.8419570419937372,
+   "facts": [],
+   "answer": "El context proporcionat no conté informació sobre procediments per sol·licitar subvencions per a la rehabilitació de façanes de locals. Les normes inclouen disposicions sobre accés a activitats de serveis, fomento de la llengua catalana i formularis oficials de queixa, reclamació i denúncia en matèria de consum, però no es mencionen subvencions per a obres de rehabilitació urbanística.\n\nPer sol·licitar una subvenció d’aquest tipus, recomano consultar directament amb l’Ajuntament de Barcelona o amb el departament competents en polítiques d’urbanisme i promoció immobiliària. Allà podran proporcionar-te la normativa aplicable, els requisits i el procediment específic per a ajudes o subvencions destinades a la rehabilitació de façanes de locals comercials.",
+   "gen_seconds": 2.166299667034764,
+   "abstained": true,
+   "judge": {
+    "fact_recall": null,
+    "facts_present": [],
+    "unsupported": []
+   },
+   "citations": {
+    "cited": [],
+    "valid": [],
+    "cross_reference": [],
+    "invalid": []
+   },
+   "answer_lang": "ca",
+   "context_articles": [
+    "Ley 172009, de 23 de noviembre, sobre el · art. 15",
+    "política lingüística · art. 37",
+    "Decreto 1212013, sobre las hojas oficial · art. 5"
+   ],
+   "failure": null
+  }
+ ]
+}
