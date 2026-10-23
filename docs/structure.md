@@ -19,7 +19,6 @@ La organización sigue un patrón modular basado en dominios, garantizando la es
 │   ├── etl/
 │   │   ├── config.py          # Gestión de rutas portables (data/raw, data/processed)
 │   │   ├── income.py          # Pipelines de Renta media (fuente: INE)
-│   │   ├── mobility.py        # Pipelines de Afluencia peatonal (fuente: MITMA)
 │   │   └── competitors.py     # Normalización geoespacial de competidores hosteleros
 │   ├── rag/
 │   │   ├── chunking.py        # Estrategia de fragmentación de normativa legal
