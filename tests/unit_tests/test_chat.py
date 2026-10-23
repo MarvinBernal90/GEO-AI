@@ -18,7 +18,7 @@ Validates:
 from unittest.mock import MagicMock, patch
 
 import pytest
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage
 
 from backend.ia.chat import (
     DEFAULT_AWS_REGION,
@@ -29,14 +29,12 @@ from backend.ia.chat import (
     _extract_text_content,
     _node_assistant,
     _node_summarize,
-    assistant,
     get_chat_llm,
     get_generation_model,
     get_opportunity_score,
     react_graph,
     regulations_query,
     request,
-    summarize_conversation,
     sys_msg,
     tools,
 )
@@ -199,56 +197,35 @@ class TestTools:
         mock_build_context.assert_called_once_with(["chunk1", "chunk2"])
 
 
-class TestAssistantNode:
-    @patch("backend.ia.chat.llm_with_tools")
-    def test_assistant_without_summary(self, mock_llm_tools):
-        """Assistant node invokes LLM with system message and raw messages when no summary exists."""
-        mock_llm_tools.invoke.return_value = AIMessage(content="Respuesta sin resumen")
-        state: State = {
-            "messages": [HumanMessage(content="¿Cuál es la normativa?")],
-            "num_responses": 1,
-            "summary": "",
-        }
-        res = assistant(state)
-        assert res == {"messages": [mock_llm_tools.invoke.return_value]}
-        called_messages = mock_llm_tools.invoke.call_args[0][0]
-        assert called_messages[0] == sys_msg
-        assert called_messages[1] == state["messages"][0]
-
-    @patch("backend.ia.chat.llm_with_tools")
-    def test_assistant_with_summary(self, mock_llm_tools):
-        """Assistant node prepends summary system message when previous summary exists."""
-        mock_llm_tools.invoke.return_value = AIMessage(content="Respuesta con resumen previo")
-        state: State = {
-            "messages": [HumanMessage(content="Continuando la charla")],
-            "num_responses": 2,
-            "summary": "El usuario preguntó sobre terrazas en Gràcia.",
-        }
-        res = assistant(state)
-        assert res == {"messages": [mock_llm_tools.invoke.return_value]}
-        called_messages = mock_llm_tools.invoke.call_args[0][0]
-        assert called_messages[0] == sys_msg
-        assert isinstance(called_messages[1], SystemMessage)
-        assert "Resumen de la conversación previa" in called_messages[1].content
-        assert "El usuario preguntó sobre terrazas en Gràcia" in called_messages[1].content
-        assert called_messages[2] == state["messages"][0]
-
-
 class TestGraphNodes:
-    @patch("backend.ia.chat.target_llm_with_tools")
-    def test_node_assistant(self, mock_target_llm_tools):
-        """_node_assistant properly prepares context and invokes target_llm_with_tools."""
-        mock_target_llm_tools.invoke.return_value = AIMessage(content="OK")
+    @patch("backend.ia.chat.llm_with_tools")
+    def test_node_assistant(self, mock_llm_tools):
+        """_node_assistant properly prepares context and invokes llm_with_tools."""
+        mock_llm_tools.invoke.return_value = AIMessage(content="OK")
         state: State = {
             "messages": [HumanMessage(content="hola")],
             "num_responses": 0,
             "summary": "Resumen previo",
         }
         res = _node_assistant(state)
-        assert res == {"messages": [mock_target_llm_tools.invoke.return_value]}
-        called_messages = mock_target_llm_tools.invoke.call_args[0][0]
+        assert res == {"messages": [mock_llm_tools.invoke.return_value]}
+        called_messages = mock_llm_tools.invoke.call_args[0][0]
         assert called_messages[0] == sys_msg
         assert "Resumen de la conversación previa: Resumen previo" in called_messages[1].content
+
+    @patch("backend.ia.chat.llm_with_tools")
+    def test_node_assistant_without_summary(self, mock_llm_tools):
+        """_node_assistant sends the system message and the raw messages when no summary exists."""
+        mock_llm_tools.invoke.return_value = AIMessage(content="Respuesta sin resumen")
+        state: State = {
+            "messages": [HumanMessage(content="¿Cuál es la normativa?")],
+            "num_responses": 1,
+            "summary": "",
+        }
+        res = _node_assistant(state)
+        assert res == {"messages": [mock_llm_tools.invoke.return_value]}
+        called_messages = mock_llm_tools.invoke.call_args[0][0]
+        assert called_messages == [sys_msg, state["messages"][0]]
 
     def test_node_summarize_under_limit(self):
         """_node_summarize increments counter when below MAX_NUM_MESSAGES."""
@@ -260,10 +237,10 @@ class TestGraphNodes:
         res = _node_summarize(state)
         assert res == {"num_responses": 2}
 
-    @patch("backend.ia.chat.target_llm")
-    def test_node_summarize_over_limit(self, mock_target_llm):
-        """_node_summarize triggers summary via target_llm when exceeding MAX_NUM_MESSAGES."""
-        mock_target_llm.invoke.return_value = AIMessage(content="Resumen compilado")
+    @patch("backend.ia.chat.llm")
+    def test_node_summarize_over_limit(self, mock_llm):
+        """_node_summarize triggers summary via llm when exceeding MAX_NUM_MESSAGES."""
+        mock_llm.invoke.return_value = AIMessage(content="Resumen compilado")
         state: State = {
             "messages": [
                 HumanMessage(id="h1", content="q1"),
@@ -284,17 +261,7 @@ class TestGraphNodes:
         assert len(res["messages"]) > 0
 
 
-class TestSummarizeConversation:
-    def test_under_max_num_messages_increments_counter(self):
-        """Counter increments by 1 when responses are below MAX_NUM_MESSAGES."""
-        state: State = {
-            "messages": [HumanMessage(content="hola")],
-            "num_responses": 2,
-            "summary": "",
-        }
-        res = summarize_conversation(state)
-        assert res == {"num_responses": 3}
-
+class TestNodeSummarizePrompt:
     @patch("backend.ia.chat.llm")
     def test_over_max_num_messages_triggers_summary_initial(self, mock_llm):
         """When num_responses exceeds MAX_NUM_MESSAGES without previous summary, creates new summary."""
@@ -313,7 +280,7 @@ class TestSummarizeConversation:
             "num_responses": MAX_NUM_MESSAGES + 1,
             "summary": "",
         }
-        res = summarize_conversation(state)
+        res = _node_summarize(state)
         assert "summary" in res
         assert res["summary"] == "Nuevo resumen creado"
         assert res["num_responses"] == (MAX_NUM_MESSAGES + 2) - NUM_MESSAGES_TO_SUMMARIZE
@@ -341,7 +308,7 @@ class TestSummarizeConversation:
             "num_responses": 6,
             "summary": "Resumen de la ronda 1",
         }
-        res = summarize_conversation(state)
+        res = _node_summarize(state)
         assert res["summary"] == "Resumen actualizado"
 
         called_human_msg = mock_llm.invoke.call_args[0][0][-1]
