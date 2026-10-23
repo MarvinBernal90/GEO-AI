@@ -8,6 +8,9 @@ This module orchestrates the core Retrieval-Augmented Generation (RAG) flow.
 It vectorizes the user's question, performs a semantic similarity search
 against the PostGIS (pgvector) database, builds a context prompt, and
 generates the final answer using the LLM (Gemini via Adapter).
+
+Metrics: the retrieval steps are recorded as spans (embedding, vector queries,
+reranking). The spans never contain the user's question, only sizes and counts.
 """
 
 import os
@@ -18,6 +21,8 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from backend.db.models import LegalChunk
+from backend.observability.metrics import set_output, span
+from backend.rag.embeddings import MODEL_NAME as EMBEDDING_MODEL_NAME
 from backend.rag.embeddings import EmbeddingFunction, embed_texts
 
 # AWS Bedrock Foundation Models (Amazon Nova Lite for generation by default)
@@ -60,6 +65,22 @@ class RetrievedChunk:
     fuente_legal: str = "PGM"
 
 
+def _describe_filter(zona_filter: str | bool | None) -> str:
+    """Short text for the metrics span. Zone codes are not personal data."""
+    if zona_filter is False:
+        return "general laws only"
+    if zona_filter is None:
+        return "no filter"
+    return f"zone {zona_filter}"
+
+
+def _retrieval_summary(chunks: list[RetrievedChunk]) -> str:
+    """One line with the size and quality of a retrieval (smaller distance = closer match)."""
+    if not chunks:
+        return "0 chunks"
+    return f"{len(chunks)} chunks, best distance {min(c.distancia for c in chunks):.3f}"
+
+
 def _query_chunks(
     session: Session, query_embedding: list[float], top_k: int, zona_filter: str | bool | None
 ) -> Sequence[Any]:
@@ -75,21 +96,24 @@ def _query_chunks(
             - False: General City Law (zona_pgm IS NULL).
             - None: Unfiltered search across the entire corpus.
     """
-    stmt = session.query(
-        LegalChunk.numero_articulo,
-        LegalChunk.titulo,
-        LegalChunk.contenido,
-        LegalChunk.fuente_legal,
-        # pgvector's <=> operator translates to cosine_distance in SQLAlchemy
-        LegalChunk.embedding.cosine_distance(query_embedding).label("distancia"),
-    )
+    with span("db", "pgvector_query", input_summary=f"top_k={top_k}, {_describe_filter(zona_filter)}"):
+        stmt = session.query(
+            LegalChunk.numero_articulo,
+            LegalChunk.titulo,
+            LegalChunk.contenido,
+            LegalChunk.fuente_legal,
+            # pgvector's <=> operator translates to cosine_distance in SQLAlchemy
+            LegalChunk.embedding.cosine_distance(query_embedding).label("distancia"),
+        )
 
-    if zona_filter is False:
-        stmt = stmt.filter(LegalChunk.zona_pgm.is_(None))
-    elif zona_filter is not None:
-        stmt = stmt.filter(LegalChunk.zona_pgm == zona_filter)
+        if zona_filter is False:
+            stmt = stmt.filter(LegalChunk.zona_pgm.is_(None))
+        elif zona_filter is not None:
+            stmt = stmt.filter(LegalChunk.zona_pgm == zona_filter)
 
-    return stmt.order_by("distancia").limit(top_k).all()
+        rows = stmt.order_by("distancia").limit(top_k).all()
+        set_output(f"{len(rows)} rows")
+    return rows
 
 
 def retrieve_relevant_chunks(
@@ -108,30 +132,37 @@ def retrieve_relevant_chunks(
     them globally by absolute cosine distance. This ensures the LLM receives a
     balanced context of both hyper-local zoning rules and general municipal codes.
     """
-    # 1. Embed the user's natural language question
-    query_embedding = embed_fn([query])[0]
+    with span("rag", "retrieve", input_summary=f"top_k={top_k}, zone={zona_pgm or 'none'}"):
+        # 1. Embed the user's natural language question
+        # The model name is only known for our own embedding function; an injected one is "custom".
+        embed_model = EMBEDDING_MODEL_NAME if embed_fn is embed_texts else "custom"
+        with span("rag", "embed_query", model=embed_model):
+            query_embedding = embed_fn([query])[0]
+            set_output(f"{len(query_embedding)} dims")
 
-    # 2. Execute Hybrid Retrieval
-    if zona_pgm is not None:
-        chunks_especificos = _query_chunks(session, query_embedding, top_k, zona_pgm)
-        chunks_generales = _query_chunks(session, query_embedding, top_k, False)
+        # 2. Execute Hybrid Retrieval
+        if zona_pgm is not None:
+            chunks_especificos = _query_chunks(session, query_embedding, top_k, zona_pgm)
+            chunks_generales = _query_chunks(session, query_embedding, top_k, False)
 
-        # Merge and sort by the closest semantic match across both sub-queries
-        results = list(chunks_especificos) + list(chunks_generales)
-        results.sort(key=lambda r: r.distancia)
-    else:
-        results = list(_query_chunks(session, query_embedding, top_k, None))
+            # Merge and sort by the closest semantic match across both sub-queries
+            results = list(chunks_especificos) + list(chunks_generales)
+            results.sort(key=lambda r: r.distancia)
+        else:
+            results = list(_query_chunks(session, query_embedding, top_k, None))
 
-    return [
-        RetrievedChunk(
-            numero_articulo=r.numero_articulo,
-            titulo=r.titulo,
-            contenido=r.contenido,
-            distancia=r.distancia,
-            fuente_legal=r.fuente_legal,
-        )
-        for r in results
-    ]
+        chunks = [
+            RetrievedChunk(
+                numero_articulo=r.numero_articulo,
+                titulo=r.titulo,
+                contenido=r.contenido,
+                distancia=r.distancia,
+                fuente_legal=r.fuente_legal,
+            )
+            for r in results
+        ]
+        set_output(_retrieval_summary(chunks))
+    return chunks
 
 
 def _is_bedrock_rerank_model(model_name: str) -> bool:
@@ -158,11 +189,16 @@ def _rerank_with_bedrock(
     from botocore.config import Config
 
     region = os.getenv("AWS_RERANK_REGION", os.getenv("AWS_REGION", "eu-central-1"))
-    rerank_client = client or boto3.client(
-        "bedrock-agent-runtime",
-        region_name=region,
-        config=Config(retries={"max_attempts": 3, "mode": "adaptive"}),
-    )
+    if client is not None:
+        rerank_client = client
+    else:
+        # Note: a new client is created on every call. The span makes that cost visible.
+        with span("rag", "create_rerank_client"):
+            rerank_client = boto3.client(
+                "bedrock-agent-runtime",
+                region_name=region,
+                config=Config(retries={"max_attempts": 3, "mode": "adaptive"}),
+            )
 
     if not model_name.startswith("arn:aws:"):
         model_arn = f"arn:aws:bedrock:{region}::foundation-model/{model_name}"
@@ -220,21 +256,26 @@ def retrieve_relevant_chunks_with_rerank(
     if not chunks:
         return []
 
-    if _is_bedrock_rerank_model(cross_encoder_model):
-        return _rerank_with_bedrock(
-            query=query,
-            chunks=chunks,
-            model_name=cross_encoder_model,
-            final_top_k=final_top_k,
-            client=rerank_client,
-        )
+    with span("rag", "rerank", model=cross_encoder_model, input_summary=f"{len(chunks)} candidates"):
+        if _is_bedrock_rerank_model(cross_encoder_model):
+            reranked = _rerank_with_bedrock(
+                query=query,
+                chunks=chunks,
+                model_name=cross_encoder_model,
+                final_top_k=final_top_k,
+                client=rerank_client,
+            )
+        else:
+            from sentence_transformers import CrossEncoder
 
-    from sentence_transformers import CrossEncoder
-
-    model = CrossEncoder(cross_encoder_model)
-    texts = [f"{c.numero_articulo}||{c.titulo}||{c.contenido}||{c.fuente_legal}" for c in chunks]
-    ranks = model.rank(query, texts, final_top_k)
-    return [chunks[r["corpus_id"]] for r in ranks]
+            # Note: the local model is loaded on every call. The span makes that cost visible.
+            with span("rag", "load_reranker", model=cross_encoder_model):
+                model = CrossEncoder(cross_encoder_model)
+            texts = [f"{c.numero_articulo}||{c.titulo}||{c.contenido}||{c.fuente_legal}" for c in chunks]
+            ranks = model.rank(query, texts, final_top_k)
+            reranked = [chunks[r["corpus_id"]] for r in ranks]
+        set_output(f"kept {len(reranked)} chunks")
+    return reranked
 
 
 def build_context(chunks: list[RetrievedChunk]) -> str:

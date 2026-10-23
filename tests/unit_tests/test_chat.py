@@ -17,6 +17,7 @@ Validates:
 
 from unittest.mock import MagicMock, patch
 
+import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from backend.ia.chat import (
@@ -39,6 +40,12 @@ from backend.ia.chat import (
     sys_msg,
     tools,
 )
+
+
+@pytest.fixture(autouse=True)
+def history_in_a_temp_folder(tmp_path, monkeypatch):
+    """The tests must not write chat history files inside the repository."""
+    monkeypatch.setattr("backend.ia.chat.REPO_ROOT", tmp_path)
 
 
 class TestChatLLMResolution:

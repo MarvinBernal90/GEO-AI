@@ -15,9 +15,11 @@ import './style.css'
 
 // Imports the root orchestrator component
 import App from './App.vue'
+import router from './router'
 import { log } from './services/logger'
 
 const app = createApp(App)
+app.use(router)
 
 // Without these, an uncaught error blanks the page leaving no trace at all.
 

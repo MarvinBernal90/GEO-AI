@@ -12,19 +12,52 @@ from the underlying AI provider.
 
 Default AWS Foundation Model:
 - Amazon Nova Lite (amazon.nova-lite-v1:0)
+
+Metrics: every call is recorded as an 'llm' span (tokens, cost, and time to
+first token for streams), with the same names as the Gemini adapter so both
+providers can be compared. If no metrics collector is active, nothing changes.
 """
 
 import os
+import time
 from collections.abc import Generator
 from typing import Any
 
 from backend.observability import get_logger
+from backend.observability.metrics import add_usage, span
 
 logger = get_logger("rag.bedrock_adapter")
 
 # Resilience Settings
 DEFAULT_AWS_REGION = "eu-central-1"
 DEFAULT_BEDROCK_MODEL = "amazon.nova-lite-v1:0"
+
+
+def _usage_count(usage: Any, field: str) -> int:
+    """Read one token counter from Bedrock's usage dict. Anything that is not a real int counts as 0."""
+    value = usage.get(field) if isinstance(usage, dict) else None
+    return value if isinstance(value, int) and not isinstance(value, bool) else 0
+
+
+def _record_usage(model: str, usage: Any, current_span: Any) -> None:
+    """Send the token counts to the span. Metrics must never break an answer, so this never raises."""
+    if usage is None or current_span is None:
+        return
+    try:
+        add_usage(
+            model,
+            _usage_count(usage, "inputTokens"),
+            _usage_count(usage, "outputTokens"),
+            0,
+            target=current_span,
+        )
+    except Exception:
+        logger.warning("Could not record Bedrock token usage", exc_info=True)
+
+
+def _prompt_chars(bedrock_messages: list[dict[str, Any]]) -> int:
+    """Size of the prompt in characters. We keep only the size, never the text (it can contain personal data)."""
+    return sum(len(block.get("text", "")) for msg in bedrock_messages for block in msg.get("content", []))
 
 
 # ------------------------------------------------------------------------------
@@ -115,16 +148,21 @@ class BedrockAsAnthropicAdapter:
             "temperature": temperature,
         }
 
-        response = self._client.converse(
-            modelId=model,
-            system=system_param,
-            messages=bedrock_messages,
-            inferenceConfig=inference_config,
-        )
+        with span("llm", "llm_call", model=model, input_summary=f"{_prompt_chars(bedrock_messages)} chars") as current:
+            response = self._client.converse(
+                modelId=model,
+                system=system_param,
+                messages=bedrock_messages,
+                inferenceConfig=inference_config,
+            )
 
-        output_message = response.get("output", {}).get("message", {})
-        content_blocks = output_message.get("content", [])
-        text_out = "".join(b.get("text", "") for b in content_blocks if "text" in b)
+            output_message = response.get("output", {}).get("message", {})
+            content_blocks = output_message.get("content", [])
+            text_out = "".join(b.get("text", "") for b in content_blocks if "text" in b)
+
+            _record_usage(model, response.get("usage"), current)
+            if current is not None:
+                current.output_summary = f"{len(text_out)} chars"
 
         stop_reason = response.get("stopReason")
         if stop_reason == "max_tokens":
@@ -142,6 +180,9 @@ class BedrockAsAnthropicAdapter:
         """
         Executes a streaming invocation via Bedrock's ConverseStream API.
         Yields raw text delta tokens as they are produced by the foundation model.
+
+        Metrics: Bedrock sends the token usage in a final 'metadata' event. We keep it
+        and record it in `finally`, so it is also saved when the client disconnects early.
         """
         if self._client is None:
             raise RuntimeError(
@@ -171,19 +212,31 @@ class BedrockAsAnthropicAdapter:
             "maxTokens": max_tokens,
         }
 
-        response = self._client.converse_stream(
-            modelId=model,
-            system=system_param,
-            messages=bedrock_messages,
-            inferenceConfig=inference_config,
-        )
+        with span(
+            "llm", "llm_call_stream", model=model, input_summary=f"{_prompt_chars(bedrock_messages)} chars"
+        ) as current:
+            started = time.perf_counter()
+            last_usage = None
+            try:
+                response = self._client.converse_stream(
+                    modelId=model,
+                    system=system_param,
+                    messages=bedrock_messages,
+                    inferenceConfig=inference_config,
+                )
 
-        for event in response.get("stream", []):
-            if "contentBlockDelta" in event:
-                delta = event["contentBlockDelta"].get("delta", {})
-                text_delta = delta.get("text", "")
-                if text_delta:
-                    yield text_delta
+                for event in response.get("stream", []):
+                    if "contentBlockDelta" in event:
+                        delta = event["contentBlockDelta"].get("delta", {})
+                        text_delta = delta.get("text", "")
+                        if text_delta:
+                            if current is not None and current.ttft_ms is None:
+                                current.ttft_ms = round((time.perf_counter() - started) * 1000, 2)
+                            yield text_delta
+                    elif "metadata" in event:
+                        last_usage = event["metadata"].get("usage")
+            finally:
+                _record_usage(model, last_usage, current)
 
 
 def get_llm_adapter(client: Any = None) -> Any:

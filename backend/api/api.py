@@ -43,6 +43,7 @@ from .routers import (
     login,
     logs,
     reports,
+    request_metrics,
 )
 
 # Also configured here, not only in main.py, so `uvicorn backend.api.api:app`
@@ -87,6 +88,7 @@ app.include_router(login.router)
 app.include_router(logs.router)
 app.include_router(etl.router)
 app.include_router(history.router)
+app.include_router(request_metrics.router)
 
 # Probes are called every few seconds; logging them is paid-for noise.
 UNLOGGED_PATHS = frozenset({"/health", "/ready", "/metrics"})

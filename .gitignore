@@ -67,3 +67,6 @@ mapa_dependencias_template.html
 mapa_dependencias.html
 prueba_agente.py
 prueba_rag.py
+
+# Bundled district outlines used by the map
+!frontend/src/assets/distritos-bcn.json

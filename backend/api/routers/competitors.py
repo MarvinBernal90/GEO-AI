@@ -42,7 +42,7 @@ def list_competitors(
     ),
     lon: float | None = Query(None),
     radio_metros: int = Query(500, ge=50, le=5000),
-    limit: int = Query(200, ge=1, le=1000),
+    limit: int = Query(1000, ge=1, le=1000),
     db: Session = Depends(get_session),
 ):
     # Smart routing: the frontend doesn't need to send a explicit "mode" flag.
@@ -89,6 +89,7 @@ def _search_by_district(db: Session, codi_districte: int, limit: int) -> Competi
             SELECT id_global, nom_activitat, ST_Y(geom::geometry) AS lat, ST_X(geom::geometry) AS lng
             FROM competitors
             WHERE codi_districte = :codi
+            ORDER BY md5(id_global::text)
             LIMIT :limit
             """
             ),
@@ -126,6 +127,7 @@ def _search_by_radius(db: Session, lat: float, lon: float, radio_metros: int, li
             SELECT id_global, nom_activitat, ST_Y(geom::geometry) AS lat, ST_X(geom::geometry) AS lng
             FROM competitors
             WHERE ST_DWithin(geom, ST_GeogFromText(:punto), :radio)
+            ORDER BY md5(id_global::text)
             LIMIT :limit
             """
             ),
