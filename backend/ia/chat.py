@@ -444,6 +444,9 @@ def _request_stream(
         # if the client leaves right after the last event.
         append_history(thread, content, full_text, history_dir=REPO_ROOT / "chat_history")
         yield {"type": "done", "text": full_text}
+        with open(f"{REPO_ROOT}/chat_history/{thread.replace(':', '_')}.txt", "a") as f:
+            f.write(f"USUARIO:\n{content}\n\n")  # saves user input to history
+            f.write(f"ASISTENTE:\n{full_text}")  # saves assistant output input to history
     except Exception as exc:
         logger.exception("Error streaming chat request for thread %s: %s", thread, exc)
         yield {"type": "error", "detail": "No se pudo procesar tu mensaje. Inténtalo de nuevo."}
@@ -468,6 +471,9 @@ def _request_invoke(
         _extract_text_content(response.content),
         history_dir=REPO_ROOT / "chat_history",
     )
+    with open(f"{REPO_ROOT}/chat_history/{thread.replace(':', '_')}.txt", "a") as f:
+        f.write(f"USUARIO:\n{content}\n\n")  # saves user input to history
+        f.write(f"ASISTENTE:\n{response}")  # saves assistant output input to history
 
     return response
 

@@ -46,6 +46,7 @@ env/
 venv/
 ENV/
 *.env
+.vscode/
 
 # --- CI/CD secrets ---
 *.pem
