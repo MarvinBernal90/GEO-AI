@@ -8,6 +8,8 @@ This module implements a Directed Acyclic Graph (DAG) using LangGraph.
 It acts as the central orchestrator, executing parallel queries to gather
 both Phase 1 (GIS/Socioeconomic Data) and Phase 2 (Legal RAG) information.
 Finally, it passes both contexts to the LLM to synthesize a final business verdict.
+
+Metrics: the graph, each node and the final synthesis are recorded as spans.
 """
 
 import re
@@ -20,6 +22,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from backend.observability import get_logger
+from backend.observability.metrics import set_output, span
 from backend.rag.embeddings import EmbeddingFunction, embed_texts
 from backend.rag.query_engine import DEFAULT_MODEL, generate_answer
 
@@ -118,9 +121,9 @@ def _construir_mensaje_sintesis(
         bloque_datos = (
             f"Distrito: {datos['nom_districte']}\n"
             f"Renta media: {datos['renta_media']}€\n"
-            f"Afluencia peatonal diaria: {datos['daily_foot_traffic']}\n"
+            f"Afluencia respecto a los residentes (1.00 = igual que ellos): {datos['daily_foot_traffic']}\n"
             f"Competidores de hostelería en el distrito: {datos['total_competitors']}\n"
-            f"Viajes intraprovinciales (MITMA): {datos['viajes_intraprovinciales']}\n"
+            f"Población flotante (personas presentes un día medio): {datos['viajes_intraprovinciales']}\n"
             f"Índice de oportunidad (0-100): {datos['opportunity_score']}"
         )
 
@@ -165,40 +168,47 @@ def _crear_nodos_paralelos(
     """
 
     def datos_socioeconomicos(state: ViabilityState) -> dict[str, Any]:
-        with Session(session.get_bind()) as node_session:
-            row = (
-                node_session.execute(
-                    text(
-                        "SELECT ds.codi_districte, ds.nom_districte, ds.renta_media, ds.daily_foot_traffic, "
-                        "ds.total_competitors, ds.opportunity_score, "
-                        "dm.total_trips AS viajes_intraprovinciales, dm.predominant_age "
-                        "FROM district_scorecard ds "
-                        "LEFT JOIN district_mobility dm ON ds.codi_districte = dm.codi_districte "
-                        "WHERE ds.codi_districte = :codi"
-                    ),
-                    {"codi": state["codi_districte"]},
-                )
-                .mappings()
-                .first()
-            )
+        with span("agent", "datos_socioeconomicos", input_summary=f"district {state['codi_districte']}"):
+            with span("db", "district_scorecard_query"):
+                with Session(session.get_bind()) as node_session:
+                    row = (
+                        node_session.execute(
+                            text(
+                                "SELECT ds.codi_districte, ds.nom_districte, ds.renta_media, ds.daily_foot_traffic, "
+                                "ds.total_competitors, ds.opportunity_score, "
+                                "dm.total_trips AS viajes_intraprovinciales, dm.predominant_age "
+                                "FROM district_scorecard ds "
+                                "LEFT JOIN district_mobility dm ON ds.codi_districte = dm.codi_districte "
+                                "WHERE ds.codi_districte = :codi"
+                            ),
+                            {"codi": state["codi_districte"]},
+                        )
+                        .mappings()
+                        .first()
+                    )
+                set_output("1 row" if row is not None else "no rows")
 
-        if row is None:
-            logger.warning("No data found in district_scorecard for district %s", state["codi_districte"])
-            return {"datos_distrito": None}
+            if row is None:
+                logger.warning("No data found in district_scorecard for district %s", state["codi_districte"])
+                set_output("no data for this district")
+                return {"datos_distrito": None}
 
-        return {"datos_distrito": dict(row)}
+            set_output("district data loaded")
+            return {"datos_distrito": dict(row)}
 
     def normativa_legal(state: ViabilityState) -> dict[str, Any]:
-        with Session(session.get_bind()) as node_session:
-            pregunta = _construir_pregunta_legal(state["zona_pgm"], state.get("pregunta_especifica"))
-            resultado = generate_answer(
-                node_session,
-                pregunta,
-                embed_fn=embed_fn,
-                llm_client=llm_client,
-                model=model,
-                zona_pgm=state["zona_pgm"],
-            )
+        with span("agent", "normativa_legal", input_summary=f"zone {state['zona_pgm']}"):
+            with Session(session.get_bind()) as node_session:
+                pregunta = _construir_pregunta_legal(state["zona_pgm"], state.get("pregunta_especifica"))
+                resultado = generate_answer(
+                    node_session,
+                    pregunta,
+                    embed_fn=embed_fn,
+                    llm_client=llm_client,
+                    model=model,
+                    zona_pgm=state["zona_pgm"],
+                )
+            set_output(f"{len(resultado['chunks_recuperados'])} chunks used")
         return {"respuesta_legal": resultado}
 
     return datos_socioeconomicos, normativa_legal
@@ -243,20 +253,22 @@ def build_agent_graph(
     def sintesis_final(state: ViabilityState) -> dict[str, Any]:
         from backend.rag.bedrock_adapter import get_llm_adapter
 
-        client = get_llm_adapter(llm_client)
-        mensaje, articulos_citados = _construir_mensaje_sintesis(
-            state["datos_distrito"],
-            state["respuesta_legal"],  # type: ignore
-        )
+        with span("agent", "sintesis_final"):
+            client = get_llm_adapter(llm_client)
+            mensaje, articulos_citados = _construir_mensaje_sintesis(
+                state["datos_distrito"],
+                state["respuesta_legal"],  # type: ignore
+            )
 
-        response = client.messages.create(
-            model=model,
-            max_tokens=max_tokens,
-            system=SYNTHESIS_SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": mensaje}],
-        )
+            response = client.messages.create(
+                model=model,
+                max_tokens=max_tokens,
+                system=SYNTHESIS_SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": mensaje}],
+            )
 
-        semaforo, resumen = _parsear_semaforo_y_resumen(response.content[0].text)
+            semaforo, resumen = _parsear_semaforo_y_resumen(response.content[0].text)
+            set_output(f"traffic light: {semaforo}")
 
         informe = ViabilityReport(
             semaforo=semaforo,
@@ -294,9 +306,10 @@ def generar_informe_viabilidad(
 ) -> dict[str, Any]:
     """Synchronous invocation of the full LangGraph Agent."""
     app = build_agent_graph(session, embed_fn=embed_fn, llm_client=llm_client, model=model, max_tokens=max_tokens)
-    resultado = app.invoke(
-        {"codi_districte": codi_districte, "zona_pgm": zona_pgm, "pregunta_especifica": pregunta_especifica}
-    )
+    with span("agent", "viability_graph", input_summary=f"district {codi_districte}, zone {zona_pgm}"):
+        resultado = app.invoke(
+            {"codi_districte": codi_districte, "zona_pgm": zona_pgm, "pregunta_especifica": pregunta_especifica}
+        )
     return resultado["informe"]
 
 
@@ -315,9 +328,10 @@ def generar_informe_viabilidad_stream(
     yields the raw data to the frontend, and then manages the LLM stream manually.
     """
     grafo = build_data_gathering_graph(session, embed_fn=embed_fn, llm_client=llm_client, model=model)
-    resultado = grafo.invoke(
-        {"codi_districte": codi_districte, "zona_pgm": zona_pgm, "pregunta_especifica": pregunta_especifica}
-    )
+    with span("agent", "viability_graph", input_summary=f"district {codi_districte}, zone {zona_pgm}"):
+        resultado = grafo.invoke(
+            {"codi_districte": codi_districte, "zona_pgm": zona_pgm, "pregunta_especifica": pregunta_especifica}
+        )
 
     datos = resultado.get("datos_distrito")
     legal = resultado["respuesta_legal"]
@@ -336,15 +350,18 @@ def generar_informe_viabilidad_stream(
     client = get_llm_adapter(llm_client)
     texto_acumulado = ""
 
-    # Second event loop: Stream the LLM synthesis token by token
-    for fragmento in client.messages.create_stream(
-        model=model,
-        max_tokens=max_tokens,
-        system=SYNTHESIS_SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": mensaje}],
-    ):
-        texto_acumulado += fragmento
-        yield {"type": "token", "text": fragmento}
+    # Second event loop: Stream the LLM synthesis token by token.
+    # The span is opened inside a generator, so it closes only when the stream ends
+    # (or the client leaves, which marks it as 'cancelled').
+    with span("agent", "sintesis_final"):
+        for fragmento in client.messages.create_stream(
+            model=model,
+            max_tokens=max_tokens,
+            system=SYNTHESIS_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": mensaje}],
+        ):
+            texto_acumulado += fragmento
+            yield {"type": "token", "text": fragmento}
 
     # Third event: Close the stream and parse the final traffic light status
     semaforo, resumen = _parsear_semaforo_y_resumen(texto_acumulado)

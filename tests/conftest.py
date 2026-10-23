@@ -30,8 +30,8 @@ def db_engine():
     # -------------------------------------------------------------------------
     # PRODUCTION SAFEGUARD (Bug Fix Log)
     # -------------------------------------------------------------------------
-    # Critical Lesson: During early development, running the test suite accidentally 
-    # deleted (truncated) the real 'legal_chunks' from the production database 
+    # Critical Lesson: During early development, running the test suite accidentally
+    # deleted (truncated) the real 'legal_chunks' from the production database
     # because my local .env file was pointing to production instead of local testing.
     # To prevent this disaster, this safeguard checks if the word 'test' is in the URL.
     # If it's not a test database, it skips the tests to prevent data loss.

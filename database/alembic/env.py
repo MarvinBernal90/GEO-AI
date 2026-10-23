@@ -19,10 +19,10 @@ from sqlalchemy import engine_from_config, pool
 # -----------------------------------------------------------------------------
 # INYECCIÓN DINÁMICA DEL CONTEXTO DE EJECUCIÓN
 # -----------------------------------------------------------------------------
-# Alembic se ejecuta desde su propia carpeta interna, por lo que no conoce 
-# dónde está el código fuente de nuestra aplicación (backend). 
-# Calculamos de forma dinámica la ruta de la raíz del proyecto (2 niveles arriba) 
-# y la inyectamos en el PATH de Python (sys.path). Esto nos permite importar 
+# Alembic se ejecuta desde su propia carpeta interna, por lo que no conoce
+# dónde está el código fuente de nuestra aplicación (backend).
+# Calculamos de forma dinámica la ruta de la raíz del proyecto (2 niveles arriba)
+# y la inyectamos en el PATH de Python (sys.path). Esto nos permite importar
 # nuestros modelos y librerías sin que Python lance un ImportError.
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
@@ -31,10 +31,10 @@ sys.path.insert(0, str(REPO_ROOT))
 load_dotenv(REPO_ROOT / ".env")
 
 # Una vez ajustado el PATH, importamos nuestros metadatos y la función de conexión.
-# (Se usa noqa: E402 para decirle al linter que ignoramos la regla de "imports 
+# (Se usa noqa: E402 para decirle al linter que ignoramos la regla de "imports
 # al principio del archivo", ya que era estrictamente necesario alterar el PATH primero).
-from backend.db import Base  
-from backend.db.connection import resolve_database_url  
+from backend.db import Base
+from backend.db.connection import resolve_database_url
 
 config = context.config
 
@@ -45,14 +45,14 @@ if config.config_file_name is not None:
 # -----------------------------------------------------------------------------
 # RESOLUCIÓN DE LA CONEXIÓN (Single Source of Truth)
 # -----------------------------------------------------------------------------
-# Principio DRY (Don't Repeat Yourself): En lugar de que Alembic tenga su propia 
+# Principio DRY (Don't Repeat Yourself): En lugar de que Alembic tenga su propia
 # forma de leer variables y conectarse, reutilizamos `resolve_database_url()`.
-# De esta forma, si cambiamos la red de Docker o la gestión de contraseñas, 
+# De esta forma, si cambiamos la red de Docker o la gestión de contraseñas,
 # la API y el motor de migraciones se actualizarán automáticamente sin divergir.
 database_url = resolve_database_url()
 config.set_main_option("sqlalchemy.url", database_url)
 
-# Le pasamos a Alembic los metadatos de nuestros modelos (tablas) para que 
+# Le pasamos a Alembic los metadatos de nuestros modelos (tablas) para que
 # pueda compararlos con la base de datos y detectar cambios (autogeneración).
 target_metadata = Base.metadata
 

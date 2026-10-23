@@ -19,6 +19,9 @@ The LangChain/LangGraph framework provides standard schemas that allow starting
 generic and evolving towards AWS Bedrock Foundation Models (Amazon Nova / Claude).
 
 Conversation persistence is managed with PostgresSaver (PostgreSQL / PostGIS).
+
+Metrics: the LLM calls and the tools are measured with spans (time, tokens, steps).
+Spans only keep sizes and tool names, never the text of the user.
 """
 
 import logging
@@ -37,6 +40,9 @@ from sqlalchemy.orm import Session
 
 from backend.db.connection import resolve_database_url
 from backend.geo.geocoding import geocodificar_direccion
+from backend.ia.chat_history import append_history
+from backend.ia.thinking_filter import ThinkingStripper
+from backend.observability.metrics import add_usage, set_output, span
 from backend.rag.query_engine import build_context, retrieve_relevant_chunks_with_rerank
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -66,14 +72,9 @@ def get_generation_model() -> str:
 
 # Foundation Model configured via GENERATION_MODEL (Amazon Nova Lite by default)
 GENERATION_MODEL = get_generation_model()
-AWS_REGION = os.getenv(
-    "AWS_REGION",
-    os.getenv("AWS_DEFAULT_REGION", DEFAULT_AWS_REGION),
-)
 MAX_NUM_MESSAGES = int(os.environ.get("MAX_NUM_MESSAGES", 5))
 NUM_MESSAGES_TO_SUMMARIZE = int(os.environ.get("NUM_MESSAGES_TO_SUMMARIZE", 3))
 
-GEODATA_BASEURL = resolve_database_url()
 engine = create_engine(resolve_database_url())
 
 
@@ -134,6 +135,28 @@ class State(MessagesState):
     num_responses: int
 
 
+#### METRICS HELPER
+def _record_llm_result(response: Any, current_span: Any) -> None:
+    """
+    Store the token usage and a short output summary of an LLM call on its span.
+    LangChain puts the usage in `response.usage_metadata`. Never raises: metrics
+    must not break an answer.
+    """
+    if current_span is None:
+        return
+    try:
+        usage = getattr(response, "usage_metadata", None) or {}
+        add_usage(GENERATION_MODEL, usage.get("input_tokens"), usage.get("output_tokens"), 0, target=current_span)
+        tool_calls = getattr(response, "tool_calls", None) or []
+        if tool_calls:
+            names = ", ".join(str(call.get("name", "?")) for call in tool_calls)
+            set_output(f"tool calls: {names}")
+        else:
+            set_output(f"{len(_extract_text_content(response.content))} chars")
+    except Exception:
+        logger.debug("Could not record the LLM metrics", exc_info=True)
+
+
 #### TOOLS DEFINITION
 def get_opportunity_score(direccion: str) -> dict[str, Any]:
     """
@@ -147,31 +170,37 @@ def get_opportunity_score(direccion: str) -> dict[str, Any]:
     Returns:
         dict: A dictionary containing district metrics or None if not found
     """
-    res = geocodificar_direccion(direccion)
-    if res is not None:
-        with Session(engine) as session:
-            row = (
-                session.execute(
-                    text(
-                        "SELECT ds.codi_districte, ds.nom_districte, ds.renta_media, ds.daily_foot_traffic, "
-                        "ds.total_competitors, ds.opportunity_score "
-                        "FROM district_scorecard ds "
-                        "LEFT JOIN district_mobility dm ON ds.codi_districte = dm.codi_districte "
-                        "WHERE ds.codi_districte = :codi"
-                    ),
-                    {"codi": res["codi_districte"]},
+    with span("agent", "tool_get_opportunity_score", input_summary=f"{len(str(direccion))} chars"):
+        with span("external", "geocode_address", input_summary=f"{len(str(direccion))} chars"):
+            res = geocodificar_direccion(direccion)
+            set_output("found" if res else "not found")
+
+        if res is None:
+            return {"datos_distrito": None}
+
+        with span("db", "district_scorecard_query"):
+            with Session(engine) as session:
+                row = (
+                    session.execute(
+                        text(
+                            "SELECT ds.codi_districte, ds.nom_districte, ds.renta_media, ds.daily_foot_traffic, "
+                            "ds.total_competitors, ds.opportunity_score "
+                            "FROM district_scorecard ds "
+                            "LEFT JOIN district_mobility dm ON ds.codi_districte = dm.codi_districte "
+                            "WHERE ds.codi_districte = :codi"
+                        ),
+                        {"codi": res["codi_districte"]},
+                    )
+                    .mappings()
+                    .first()
                 )
-                .mappings()
-                .first()
-            )
+            set_output("district found" if row else "no data for the district")
 
         if row is None:
             logger.warning("No hay datos en district_scorecard para el distrito %s", res["codi_districte"])
             return {"datos_distrito": None}
 
         return {"datos_distrito": dict(row)}
-
-    return {"datos_distrito": None}
 
 
 def regulations_query(query: str) -> str:
@@ -184,9 +213,13 @@ def regulations_query(query: str) -> str:
     Returns:
         str: Built regulatory context from relevant chunks.
     """
-    with Session(engine) as session:
-        documents = retrieve_relevant_chunks_with_rerank(session=session, query=query)
-    return build_context(documents)
+    with span("agent", "tool_regulations_query", input_summary=f"{len(str(query))} chars"):
+        with Session(engine) as session:
+            documents = retrieve_relevant_chunks_with_rerank(session=session, query=query)
+        context = build_context(documents)
+        if isinstance(context, str):
+            set_output(f"{len(context)} chars of context")
+    return context
 
 
 def _extract_text_content(content: Any) -> str:
@@ -204,39 +237,6 @@ def _extract_text_content(content: Any) -> str:
                 parts.append(str(block))
         return "".join(parts)
     return str(content)
-
-
-# updates state['num_responses'], which keeps track of the number of answers given to the user
-# if they exceed MAX_NUM_MESSAGES, the first NUM_MESSAGES_TO_SUMMARIZE are included in state['summary']
-# and deleted from state['messages'] along with tool calling and tool response associated messages
-def summarize_conversation(state: State) -> dict[str, Any]:
-    num_responses = state.get("num_responses", 0) + 1
-    if num_responses > MAX_NUM_MESSAGES:
-        summary = state.get("summary", "")
-        if summary:
-            summary_message = (
-                f"Este es un resumen de mensajes pasados: {summary}\n\n"
-                "Actualiza el resumen teniendo en cuenta los mensajes en la lista de arriba"
-            )
-        else:
-            summary_message = "Crea un resumen teniendo en cuenta los mensajes en la lista de arriba"
-
-        # HumanMessages y ToolMessages excluded, only AiMessages, which are the responses generated by de model to the user, are kept
-        responses = [m for m in state["messages"] if m.type == "ai" and m.content]
-        messages = responses[:NUM_MESSAGES_TO_SUMMARIZE] + [HumanMessage(content=summary_message)]
-        active_llm = llm or target_llm or get_chat_llm()
-        response = active_llm.invoke(messages)
-
-        # first message is the HumanMessage that initated the conversation. This message is always kept and serves as 'title' of th conversation
-        last_msg_to_del_index = state["messages"].index(responses[NUM_MESSAGES_TO_SUMMARIZE])
-        delete_messages = [RemoveMessage(id=m.id) for m in state["messages"][1:last_msg_to_del_index]]
-        return {
-            "summary": _extract_text_content(response.content),
-            "num_responses": num_responses - NUM_MESSAGES_TO_SUMMARIZE,
-            "messages": delete_messages,
-        }
-
-    return {"num_responses": num_responses}
 
 
 #### TOOL BINDING & LLM INITIALIZATION
@@ -260,23 +260,10 @@ Cuando respondas a las consultas de los usuarios, asegúrate de proporcionar inf
 Usa solamente datos que te proporcionen las herrmientas, de ningún otro lugar.
 Lista las fuentes.
 Si no eres capaz dem responder a la petición del usuario con la información disponible, dilo claramente.
+Responde siempre en español, aunque el usuario escriba en otro idioma.
+No escribas tu razonamiento interno ni uses etiquetas como <thinking>: escribe solo la respuesta final para el usuario.
 """
 )
-
-
-def assistant(state: State) -> dict[str, Any]:
-    """
-    Main function of the assistant: receives a message state and returns a response generated by the language model.
-    """
-    summary = state.get("summary", "")
-    if summary:
-        system_message = f"Resumen de la conversación previa: {summary}"
-        messages = [SystemMessage(content=system_message)] + state["messages"]
-    else:
-        messages = state["messages"]
-
-    invoker = llm_with_tools or (llm.bind_tools(tools) if llm else get_chat_llm().bind_tools(tools))
-    return {"messages": [invoker.invoke([sys_msg] + messages)]}
 
 
 #### CREATE AND COMPILE GRAPH WITH MEMORY
@@ -289,23 +276,26 @@ try:
 except Exception as exc:
     logger.warning("Could not initialize PostgreSQL checkpointer: %s", exc)
 
-target_llm = llm
-target_llm_with_tools = llm_with_tools
-
 
 def _node_assistant(state: State):
+    """Main node of the assistant: receives a message state and returns a response generated by the language model."""
     summary = state.get("summary", "")
     if summary:
         system_message = f"Resumen de la conversación previa: {summary}"
         messages = [SystemMessage(content=system_message)] + state["messages"]
     else:
         messages = state["messages"]
-    invoker = target_llm_with_tools or (
-        target_llm.bind_tools(tools) if target_llm else get_chat_llm().bind_tools(tools)
-    )
-    return {"messages": [invoker.invoke([sys_msg] + messages)]}
+    invoker = llm_with_tools or (llm.bind_tools(tools) if llm else get_chat_llm().bind_tools(tools))
+    prompt = [sys_msg] + messages
+    with span("llm", "llm_call", model=GENERATION_MODEL, input_summary=f"{len(prompt)} messages") as llm_span:
+        response = invoker.invoke(prompt)
+        _record_llm_result(response, llm_span)
+    return {"messages": [response]}
 
 
+# updates state['num_responses'], which keeps track of the number of answers given to the user
+# if they exceed MAX_NUM_MESSAGES, the first NUM_MESSAGES_TO_SUMMARIZE are included in state['summary']
+# and deleted from state['messages'] along with tool calling and tool response associated messages
 def _node_summarize(state: State):
     num_responses = state.get("num_responses", 0) + 1
     if num_responses > MAX_NUM_MESSAGES:
@@ -321,8 +311,12 @@ def _node_summarize(state: State):
         # HumanMessages y ToolMessages excluded, only AiMessages, which are the responses generated by de model to the user, are kept
         responses = [m for m in state["messages"] if m.type == "ai" and m.content]
         messages = responses[:NUM_MESSAGES_TO_SUMMARIZE] + [HumanMessage(content=summary_message)]
-        active_llm = target_llm or llm or get_chat_llm()
-        response = active_llm.invoke(messages)
+        active_llm = llm or get_chat_llm()
+        with span(
+            "llm", "summarize_call", model=GENERATION_MODEL, input_summary=f"{len(messages)} messages"
+        ) as llm_span:
+            response = active_llm.invoke(messages)
+            _record_llm_result(response, llm_span)
 
         last_msg_to_del_index = state["messages"].index(responses[NUM_MESSAGES_TO_SUMMARIZE])
         # first message is the HumanMessage that initated the conversation. This message is always kept and serves as 'title' of th conversation
@@ -360,6 +354,7 @@ def _request_stream(
     messages = [{"role": "user", "content": content}]
     configurable = {"thread_id": thread}
     full_response: list[str] = []
+    stripper = ThinkingStripper()  # hides <thinking> blocks, even when split across tokens
 
     try:
         for chunk, metadata in active_graph.stream(
@@ -381,12 +376,21 @@ def _request_stream(
                 if is_tool_call:
                     continue
 
-                text = _extract_text_content(chunk.content)
+                text = stripper.feed(_extract_text_content(chunk.content) or "")
                 if text:
                     full_response.append(text)
                     yield {"type": "token", "text": text}
 
+        # Release any text still held back by the filter (e.g. a lone "<").
+        rest = stripper.flush()
+        if rest:
+            full_response.append(rest)
+            yield {"type": "token", "text": rest}
+
         full_text = "".join(full_response)
+        # Saved BEFORE the done event. It never raises, and the history is not lost
+        # if the client leaves right after the last event.
+        append_history(thread, content, full_text, history_dir=REPO_ROOT / "chat_history")
         yield {"type": "done", "text": full_text}
         with open(f"{REPO_ROOT}/chat_history/{thread.replace(':', '_')}.txt", "a") as f:
             f.write(f"USUARIO:\n{content}\n\n")  # saves user input to history
@@ -409,6 +413,12 @@ def _request_invoke(
     state = active_graph.invoke({"messages": messages}, {"configurable": configurable})
     response = state["messages"][-1]
 
+    append_history(
+        thread,
+        content,
+        _extract_text_content(response.content),
+        history_dir=REPO_ROOT / "chat_history",
+    )
     with open(f"{REPO_ROOT}/chat_history/{thread.replace(':', '_')}.txt", "a") as f:
         f.write(f"USUARIO:\n{content}\n\n")  # saves user input to history
         f.write(f"ASISTENTE:\n{response}")  # saves assistant output input to history

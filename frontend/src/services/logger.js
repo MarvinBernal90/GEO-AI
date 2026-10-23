@@ -152,7 +152,7 @@ async function sendBatch(batch, attempt = 0) {
 }
 
 /** @param {boolean} [useBeacon] sendBeacon is the only transport that survives tab close. */
-export function flush(useBeacon = false) {
+function flush(useBeacon = false) {
   if (flushTimer !== null) {
     clearTimeout(flushTimer)
     flushTimer = null
@@ -243,5 +243,3 @@ export function createLogger(name, baseContext = {}) {
 
 /** Default application logger. */
 export const log = createLogger('app')
-
-export default log

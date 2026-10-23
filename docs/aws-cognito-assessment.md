@@ -34,7 +34,7 @@ Incorporating Cognito completes the AWS cloud footprint by providing an enterpri
 
 ### 2.2 Role-Based Access Control (RBAC)
 Using **Cognito User Pool Groups** (e.g., `admin`, `premium_investor`, `analyst`), the backend can gate sensitive administrative endpoints:
-- Triggering ETL imports (`/api/etl/*`).
+- Triggering ETL imports.
 - Uploading and re-indexing municipal legal corpus PDFs.
 - Viewing internal diagnostic telemetry and logs (`/api/logs`).
 

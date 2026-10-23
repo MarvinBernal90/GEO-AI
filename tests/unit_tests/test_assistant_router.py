@@ -5,6 +5,8 @@ UNIT TESTS: ASSISTANT ROUTER (SSE STREAMING)
 File: tests/unit_tests/test_assistant_router.py
 
 Tests the FastAPI assistant endpoint (`backend/api/routers/assistant.py`).
+The live metrics events (`trace`, `metrics_summary`) travel in the same stream,
+so the tests that check the assistant events filter them out first.
 """
 
 import json
@@ -13,6 +15,20 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from backend.api.api import app
+
+# Events added by the metrics system. They are not part of the assistant answer.
+METRICS_EVENT_TYPES = ("trace", "metrics_summary")
+
+
+def eventos_sse(cuerpo):
+    """Every event of an SSE body, parsed, in order."""
+    lines = [line for line in cuerpo.split("\n\n") if line.startswith("data: ")]
+    return [json.loads(line[6:]) for line in lines]
+
+
+def solo_contenido(eventos):
+    """Drop the live metrics events and keep only the assistant events."""
+    return [e for e in eventos if e.get("type") not in METRICS_EVENT_TYPES]
 
 
 class TestAssistantEndpoint:
@@ -34,14 +50,16 @@ class TestAssistantEndpoint:
         assert response.status_code == 200
         assert "text/event-stream" in response.headers["content-type"]
 
-        lines = [line for line in response.text.split("\n\n") if line.startswith("data: ")]
-        events = [json.loads(line[6:]) for line in lines]
+        todos = eventos_sse(response.text)
+        events = solo_contenido(todos)
 
         assert events == [
             {"type": "token", "text": "Horarios: "},
             {"type": "token", "text": "de 06:00 a 02:00."},
             {"type": "done", "text": "Horarios: de 06:00 a 02:00."},
         ]
+        # The metrics summary closes the stream, after the assistant events.
+        assert todos[-1]["type"] == "metrics_summary"
         mock_request.assert_called_once_with("¿cuáles son los horarios?", thread="alice:1", stream=True)
 
     @patch("backend.api.routers.assistant.request")
@@ -92,7 +110,6 @@ class TestAssistantEndpoint:
         )
 
         assert response.status_code == 200
-        lines = [line for line in response.text.split("\n\n") if line.startswith("data: ")]
-        events = [json.loads(line[6:]) for line in lines]
+        events = solo_contenido(eventos_sse(response.text))
         assert events[0] == {"type": "token", "text": "Part 1"}
         assert events[1]["type"] == "error"

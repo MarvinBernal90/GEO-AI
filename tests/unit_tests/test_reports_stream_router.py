@@ -9,6 +9,7 @@ Validates that:
 1. The endpoint correctly formats events according to the W3C SSE standard.
 2. The Database Session remains open throughout the entire LLM generation process.
 3. Database `Decimal` types (from PostgreSQL) are correctly serialized into JSON.
+4. The live metrics events (`trace`, `metrics_summary`) do not alter the report events.
 """
 
 from decimal import Decimal
@@ -19,12 +20,25 @@ from fastapi.testclient import TestClient
 from backend.api.api import app
 from backend.api.deps import get_session
 
+# Events added by the metrics system. They travel in the same stream as the report.
+METRICS_EVENT_TYPES = ('"type": "trace"', '"type": "metrics_summary"')
+
+
+def bloques_de_datos(cuerpo):
+    """Every `data:` block of an SSE body, in order."""
+    return [bloque for bloque in cuerpo.split("\n\n") if bloque.startswith("data: ")]
+
+
+def solo_contenido(bloques):
+    """Drop the live metrics events and keep only the report events."""
+    return [b for b in bloques if not any(tipo in b for tipo in METRICS_EVENT_TYPES)]
+
 
 class FakeSessionQueRegistraCierre:
     """
-    Sentinel Mock Object: 
-    Registers if the Database Session was closed prematurely. In generator-based 
-    streaming APIs, a common bug is the session closing after the first yield, 
+    Sentinel Mock Object:
+    Registers if the Database Session was closed prematurely. In generator-based
+    streaming APIs, a common bug is the session closing after the first yield,
     crashing the system mid-stream.
     """
 
@@ -52,9 +66,9 @@ def eventos_de_prueba(session, codi_districte, zona_pgm, **kwargs):
 
 def eventos_con_decimal_real(session, codi_districte, zona_pgm, **kwargs):
     """
-    Regression Mock: 
-    Simulates raw data coming directly from a PostgreSQL `Numeric` column. 
-    SQLAlchemy maps Postgres Numerics to Python `Decimal` objects, which are 
+    Regression Mock:
+    Simulates raw data coming directly from a PostgreSQL `Numeric` column.
+    SQLAlchemy maps Postgres Numerics to Python `Decimal` objects, which are
     NOT natively JSON serializable.
     """
     yield {
@@ -85,15 +99,18 @@ class TestCrearInformeStream:
                 cuerpo = "".join(response.iter_text())
         app.dependency_overrides.clear()
 
-        lineas_datos = [l for l in cuerpo.split("\n\n") if l.startswith("data: ")]
+        bloques = bloques_de_datos(cuerpo)
+        lineas_datos = solo_contenido(bloques)
         assert len(lineas_datos) == 3
         assert '"type": "datos"' in lineas_datos[0]
         assert '"type": "token"' in lineas_datos[1]
         assert '"type": "done"' in lineas_datos[2]
+        # The metrics summary closes the stream, after the report events.
+        assert '"type": "metrics_summary"' in bloques[-1]
 
     def test_regression_session_stays_open_for_the_whole_stream(self):
         """
-        Regression: Validates that FastAPI's dependency injection does not 
+        Regression: Validates that FastAPI's dependency injection does not
         close the DB session when the generator yields its first chunk.
         """
         app.dependency_overrides[get_session] = fake_get_session
@@ -107,8 +124,8 @@ class TestCrearInformeStream:
 
     def test_regression_decimal_fields_from_postgres_are_serializable(self):
         """
-        Regression: Proves that the custom `_json_default` serializer in the 
-        router successfully intercepts `Decimal` objects and casts them to floats 
+        Regression: Proves that the custom `_json_default` serializer in the
+        router successfully intercepts `Decimal` objects and casts them to floats
         before `json.dumps` throws a TypeError.
         """
         app.dependency_overrides[get_session] = fake_get_session

@@ -29,7 +29,7 @@ import sys
 from pathlib import Path
 
 # Robust Path Resolution:
-# Dynamically resolves the project root regardless of where the developer 
+# Dynamically resolves the project root regardless of where the developer
 # triggers the script in the terminal, preventing `ModuleNotFoundError`.
 project_root = (
     Path.cwd()
@@ -107,7 +107,7 @@ def cargar():
     insertados = []
     with Session(engine) as session:
         for numero, titulo, contenido, zona_pgm in articulos_a_insertar:
-            
+
             # Idempotency Check: Prevents Primary Key collision crashes
             existe = session.query(LegalChunk).filter_by(fuente_legal=FUENTE, numero_articulo=numero).first()
             if existe:

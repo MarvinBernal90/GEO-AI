@@ -109,6 +109,11 @@ jobs:
       - name: Check formatting
         run: npm run format:check
 
+      # The build used to run only at deploy time, after the merge. Running it
+      # here makes a broken import or missing dependency fail the PR instead.
+      - name: Build
+        run: npm run build
+
   # ==============================================================================
   # BACKEND LINT AND FORMATTING
   # ==============================================================================
@@ -141,3 +146,9 @@ jobs:
 
       - name: Check formatting
         run: ruff format --check backend
+
+      # Ruff and pytest only look at backend/ and the modules the tests import.
+      # Scripts nothing imports (database/, scripts/) could carry a syntax
+      # error and still pass, as database/load_general_law.py did.
+      - name: Check every Python file compiles
+        run: python -m compileall -q backend database scripts tests

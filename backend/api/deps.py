@@ -23,6 +23,8 @@ from sqlalchemy.orm import sessionmaker
 
 from backend.db.connection import resolve_database_url
 from backend.observability import get_logger, shutdown_logging, tame_third_party_loggers
+from backend.observability.metrics.config import metrics_enabled
+from backend.observability.metrics.writer import init_writer, shutdown_writer
 
 # We load the .env variables here in case we are running the API locally
 # (e.g., executing Uvicorn directly). If we are running inside Docker,
@@ -79,12 +81,24 @@ async def lifespan(app: FastAPI):
         logger.error(f"Failed to connect to the database during startup: {e}")
         raise
 
+    # Request metrics: a background thread saves them, so they never slow down an answer.
+    # A failure here must not stop the API from starting.
+    if metrics_enabled():
+        try:
+            init_writer(SessionLocal)
+            logger.info("Request metrics writer started.")
+        except Exception:
+            logger.warning("Could not start the request metrics writer", exc_info=True)
+
     # The application yields control back to the event loop,
     # running and serving HTTP requests from this point onwards.
     yield
 
     # Teardown phase: When the API is stopped (e.g., SIGTERM or Ctrl+C),
-    # we cleanly dispose of the connection pool to prevent memory leaks.
+    # we first save the pending metrics (they need the database), then
+    # cleanly dispose of the connection pool to prevent memory leaks.
+    shutdown_writer()
+
     if db_engine is not None:
         db_engine.dispose()
         logger.info("Database connections safely closed.")

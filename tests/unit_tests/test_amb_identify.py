@@ -15,7 +15,7 @@ import requests
 
 from backend.geo.amb_identify import _extraer_zona_de_resultados, identificar_zona_pgm
 
-# Empirical payload returned by the AMB Identify service during the API Spike 
+# Empirical payload returned by the AMB Identify service during the API Spike
 # session, querying the center of Barcelona (Plaça Catalunya: 2.1734, 41.3851).
 RESULTADOS_REALES_CENTRO_BCN = [
     {"layerId": 1, "attributes": {"CLAU_URB": "5b"}},
