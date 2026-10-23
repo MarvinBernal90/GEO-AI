@@ -366,7 +366,9 @@ def _node_summarize(state: State):
         responses = [m for m in state["messages"] if m.type == "ai" and m.content]
         messages = responses[:NUM_MESSAGES_TO_SUMMARIZE] + [HumanMessage(content=summary_message)]
         active_llm = target_llm or llm or get_chat_llm()
-        with span("llm", "summarize_call", model=GENERATION_MODEL, input_summary=f"{len(messages)} messages") as llm_span:
+        with span(
+            "llm", "summarize_call", model=GENERATION_MODEL, input_summary=f"{len(messages)} messages"
+        ) as llm_span:
             response = active_llm.invoke(messages)
             _record_llm_result(response, llm_span)
 

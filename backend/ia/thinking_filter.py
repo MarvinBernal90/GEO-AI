@@ -44,7 +44,7 @@ class ThinkingStripper:
                 start = self._buffer.find(OPEN_TAG)
                 if start >= 0:
                     self._emit(self._buffer[:start], out)
-                    self._buffer = self._buffer[start + len(OPEN_TAG):]
+                    self._buffer = self._buffer[start + len(OPEN_TAG) :]
                     self._inside = True
                     continue
                 keep = _partial_suffix_len(self._buffer, OPEN_TAG)
@@ -54,11 +54,11 @@ class ThinkingStripper:
                 break
             end = self._buffer.find(CLOSE_TAG)
             if end >= 0:
-                self._buffer = self._buffer[end + len(CLOSE_TAG):]
+                self._buffer = self._buffer[end + len(CLOSE_TAG) :]
                 self._inside = False
                 continue
             keep = _partial_suffix_len(self._buffer, CLOSE_TAG)
-            self._buffer = self._buffer[len(self._buffer) - keep:]
+            self._buffer = self._buffer[len(self._buffer) - keep :]
             break
         return "".join(out)
 

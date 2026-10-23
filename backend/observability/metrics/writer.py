@@ -82,7 +82,9 @@ def build_record(
         "thought_tokens": summary["thought_tokens"],
         "cost_usd": summary["cost_usd"],
         "llm_model": _cut(next((s.model for s in spans if s.actor == "llm" and s.model), None), 200),
-        "embedding_model": _cut(next((s.model for s in spans if s.name in _EMBEDDING_SPAN_NAMES and s.model), None), 200),
+        "embedding_model": _cut(
+            next((s.model for s in spans if s.name in _EMBEDDING_SPAN_NAMES and s.model), None), 200
+        ),
         "span_count": summary["span_count"],
         "dropped_spans": summary["dropped_spans"],
         "spans": [

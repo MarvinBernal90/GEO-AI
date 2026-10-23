@@ -92,9 +92,7 @@ class GeminiAsAnthropicAdapter:
             intentos_totales = MAX_REINTENTOS + 1
             for intento in range(1, intentos_totales + 1):
                 try:
-                    response = self._client.models.generate_content(
-                        model=model, contents=user_content, config=config
-                    )
+                    response = self._client.models.generate_content(model=model, contents=user_content, config=config)
                     break
                 except genai_errors.ServerError as exc:
                     if intento == intentos_totales:
