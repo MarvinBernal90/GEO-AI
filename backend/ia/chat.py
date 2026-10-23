@@ -388,7 +388,7 @@ def _request_stream(
 
         full_text = "".join(full_response)
         yield {"type": "done", "text": full_text}
-        with open(f"{REPO_ROOT}/chat_history/{thread}.txt", "a") as f:
+        with open(f"{REPO_ROOT}/chat_history/{thread.replace(':', '_')}.txt", "a") as f:
             f.write(f"USUARIO:\n{content}\n\n")  # saves user input to history
             f.write(f"ASISTENTE:\n{full_text}")  # saves assistant output input to history
     except Exception as exc:
@@ -409,7 +409,7 @@ def _request_invoke(
     state = active_graph.invoke({"messages": messages}, {"configurable": configurable})
     response = state["messages"][-1]
 
-    with open(f"{REPO_ROOT}/chat_history/{thread}.txt", "a") as f:
+    with open(f"{REPO_ROOT}/chat_history/{thread.replace(':', '_')}.txt", "a") as f:
         f.write(f"USUARIO:\n{content}\n\n")  # saves user input to history
         f.write(f"ASISTENTE:\n{response}")  # saves assistant output input to history
 
