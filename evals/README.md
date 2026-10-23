@@ -35,8 +35,9 @@ Needs the repo `.env` (DB and AWS settings), and `DB_HOST_OVERRIDE=localhost DB_
 if you do not run from inside Docker. Embeddings and model replies are cached in `evals/results/cache/`
 (gitignored), so a repeated run is free and gives identical numbers.
 
-Results land in `evals/results/runs/*.json` (committed: they are the evidence behind the dashboard).
-To serve them from a deployed API, mount that folder and set `EVALS_RESULTS_DIR`.
+Results land in `evals/results/runs/*.json`. They are **not committed** (each run is thousands of lines), so the
+dashboard is empty on a fresh clone until you run the evals above. Only the question sets and `holdout_log.jsonl`
+are in git. To serve results from a deployed API, mount that folder and set `EVALS_RESULTS_DIR`.
 
 ## The question sets (`evals/questions/*.jsonl`)
 

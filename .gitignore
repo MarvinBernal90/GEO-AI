@@ -77,8 +77,8 @@ chat_history/
 test-results/
 
 # --- RAG evals ---
-# Run results and corpus reports are the evidence behind the /evals dashboard, so they are kept
-# (the general *.json rule above would otherwise drop them). Caches and drafts are rebuilt on demand.
-!evals/results/**/*.json
-evals/results/cache/
-evals/results/drafts/
+# Everything the evals generate stays on your machine: model-reply caches, drafts, and the run results the
+# dashboard reads (each run file is thousands of lines). Re-create them with `python -m evals.run_eval`.
+# Committed on purpose: the question sets (evals/questions/) and holdout_log.jsonl, the small record of holdout use.
+evals/results/*
+!evals/results/holdout_log.jsonl
