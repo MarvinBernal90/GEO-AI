@@ -70,3 +70,8 @@ prueba_rag.py
 
 # Bundled district outlines used by the map
 !frontend/src/assets/distritos-bcn.json
+
+chat_history/
+
+# Local/test artifacts
+test-results/

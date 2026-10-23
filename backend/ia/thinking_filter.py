@@ -70,9 +70,3 @@ class ThinkingStripper:
         self._buffer = ""
         self._inside = False
         return "".join(out)
-
-
-def strip_thinking(text: str) -> str:
-    """One-shot version for non-streaming responses."""
-    stripper = ThinkingStripper()
-    return stripper.feed(text) + stripper.flush()

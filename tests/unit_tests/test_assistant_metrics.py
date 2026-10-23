@@ -71,7 +71,7 @@ def run_assistant(monkeypatch, tmp_path):
     """Run one question through the real graph and return the collector."""
     (tmp_path / "chat_history").mkdir()
     monkeypatch.setattr(chat, "REPO_ROOT", tmp_path)  # the history file goes to a temp folder
-    monkeypatch.setattr(chat, "target_llm_with_tools", _FakeLLM())
+    monkeypatch.setattr(chat, "llm_with_tools", _FakeLLM())
     monkeypatch.setattr(chat, "Session", lambda engine: _NullSession())
     monkeypatch.setattr(chat, "retrieve_relevant_chunks_with_rerank", lambda session, query: ["c1", "c2"])
     monkeypatch.setattr(chat, "build_context", lambda documents: "contexto normativo")

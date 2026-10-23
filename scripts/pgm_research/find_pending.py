@@ -46,7 +46,7 @@ def main():
     items = data["items"]
 
     # 1. Artículo 304 (referencia cruzada del 306)
-    # RAG Completeness: If Article 306 relies on rules defined in 304, 
+    # RAG Completeness: If Article 306 relies on rules defined in 304,
     # the AI will hallucinate if 304 is missing from the Vector Database.
     print("=" * 70)
     print("ARTÍCULO 304 (referencia cruzada citada en el 306)")

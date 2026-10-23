@@ -223,10 +223,6 @@ def init_writer(session_factory: Callable[[], Any], **kwargs: Any) -> MetricsWri
         return _writer
 
 
-def get_writer() -> MetricsWriter | None:
-    return _writer
-
-
 def shutdown_writer(timeout: float = 5.0) -> None:
     """Stop the process-wide writer, saving the pending records first."""
     global _writer

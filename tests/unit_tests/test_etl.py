@@ -15,7 +15,6 @@ import pytest
 
 from backend.etl.competitors import build_competitors, build_districts, build_neighborhoods, read_raw_census
 from backend.etl.income import _extract_district_number, _parse_spanish_number, build_district_income
-from backend.etl.mobility import build_district_mobility, read_raw_mobility
 
 
 class TestParseSpanishNumber:
@@ -105,44 +104,6 @@ class TestBuildDistrictIncome:
             build_district_income(empty_df)
 
 
-class TestBuildDistrictMobility:
-    def test_filters_barcelona_and_aggregates(self):
-        """Verifies spatial filtering (starts with 08019) and trip aggregation."""
-        raw_df = pd.DataFrame(
-            {
-                "fecha": [20251015, 20251015, 20251015, 20251015],
-                "destino": ["0801901", "0801901", "0801902", "01001"],  # Last row is outside BCN
-                "viajes": [100.0, 50.0, 30.0, 999.0],
-            }
-        )
-        result = build_district_mobility(raw_df)
-
-        district_1 = result[result["codi_districte"] == 1].iloc[0]
-        assert district_1["daily_foot_traffic"] == 150.0  # 100 + 50 (ignoring outside trips)
-
-        district_2 = result[result["codi_districte"] == 2].iloc[0]
-        assert district_2["daily_foot_traffic"] == 30.0
-
-    def test_raises_when_no_barcelona_rows(self):
-        raw_df = pd.DataFrame({"fecha": [20251015], "destino": ["01001"], "viajes": [10.0]})
-        with pytest.raises(ValueError):
-            build_district_mobility(raw_df)
-
-
-class TestReadRawMobility:
-    def test_preserves_leading_zero_in_destino(self, tmp_path):
-        """
-        Regression Test: Verifies the fix for the 'Lost Zero' bug.
-        The ETL MUST use `dtype=str` to prevent Pandas from casting '0801901' to '801901'.
-        """
-        csv_path = tmp_path / "mobility.csv"
-        csv_path.write_text("fecha|destino|viajes\n20251015|0801901|10.0\n", encoding="utf-8")
-
-        df = read_raw_mobility(csv_path)
-
-        assert df["destino"].iloc[0] == "0801901"
-
-
 class TestReadRawCensus:
     def test_strips_bom_from_first_column(self, tmp_path):
         """
@@ -195,6 +156,6 @@ class TestBuildCompetitors:
 
     def test_neighborhoods_derived_from_full_census(self):
         result = build_neighborhoods(self._raw_census_df())
-        # The 'Clothes' shop is in 'el Gotic'. Neighborhoods should be derived 
+        # The 'Clothes' shop is in 'el Gotic'. Neighborhoods should be derived
         # from the FULL census, not just the hospitality competitors.
         assert len(result) == 3

@@ -11,7 +11,6 @@ ensuring tests run quickly without a real PostgreSQL connection.
 
 from unittest.mock import MagicMock
 
-import pytest
 from fastapi.testclient import TestClient
 
 from backend.api.api import app
@@ -35,7 +34,7 @@ class FakeSessionConDatos:
         # If the SQL contains AVG, it's asking for the centroid (first query)
         if "AVG(" in sql:
             result.mappings.return_value.first.return_value = self._centro_row
-        # Otherwise, it's asking for the list of competitors (second query)    
+        # Otherwise, it's asking for the list of competitors (second query)
         else:
             result.mappings.return_value.all.return_value = self._filas
         return result
@@ -126,7 +125,7 @@ class TestListarCompetidoresPorRadio:
         assert body["modo"] == "radio"
         assert body["radio_metros"] == 500
         # In radius mode, the center must be the exact point provided, not an average
-        assert body["centro"] == {"lat": 41.38, "lng": 2.17}  
+        assert body["centro"] == {"lat": 41.38, "lng": 2.17}
         assert body["total"] == 3
 
     def test_regression_radio_count_independent_of_district_total(self):

@@ -31,7 +31,6 @@ Run: `python -m backend.api.main` or `uvicorn backend.api.api:app`. Interactive 
 | `GET /api/articles` | articles | Raw text of a legal article, by query params `fuente_legal` and `numero_articulo` |
 | `POST /api/login`, `GET /api/gethistory` | login, history | User check against `users`, list of conversations (distinct `thread_id` in the `checkpoints` table), history files from `chat_history/` |
 | `POST /api/logs` | logs | Browser log ingest. Public, so it is size-capped, rate-limited and sanitised |
-| `POST /api/etl/mitma`, `GET /api/etl/mitma/progress` | etl | Start the MITMA ETL as a background task and poll its progress |
 | `GET /health`, `/ready`, `/metrics` | api.py | Liveness, readiness (checks the DB) and a Prometheus-style counter. Not logged |
 
 ## Cross-cutting behaviour
