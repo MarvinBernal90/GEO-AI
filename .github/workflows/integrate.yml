@@ -141,3 +141,9 @@ jobs:
 
       - name: Check formatting
         run: ruff format --check backend
+
+      # Ruff and pytest only look at backend/ and the modules the tests import.
+      # Scripts nothing imports (database/, scripts/) could carry a syntax
+      # error and still pass, as database/load_general_law.py did.
+      - name: Check every Python file compiles
+        run: python -m compileall -q backend database scripts tests
