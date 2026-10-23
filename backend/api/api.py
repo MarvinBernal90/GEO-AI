@@ -41,6 +41,7 @@ from .routers import (
     history,
     login,
     logs,
+    rag_evals,
     reports,
     request_metrics,
 )
@@ -87,6 +88,7 @@ app.include_router(login.router)
 app.include_router(logs.router)
 app.include_router(history.router)
 app.include_router(request_metrics.router)
+app.include_router(rag_evals.router)
 
 # Probes are called every few seconds; logging them is paid-for noise.
 UNLOGGED_PATHS = frozenset({"/health", "/ready", "/metrics"})

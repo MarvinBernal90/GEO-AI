@@ -17,10 +17,12 @@ twin with the same numbers. The data comes from useMetrics().
 -->
 <script setup>
 import { computed, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import ChartCard from '../components/metrics/ChartCard.vue'
 import EChart from '../components/metrics/EChart.vue'
 import KpiCard from '../components/metrics/KpiCard.vue'
+import RagEvalsPanel from '../components/metrics/RagEvalsPanel.vue'
 import RequestDetail from '../components/metrics/RequestDetail.vue'
 import RequestsTable from '../components/metrics/RequestsTable.vue'
 import { PAGE_SIZE, RANGES, useMetrics } from '../composables/useMetrics.js'
@@ -66,6 +68,16 @@ const {
   setSort,
   goToOffset,
 } = useMetrics()
+
+// Two tabs share this page. The tab lives in the URL (?tab=rag) so a link opens straight on it.
+const route = useRoute()
+const router = useRouter()
+const tab = computed(() => (route.query.tab === 'rag' ? 'rag' : 'requests'))
+const TABS = [
+  { value: 'requests', label: 'Peticiones' },
+  { value: 'rag', label: 'Calidad RAG' },
+]
+const setTab = (value) => router.replace({ query: value === 'rag' ? { tab: 'rag' } : {} })
 
 const selectedId = ref(null)
 
@@ -514,14 +526,17 @@ const dimmed = computed(() => overviewLoading.value && overview.value)
           >
             ← Geo-Yield-AI
           </RouterLink>
-          <h1 class="font-display text-3xl font-semibold text-paper sm:text-4xl">Métricas de las peticiones</h1>
-          <p class="mt-2 max-w-2xl text-sm leading-relaxed text-paper/70">
+          <h1 class="font-display text-3xl font-semibold text-paper sm:text-4xl">Métricas</h1>
+          <p v-if="tab === 'requests'" class="mt-2 max-w-2xl text-sm leading-relaxed text-paper/70">
             Tiempo, tokens y coste de cada consulta al asistente y a los informes. Solo se guardan tamaños, recuentos y
             nombres de modelo, nunca lo que escribe el usuario.
           </p>
+          <p v-else class="mt-2 max-w-2xl text-sm leading-relaxed text-paper/70">
+            Qué tan bien responde el asistente legal, medido con preguntas de respuesta conocida.
+          </p>
         </div>
 
-        <div class="flex flex-wrap items-center gap-3 text-xs text-paper/60">
+        <div v-if="tab === 'requests'" class="flex flex-wrap items-center gap-3 text-xs text-paper/60">
           <span v-if="lastUpdated" class="tabular-nums">Actualizado {{ formatDateTime(lastUpdated) }}</span>
           <label class="flex cursor-pointer items-center gap-2">
             <input v-model="autoRefresh" type="checkbox" class="accent-brass" />
@@ -538,297 +553,325 @@ const dimmed = computed(() => overviewLoading.value && overview.value)
         </div>
       </header>
 
-      <!-- Filter row: the range scopes everything below -->
-      <div class="flex flex-wrap items-center gap-3" role="group" aria-label="Periodo">
-        <span class="text-xs tracking-wider text-paper/50 uppercase">Periodo</span>
-        <div class="inline-flex overflow-hidden rounded-lg border border-paper/20">
-          <button
-            v-for="r in RANGES"
-            :key="r.value"
-            type="button"
-            class="px-3.5 py-1.5 text-xs transition focus:ring-2 focus:ring-brass/50 focus:outline-none focus-visible:ring-inset"
-            :class="
-              range === r.value ? 'bg-brass text-ink font-semibold' : 'text-paper/70 hover:bg-paper/10 hover:text-paper'
-            "
-            :aria-pressed="range === r.value"
-            @click="setRange(r.value)"
-          >
-            {{ r.label }}
-          </button>
-        </div>
+      <!-- Tabs -->
+      <div class="flex gap-1 border-b border-paper/15" role="tablist" aria-label="Secciones de métricas">
+        <button
+          v-for="t in TABS"
+          :id="`tab-${t.value}`"
+          :key="t.value"
+          type="button"
+          role="tab"
+          class="-mb-px border-b-2 px-4 py-2 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/50 focus-visible:ring-inset"
+          :class="
+            tab === t.value
+              ? 'border-brass font-semibold text-paper'
+              : 'border-transparent text-paper/60 hover:border-paper/30 hover:text-paper'
+          "
+          :aria-selected="tab === t.value"
+          :aria-controls="`panel-${t.value}`"
+          @click="setTab(t.value)"
+        >
+          {{ t.label }}
+        </button>
       </div>
 
-      <!-- Notices -->
-      <p v-if="overviewError" class="rounded-lg border border-rojo/40 bg-rojo/10 px-4 py-3 text-sm" role="alert">
-        No se pudieron cargar las métricas: {{ overviewError }}
-        <button type="button" class="ml-2 underline hover:text-brass" @click="refresh">Reintentar</button>
-      </p>
-      <p
-        v-if="overview && !overview.metrics_enabled"
-        class="rounded-lg border border-ambar/40 bg-ambar/10 px-4 py-3 text-sm"
-        role="status"
-      >
-        La medición está desactivada en el servidor (METRICS_ENABLED). Solo verás los registros guardados antes.
-      </p>
-      <p
-        v-if="overview?.truncated"
-        class="rounded-lg border border-ambar/40 bg-ambar/10 px-4 py-3 text-sm"
-        role="status"
-      >
-        Hay más peticiones de las que se pueden resumir de una vez; se han usado las más recientes. Elige un periodo más
-        corto para ver todo.
-      </p>
+      <RagEvalsPanel v-if="tab === 'rag'" id="panel-rag" role="tabpanel" aria-labelledby="tab-rag" />
 
-      <p v-if="!overview && !overviewError" class="py-24 text-center text-sm text-paper/60">Cargando métricas…</p>
-
-      <template v-if="overview">
-        <p
-          v-if="!hasData"
-          class="rounded-xl border border-paper/15 bg-ink-light/50 px-6 py-8 text-center text-sm text-paper/70"
-        >
-          Aún no hay peticiones medidas en
-          {{ rangeLabel.toLowerCase() === 'todo' ? 'el historial' : `las últimas ${rangeLabel.toLowerCase()}` }}. Genera
-          un informe o escribe en el chat y vuelve a actualizar.
-        </p>
-
-        <!-- Everything below dims (not blanks) while a reload runs -->
-        <div
-          class="space-y-6 transition-opacity duration-200"
-          :class="{ 'opacity-60': dimmed }"
-          :aria-busy="overviewLoading"
-        >
-          <!-- KPI tiles -->
-          <section class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6" aria-label="Resumen">
-            <KpiCard
-              v-for="t in tiles"
-              :key="t.key"
-              :label="t.label"
-              :value="t.value"
-              :hint="t.hint"
-              :trend="t.trend"
-              :tone="t.tone"
-              :color="t.color"
-            />
-          </section>
-
-          <!-- Traffic -->
-          <ChartCard
-            :title="`Peticiones por ${bucketWord}`"
-            subtitle="Volumen y peticiones con error"
-            :empty="!hasData"
-            :table="trafficTable"
-          >
-            <EChart :option="trafficOption" height="280px" label="Peticiones y errores a lo largo del tiempo" />
-          </ChartCard>
-
-          <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <ChartCard
-              title="Latencia en el tiempo"
-              subtitle="Duración total de la petición: media y percentil 95"
-              :empty="!hasData"
-              :table="latencyTable"
+      <template v-else>
+        <!-- Filter row: the range scopes everything below -->
+        <div class="flex flex-wrap items-center gap-3" role="group" aria-label="Periodo">
+          <span class="text-xs tracking-wider text-paper/50 uppercase">Periodo</span>
+          <div class="inline-flex overflow-hidden rounded-lg border border-paper/20">
+            <button
+              v-for="r in RANGES"
+              :key="r.value"
+              type="button"
+              class="px-3.5 py-1.5 text-xs transition focus:ring-2 focus:ring-brass/50 focus:outline-none focus-visible:ring-inset"
+              :class="
+                range === r.value
+                  ? 'bg-brass text-ink font-semibold'
+                  : 'text-paper/70 hover:bg-paper/10 hover:text-paper'
+              "
+              :aria-pressed="range === r.value"
+              @click="setRange(r.value)"
             >
-              <EChart :option="latencyOption" label="Latencia media y p95 a lo largo del tiempo" />
-            </ChartCard>
-
-            <ChartCard
-              title="Distribución de la latencia"
-              subtitle="Cuántas peticiones caen en cada tramo de duración"
-              :empty="!hasData"
-              :table="histogramTable"
-            >
-              <EChart :option="histogramOption" label="Histograma de la latencia" />
-            </ChartCard>
-
-            <ChartCard
-              title="Tokens"
-              :subtitle="`Entrada y salida por ${bucketWord}`"
-              :empty="!hasData"
-              :table="tokensTable"
-            >
-              <EChart :option="tokensOption" label="Tokens de entrada y salida a lo largo del tiempo" />
-            </ChartCard>
-
-            <ChartCard
-              title="Coste"
-              :subtitle="`Gasto estimado por ${bucketWord}. Solo cuenta las peticiones con tarifa`"
-              :empty="!hasData"
-              :table="costTable"
-            >
-              <EChart :option="costOption" label="Coste a lo largo del tiempo" />
-            </ChartCard>
-
-            <ChartCard
-              title="Tiempo medio por actor"
-              subtitle="Agente, LLM, RAG, base de datos y servicios externos"
-              :empty="!actors.length"
-              :table="actorTable"
-            >
-              <EChart
-                :option="actorOption"
-                :height="`${Math.max(180, actors.length * 44 + 16)}px`"
-                label="Duración media por actor"
-              />
-            </ChartCard>
-
-            <ChartCard
-              title="Pasos que más tiempo acumulan"
-              subtitle="Suma de la duración de cada paso. Un paso puede contener a otros"
-              :empty="!spans.length"
-              :table="spansTable"
-            >
-              <EChart
-                :option="spansOption"
-                :height="`${Math.max(180, spans.length * 32 + 16)}px`"
-                label="Pasos con más tiempo acumulado"
-              />
-            </ChartCard>
-
-            <!-- Health: two meters -->
-            <ChartCard
-              title="Estado de las peticiones"
-              subtitle="Reparto entre correctas, con error y canceladas"
-              :empty="!hasData"
-            >
-              <div
-                class="flex h-3 gap-[2px] overflow-hidden rounded"
-                role="img"
-                :aria-label="statusBar.map((s) => `${s.label}: ${s.count}`).join(', ')"
-              >
-                <span
-                  v-for="s in statusBar"
-                  :key="s.key"
-                  class="h-full rounded-sm"
-                  :style="{ width: `${s.share}%`, backgroundColor: s.color }"
-                  :title="`${s.label}: ${formatNumber(s.count)} (${formatPercent(s.share / 100)})`"
-                />
-              </div>
-              <ul class="mt-4 space-y-2 text-sm">
-                <li v-for="s in statusBar" :key="s.key" class="flex items-center gap-2">
-                  <span class="h-2.5 w-2.5 rounded-full" :style="{ backgroundColor: s.color }" />
-                  <span class="text-paper/80">{{ s.label }}</span>
-                  <span class="ml-auto font-semibold tabular-nums">{{ formatNumber(s.count) }}</span>
-                  <span class="w-16 text-right text-xs text-paper/50 tabular-nums">{{
-                    formatPercent(s.share / 100)
-                  }}</span>
-                </li>
-              </ul>
-
-              <div class="mt-6 border-t border-paper/10 pt-4">
-                <p class="text-xs text-paper/60">Aciertos de caché (pasos que informan si la usaron)</p>
-                <div class="mt-2 flex items-center gap-3">
-                  <div
-                    class="h-2 flex-1 overflow-hidden rounded bg-paper/10"
-                    role="meter"
-                    :aria-valuenow="cache.hits"
-                    aria-valuemin="0"
-                    :aria-valuemax="cache.total"
-                  >
-                    <div
-                      class="h-full rounded"
-                      :style="{ width: `${(cacheRate ?? 0) * 100}%`, backgroundColor: COLORS.cache }"
-                    />
-                  </div>
-                  <span class="w-14 text-right text-sm font-semibold tabular-nums">{{
-                    formatPercent(cacheRate, 0)
-                  }}</span>
-                </div>
-                <p class="mt-1 text-[11px] text-paper/50 tabular-nums">
-                  {{ formatNumber(cache.hits) }} de {{ formatNumber(cache.total) }}
-                </p>
-              </div>
-            </ChartCard>
-
-            <ChartCard
-              title="Errores más frecuentes"
-              subtitle="Clase de la excepción en los pasos que fallaron"
-              :empty="!errors.length"
-              empty-text="Ningún paso ha fallado en este periodo."
-              :table="errorsTable"
-            >
-              <EChart
-                :option="errorsOption"
-                :height="`${Math.max(160, errors.length * 40 + 16)}px`"
-                label="Errores más frecuentes"
-              />
-            </ChartCard>
-          </div>
-
-          <!-- Breakdown tables -->
-          <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
-            <ChartCard title="Por ruta" subtitle="Qué endpoints se usan más y cuáles tardan" :empty="!hasData">
-              <div class="overflow-x-auto">
-                <table class="w-full min-w-[34rem] text-left text-xs">
-                  <thead class="text-paper/60">
-                    <tr class="border-b border-paper/15">
-                      <th scope="col" class="px-2 py-1.5 font-medium">Ruta</th>
-                      <th scope="col" class="px-2 py-1.5 text-right font-medium">Peticiones</th>
-                      <th scope="col" class="px-2 py-1.5 text-right font-medium">Errores</th>
-                      <th scope="col" class="px-2 py-1.5 text-right font-medium">Media</th>
-                      <th scope="col" class="px-2 py-1.5 text-right font-medium">p95</th>
-                      <th scope="col" class="px-2 py-1.5 text-right font-medium">Coste</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="r in overview.by_route" :key="r.route" class="border-b border-paper/10">
-                      <td class="px-2 py-1.5 font-mono text-[11px] text-paper/90">{{ r.route }}</td>
-                      <td class="px-2 py-1.5 text-right tabular-nums">{{ formatNumber(r.requests) }}</td>
-                      <td class="px-2 py-1.5 text-right tabular-nums">{{ formatNumber(r.errors) }}</td>
-                      <td class="px-2 py-1.5 text-right tabular-nums">{{ formatMs(r.avg_ms) }}</td>
-                      <td class="px-2 py-1.5 text-right tabular-nums">{{ formatMs(r.p95_ms) }}</td>
-                      <td class="px-2 py-1.5 text-right tabular-nums">{{ groupCost(r) }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </ChartCard>
-
-            <ChartCard title="Por modelo" subtitle="Uso y gasto de cada modelo de lenguaje" :empty="!hasData">
-              <div class="overflow-x-auto">
-                <table class="w-full min-w-[34rem] text-left text-xs">
-                  <thead class="text-paper/60">
-                    <tr class="border-b border-paper/15">
-                      <th scope="col" class="px-2 py-1.5 font-medium">Modelo</th>
-                      <th scope="col" class="px-2 py-1.5 text-right font-medium">Peticiones</th>
-                      <th scope="col" class="px-2 py-1.5 text-right font-medium">Tokens ent.</th>
-                      <th scope="col" class="px-2 py-1.5 text-right font-medium">Tokens sal.</th>
-                      <th scope="col" class="px-2 py-1.5 text-right font-medium">Media</th>
-                      <th scope="col" class="px-2 py-1.5 text-right font-medium">Coste</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="m in overview.by_model" :key="m.model" class="border-b border-paper/10">
-                      <td class="max-w-[14rem] truncate px-2 py-1.5 text-paper/90" :title="m.model">
-                        {{ m.model === 'unknown' ? 'Sin modelo' : m.model }}
-                      </td>
-                      <td class="px-2 py-1.5 text-right tabular-nums">{{ formatNumber(m.requests) }}</td>
-                      <td class="px-2 py-1.5 text-right tabular-nums">{{ formatNumber(m.tokens_in) }}</td>
-                      <td class="px-2 py-1.5 text-right tabular-nums">{{ formatNumber(m.tokens_out) }}</td>
-                      <td class="px-2 py-1.5 text-right tabular-nums">{{ formatMs(m.avg_ms) }}</td>
-                      <td class="px-2 py-1.5 text-right tabular-nums">{{ groupCost(m) }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </ChartCard>
+              {{ r.label }}
+            </button>
           </div>
         </div>
 
-        <!-- Records -->
-        <RequestsTable
-          :page="page"
-          :loading="pageLoading"
-          :error="pageError"
-          :filters="filters"
-          :routes="routeOptions"
-          :models="modelOptions"
-          :eur-per-usd="rate"
-          :page-size="PAGE_SIZE"
-          @set-filter="setFilter"
-          @sort="setSort"
-          @offset="goToOffset"
-          @select="selectedId = $event.id"
-        />
+        <!-- Notices -->
+        <p v-if="overviewError" class="rounded-lg border border-rojo/40 bg-rojo/10 px-4 py-3 text-sm" role="alert">
+          No se pudieron cargar las métricas: {{ overviewError }}
+          <button type="button" class="ml-2 underline hover:text-brass" @click="refresh">Reintentar</button>
+        </p>
+        <p
+          v-if="overview && !overview.metrics_enabled"
+          class="rounded-lg border border-ambar/40 bg-ambar/10 px-4 py-3 text-sm"
+          role="status"
+        >
+          La medición está desactivada en el servidor (METRICS_ENABLED). Solo verás los registros guardados antes.
+        </p>
+        <p
+          v-if="overview?.truncated"
+          class="rounded-lg border border-ambar/40 bg-ambar/10 px-4 py-3 text-sm"
+          role="status"
+        >
+          Hay más peticiones de las que se pueden resumir de una vez; se han usado las más recientes. Elige un periodo
+          más corto para ver todo.
+        </p>
+
+        <p v-if="!overview && !overviewError" class="py-24 text-center text-sm text-paper/60">Cargando métricas…</p>
+
+        <template v-if="overview">
+          <p
+            v-if="!hasData"
+            class="rounded-xl border border-paper/15 bg-ink-light/50 px-6 py-8 text-center text-sm text-paper/70"
+          >
+            Aún no hay peticiones medidas en
+            {{ rangeLabel.toLowerCase() === 'todo' ? 'el historial' : `las últimas ${rangeLabel.toLowerCase()}` }}.
+            Genera un informe o escribe en el chat y vuelve a actualizar.
+          </p>
+
+          <!-- Everything below dims (not blanks) while a reload runs -->
+          <div
+            class="space-y-6 transition-opacity duration-200"
+            :class="{ 'opacity-60': dimmed }"
+            :aria-busy="overviewLoading"
+          >
+            <!-- KPI tiles -->
+            <section class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6" aria-label="Resumen">
+              <KpiCard
+                v-for="t in tiles"
+                :key="t.key"
+                :label="t.label"
+                :value="t.value"
+                :hint="t.hint"
+                :trend="t.trend"
+                :tone="t.tone"
+                :color="t.color"
+              />
+            </section>
+
+            <!-- Traffic -->
+            <ChartCard
+              :title="`Peticiones por ${bucketWord}`"
+              subtitle="Volumen y peticiones con error"
+              :empty="!hasData"
+              :table="trafficTable"
+            >
+              <EChart :option="trafficOption" height="280px" label="Peticiones y errores a lo largo del tiempo" />
+            </ChartCard>
+
+            <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <ChartCard
+                title="Latencia en el tiempo"
+                subtitle="Duración total de la petición: media y percentil 95"
+                :empty="!hasData"
+                :table="latencyTable"
+              >
+                <EChart :option="latencyOption" label="Latencia media y p95 a lo largo del tiempo" />
+              </ChartCard>
+
+              <ChartCard
+                title="Distribución de la latencia"
+                subtitle="Cuántas peticiones caen en cada tramo de duración"
+                :empty="!hasData"
+                :table="histogramTable"
+              >
+                <EChart :option="histogramOption" label="Histograma de la latencia" />
+              </ChartCard>
+
+              <ChartCard
+                title="Tokens"
+                :subtitle="`Entrada y salida por ${bucketWord}`"
+                :empty="!hasData"
+                :table="tokensTable"
+              >
+                <EChart :option="tokensOption" label="Tokens de entrada y salida a lo largo del tiempo" />
+              </ChartCard>
+
+              <ChartCard
+                title="Coste"
+                :subtitle="`Gasto estimado por ${bucketWord}. Solo cuenta las peticiones con tarifa`"
+                :empty="!hasData"
+                :table="costTable"
+              >
+                <EChart :option="costOption" label="Coste a lo largo del tiempo" />
+              </ChartCard>
+
+              <ChartCard
+                title="Tiempo medio por actor"
+                subtitle="Agente, LLM, RAG, base de datos y servicios externos"
+                :empty="!actors.length"
+                :table="actorTable"
+              >
+                <EChart
+                  :option="actorOption"
+                  :height="`${Math.max(180, actors.length * 44 + 16)}px`"
+                  label="Duración media por actor"
+                />
+              </ChartCard>
+
+              <ChartCard
+                title="Pasos que más tiempo acumulan"
+                subtitle="Suma de la duración de cada paso. Un paso puede contener a otros"
+                :empty="!spans.length"
+                :table="spansTable"
+              >
+                <EChart
+                  :option="spansOption"
+                  :height="`${Math.max(180, spans.length * 32 + 16)}px`"
+                  label="Pasos con más tiempo acumulado"
+                />
+              </ChartCard>
+
+              <!-- Health: two meters -->
+              <ChartCard
+                title="Estado de las peticiones"
+                subtitle="Reparto entre correctas, con error y canceladas"
+                :empty="!hasData"
+              >
+                <div
+                  class="flex h-3 gap-[2px] overflow-hidden rounded"
+                  role="img"
+                  :aria-label="statusBar.map((s) => `${s.label}: ${s.count}`).join(', ')"
+                >
+                  <span
+                    v-for="s in statusBar"
+                    :key="s.key"
+                    class="h-full rounded-sm"
+                    :style="{ width: `${s.share}%`, backgroundColor: s.color }"
+                    :title="`${s.label}: ${formatNumber(s.count)} (${formatPercent(s.share / 100)})`"
+                  />
+                </div>
+                <ul class="mt-4 space-y-2 text-sm">
+                  <li v-for="s in statusBar" :key="s.key" class="flex items-center gap-2">
+                    <span class="h-2.5 w-2.5 rounded-full" :style="{ backgroundColor: s.color }" />
+                    <span class="text-paper/80">{{ s.label }}</span>
+                    <span class="ml-auto font-semibold tabular-nums">{{ formatNumber(s.count) }}</span>
+                    <span class="w-16 text-right text-xs text-paper/50 tabular-nums">{{
+                      formatPercent(s.share / 100)
+                    }}</span>
+                  </li>
+                </ul>
+
+                <div class="mt-6 border-t border-paper/10 pt-4">
+                  <p class="text-xs text-paper/60">Aciertos de caché (pasos que informan si la usaron)</p>
+                  <div class="mt-2 flex items-center gap-3">
+                    <div
+                      class="h-2 flex-1 overflow-hidden rounded bg-paper/10"
+                      role="meter"
+                      :aria-valuenow="cache.hits"
+                      aria-valuemin="0"
+                      :aria-valuemax="cache.total"
+                    >
+                      <div
+                        class="h-full rounded"
+                        :style="{ width: `${(cacheRate ?? 0) * 100}%`, backgroundColor: COLORS.cache }"
+                      />
+                    </div>
+                    <span class="w-14 text-right text-sm font-semibold tabular-nums">{{
+                      formatPercent(cacheRate, 0)
+                    }}</span>
+                  </div>
+                  <p class="mt-1 text-[11px] text-paper/50 tabular-nums">
+                    {{ formatNumber(cache.hits) }} de {{ formatNumber(cache.total) }}
+                  </p>
+                </div>
+              </ChartCard>
+
+              <ChartCard
+                title="Errores más frecuentes"
+                subtitle="Clase de la excepción en los pasos que fallaron"
+                :empty="!errors.length"
+                empty-text="Ningún paso ha fallado en este periodo."
+                :table="errorsTable"
+              >
+                <EChart
+                  :option="errorsOption"
+                  :height="`${Math.max(160, errors.length * 40 + 16)}px`"
+                  label="Errores más frecuentes"
+                />
+              </ChartCard>
+            </div>
+
+            <!-- Breakdown tables -->
+            <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
+              <ChartCard title="Por ruta" subtitle="Qué endpoints se usan más y cuáles tardan" :empty="!hasData">
+                <div class="overflow-x-auto">
+                  <table class="w-full min-w-[34rem] text-left text-xs">
+                    <thead class="text-paper/60">
+                      <tr class="border-b border-paper/15">
+                        <th scope="col" class="px-2 py-1.5 font-medium">Ruta</th>
+                        <th scope="col" class="px-2 py-1.5 text-right font-medium">Peticiones</th>
+                        <th scope="col" class="px-2 py-1.5 text-right font-medium">Errores</th>
+                        <th scope="col" class="px-2 py-1.5 text-right font-medium">Media</th>
+                        <th scope="col" class="px-2 py-1.5 text-right font-medium">p95</th>
+                        <th scope="col" class="px-2 py-1.5 text-right font-medium">Coste</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="r in overview.by_route" :key="r.route" class="border-b border-paper/10">
+                        <td class="px-2 py-1.5 font-mono text-[11px] text-paper/90">{{ r.route }}</td>
+                        <td class="px-2 py-1.5 text-right tabular-nums">{{ formatNumber(r.requests) }}</td>
+                        <td class="px-2 py-1.5 text-right tabular-nums">{{ formatNumber(r.errors) }}</td>
+                        <td class="px-2 py-1.5 text-right tabular-nums">{{ formatMs(r.avg_ms) }}</td>
+                        <td class="px-2 py-1.5 text-right tabular-nums">{{ formatMs(r.p95_ms) }}</td>
+                        <td class="px-2 py-1.5 text-right tabular-nums">{{ groupCost(r) }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </ChartCard>
+
+              <ChartCard title="Por modelo" subtitle="Uso y gasto de cada modelo de lenguaje" :empty="!hasData">
+                <div class="overflow-x-auto">
+                  <table class="w-full min-w-[34rem] text-left text-xs">
+                    <thead class="text-paper/60">
+                      <tr class="border-b border-paper/15">
+                        <th scope="col" class="px-2 py-1.5 font-medium">Modelo</th>
+                        <th scope="col" class="px-2 py-1.5 text-right font-medium">Peticiones</th>
+                        <th scope="col" class="px-2 py-1.5 text-right font-medium">Tokens ent.</th>
+                        <th scope="col" class="px-2 py-1.5 text-right font-medium">Tokens sal.</th>
+                        <th scope="col" class="px-2 py-1.5 text-right font-medium">Media</th>
+                        <th scope="col" class="px-2 py-1.5 text-right font-medium">Coste</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="m in overview.by_model" :key="m.model" class="border-b border-paper/10">
+                        <td class="max-w-[14rem] truncate px-2 py-1.5 text-paper/90" :title="m.model">
+                          {{ m.model === 'unknown' ? 'Sin modelo' : m.model }}
+                        </td>
+                        <td class="px-2 py-1.5 text-right tabular-nums">{{ formatNumber(m.requests) }}</td>
+                        <td class="px-2 py-1.5 text-right tabular-nums">{{ formatNumber(m.tokens_in) }}</td>
+                        <td class="px-2 py-1.5 text-right tabular-nums">{{ formatNumber(m.tokens_out) }}</td>
+                        <td class="px-2 py-1.5 text-right tabular-nums">{{ formatMs(m.avg_ms) }}</td>
+                        <td class="px-2 py-1.5 text-right tabular-nums">{{ groupCost(m) }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </ChartCard>
+            </div>
+          </div>
+
+          <!-- Records -->
+          <RequestsTable
+            :page="page"
+            :loading="pageLoading"
+            :error="pageError"
+            :filters="filters"
+            :routes="routeOptions"
+            :models="modelOptions"
+            :eur-per-usd="rate"
+            :page-size="PAGE_SIZE"
+            @set-filter="setFilter"
+            @sort="setSort"
+            @offset="goToOffset"
+            @select="selectedId = $event.id"
+          />
+        </template>
       </template>
     </div>
 
