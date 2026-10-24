@@ -52,6 +52,7 @@ jobs:
               "su - ubuntu -c \"cd /home/ubuntu/Geo-Yield-AI && git fetch origin develop && git checkout develop && git reset --hard origin/develop\"",
               "docker compose --env-file .env -f deployment/docker-compose.yml up -d --build",
               "docker exec geoyield_api python -m alembic -c database/alembic.ini upgrade head",
+              "for i in $(seq 1 15); do curl -sf http://localhost:8080/health && break || sleep 2; done",
               "curl -sf http://localhost:8080/health"
             ]' \
             --query "Command.CommandId" \
