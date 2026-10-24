@@ -24,17 +24,23 @@ Metrics: the LLM calls and the tools are measured with spans (time, tokens, step
 Spans only keep sizes and tool names, never the text of the user.
 """
 
+import sys
+
+sys.path.insert(0, "/home/claud/pontia/PJ")
+
 import logging
 import os
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, RemoveMessage, SystemMessage
 from langgraph.checkpoint.postgres import PostgresSaver
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
@@ -158,6 +164,44 @@ def _record_llm_result(response: Any, current_span: Any) -> None:
 
 
 #### TOOLS DEFINITION
+
+# A tf-idf matrix with official street names is created. It will be used to get proper street names to feet to NOMINATIUM service, which translates direction to coordinates
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+STREETS_LIST = list(pd.read_csv(PROJECT_ROOT / "data" / "raw" / "nomenclator.csv")["nom_oficial"])
+TFIDF_VECTORIZER = TfidfVectorizer(
+    lowercase=True,
+    strip_accents="unicode",
+    ngram_range=(
+        1,
+        4,
+    ),  # por jemplo Carrer es siempre relevante como parte de un digrama. Haty nombre largos. Se ha probado que con este setting se ontienen buenos resultados
+    token_pattern=r"(?u)\b\w+\b",  # para que tenga en cuenta las palabras de una sola letra, como F en Carrer F
+    use_idf=False,  # Aunaque Carrer o Plaça son términos muy comunes, son totalmente relevantes, para distinguir Carrer de l'Àngel de Plça de l'Àngel, por ejemplo
+)
+TFIDF_MATRIX = TFIDF_VECTORIZER.fit_transform(STREETS_LIST)
+SENSITIVITY = 0.1
+
+
+def find_in_nomenclator(address: str) -> dict[list]:
+    """
+    Args:
+        address: a string indicating an address or part of it
+
+    Returns a list with the first ranked official addresses matching string up to a score distance less than SENSITIVITY (a global constant) from the first
+
+    """
+    query = TFIDF_VECTORIZER.transform([address])
+    dp = (TFIDF_MATRIX @ query.T).toarray().ravel()
+    ranking = sorted(zip(STREETS_LIST, dp, strict=True), key=lambda x: x[1], reverse=True)
+    res = []
+    max_score = ranking[0][1]
+    for doc, score in ranking:
+        res.append(doc)
+        if max_score - score > SENSITIVITY:
+            break
+    return {"match": res}
+
+
 def get_opportunity_score(direccion: str) -> dict[str, Any]:
     """
     Returns a score for an address in the city of Barcelona.
@@ -174,9 +218,6 @@ def get_opportunity_score(direccion: str) -> dict[str, Any]:
         with span("external", "geocode_address", input_summary=f"{len(str(direccion))} chars"):
             res = geocodificar_direccion(direccion)
             set_output("found" if res else "not found")
-
-        if res is None:
-            return {"datos_distrito": None}
 
         with span("db", "district_scorecard_query"):
             with Session(engine) as session:
@@ -240,7 +281,7 @@ def _extract_text_content(content: Any) -> str:
 
 
 #### TOOL BINDING & LLM INITIALIZATION
-tools = [get_opportunity_score, regulations_query]
+tools = [find_in_nomenclator, get_opportunity_score, regulations_query]
 try:
     llm = get_chat_llm()
     llm_with_tools = llm.bind_tools(tools)
@@ -253,15 +294,21 @@ except Exception as exc:
 sys_msg = SystemMessage(
     content="""Eres un asistente experto en hostelería y restauración, especializado en la ciudad de Barcelona.
 Tu tarea es proporcionar información sobre aspectos regulatorios y legales relacionados con la apertura de negocios en esta ciudad y un opportunity_score, si se te pide.
-Dispones de dos herramientas para ayudarte en tu tarea:
-1. get_opportunity_score: devuelve un score a partir de una dirección en la ciudad de Barcelona.
-2. regulations_query: Esta herramienta te permite obtener información sobre aspectos regulatorios y legales relacionados con la apertura de negocios en Barcelona.
+Dispones de tres herramientas para ayudarte en tu tarea:
+1. find_in_nomenclator: devuelve una lista de direcciones oficiales que se corresponden a una direccion indicada como input
+2. get_opportunity_score: devuelve un score a partir de una dirección en la ciudad de Barcelona.
+3. regulations_query: Esta herramienta te permite obtener información sobre aspectos regulatorios y legales relacionados con la apertura de negocios en Barcelona.
+Cuando identifiques una dirección en el prompt de usuario, usa find_in_nomenclator:
+    - Si no devuelve ninguna, responde al usuario diciéndole que no se ha encontrado esa dirección en Barcelona
+    - Si devuelve más de una, responde con la lista y que debe escoger una
+    - Si devuelve una, segue adelante evaluando la necesidad de usar el resto de herramientas para responder al usuario
 Cuando respondas a las consultas de los usuarios, asegúrate de proporcionar información precisa y relevante, y de citar las fuentes de información cuando sea posible.
 Usa solamente datos que te proporcionen las herrmientas, de ningún otro lugar.
-Lista las fuentes.
+Lista las fuentes. Sé específico en cuales son.
 Si no eres capaz dem responder a la petición del usuario con la información disponible, dilo claramente.
 Responde siempre en español, aunque el usuario escriba en otro idioma.
 No escribas tu razonamiento interno ni uses etiquetas como <thinking>: escribe solo la respuesta final para el usuario.
+No admitas preguntas fuera del ámbito de de tu expertise
 """
 )
 
@@ -466,18 +513,18 @@ if __name__ == "__main__":
         print()
 
     _print_stream(
-        "cuáles son los horarios de apertura para una cafetería?",
-        "claudiberenguer:5",
+        "qué viabilidad tiene abrir un bar en Ronda del Port?",
+        "claudiberenguer:26",
     )
-    _print_stream(
+    """ _print_stream(
         "y para un bar musical?",
-        "claudiberenguer:5",
+        "claudiberenguer:15",
     )
     _print_stream(
         "hay algún tipo de normativa específica para bar musical?",
-        "claudiberenguer:5",
+        "claudiberenguer:15",
     )
     _print_stream(
         "dime cuanto serían las tasas para una terraza de 15m2 en calle Creucoberta",
-        "claudiberenguer:5",
-    )
+        "claudiberenguer:15",
+    ) """
