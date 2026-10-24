@@ -22,28 +22,29 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends poppler-utils && rm -rf /var/lib/apt/lists/*
 
 # ------------------------------------------------------------------------------
+# OPTIMIZACIÓN DE PESO Y ESPACIO EN DISCO (PyTorch CPU-Only)
+# ------------------------------------------------------------------------------
+# sentence-transformers requiere 'torch'. Por defecto en Linux, pip descarga la 
+# versión de PyTorch con soporte completo NVIDIA CUDA / cuDNN / Triton (más de 5 GB).
+# En servidores e instancias EC2 sin GPU (CPU-only), esto satura el disco duro y 
+# ralentiza el build. Instalando explícitamente la rueda oficial CPU de PyTorch, 
+# el paquete pasa de 5.500 MB a apenas 180 MB (un 97% menos).
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+
+# ------------------------------------------------------------------------------
 # ESTRATEGIA DE CACHÉ DE CAPAS (Layer Caching)
 # ------------------------------------------------------------------------------
-# En lugar de copiar toda la carpeta "backend" de golpe, primero copiamos 
-# SOLO el archivo de dependencias (requirements.txt). 
-# ¿Por qué? Si hacemos un cambio en el código fuente (ej. en api.py) pero no 
-# añadimos librerías nuevas, Docker usará la memoria caché en este paso y NO 
-# volverá a descargar todos los paquetes de internet. Esto reduce el tiempo 
-# de compilación de varios minutos a apenas un par de segundos.
 COPY backend/requirements.txt ./backend/requirements.txt
 
-# Instalamos las librerías. Usamos --no-cache-dir para borrar el instalador 
-# de pip y no desperdiciar megabytes en el contenedor final.
+# Instalamos las librerías restantes.
 RUN pip install --no-cache-dir -r backend/requirements.txt
 
-# Una vez instaladas las dependencias, ahora sí copiamos el resto de nuestro código.
+# Una vez instaladas las dependencias, copiamos el resto del código fuente.
 COPY backend/ ./backend/
 COPY database/ ./database/
 COPY scripts/ ./scripts/
 
 # Documentamos que internamente nuestra API trabaja por el puerto 8000.
-# (Esto no lo publica al exterior por sí solo, es solo informativo. La publicación 
-# real se hace en el docker-compose.yml mapeando 8080:8000).
 EXPOSE 8000
 
 # Lanzamos el servidor usando nuestro entrypoint principal (main.py).
