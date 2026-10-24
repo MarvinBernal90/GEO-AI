@@ -37,6 +37,7 @@ from .routers import (
     assistant,
     chat,
     competitors,
+    etl,
     geocoding,
     history,
     login,
@@ -89,6 +90,7 @@ app.include_router(logs.router)
 app.include_router(history.router)
 app.include_router(request_metrics.router)
 app.include_router(rag_evals.router)
+app.include_router(etl.router)
 
 # Probes are called every few seconds; logging them is paid-for noise.
 UNLOGGED_PATHS = frozenset({"/health", "/ready", "/metrics"})
