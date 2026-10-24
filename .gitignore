@@ -82,3 +82,7 @@ test-results/
 # Committed on purpose: the question sets (evals/questions/) and holdout_log.jsonl, the small record of holdout use.
 evals/results/*
 !evals/results/holdout_log.jsonl
+
+
+# AWS info
+!aws/bedrock/*.json
