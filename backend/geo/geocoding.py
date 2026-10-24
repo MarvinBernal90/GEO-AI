@@ -19,6 +19,7 @@ import re
 
 import requests
 
+from backend.cache.redis_client import TTL_GEOCODING_SECONDS, cache_get_json, cache_set_json, make_cache_key
 from backend.observability import get_logger
 
 logger = get_logger("geo.geocoding")
@@ -88,6 +89,11 @@ def geocodificar_direccion(direccion: str) -> dict | None:
 
     Returns None if the network request fails or yields no results.
     """
+    cache_key = make_cache_key("nominatim", direccion)
+    cached = cache_get_json(cache_key)
+    if cached is not None:
+        return cached
+
     params = {
         "q": direccion,
         "format": "jsonv2",
@@ -113,9 +119,11 @@ def geocodificar_direccion(direccion: str) -> dict | None:
     # Fallback cascade to extract the most relevant localized neighborhood data
     suburb = address.get("city_district") or address.get("suburb") or address.get("borough")
 
-    return {
+    payload = {
         "lat": float(resultado["lat"]),
         "lon": float(resultado["lon"]),
         "direccion_encontrada": resultado.get("display_name", ""),
         "codi_districte": resolver_distrito_desde_suburb(suburb),
     }
+    cache_set_json(cache_key, payload, TTL_GEOCODING_SECONDS)
+    return payload

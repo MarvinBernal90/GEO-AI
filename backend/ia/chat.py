@@ -38,6 +38,7 @@ from langgraph.prebuilt import ToolNode, tools_condition
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
+from backend.cache import TTL_DISTRICT_SECONDS, TTL_RAG_SECONDS, cache_get_json, cache_set_json, make_cache_key
 from backend.db.connection import resolve_database_url
 from backend.geo.geocoding import geocodificar_direccion
 from backend.ia.chat_history import append_history
@@ -179,6 +180,12 @@ def get_opportunity_score(direccion: str) -> dict[str, Any]:
             return {"datos_distrito": None}
 
         with span("db", "district_scorecard_query"):
+            cache_key = make_cache_key("chat_district_scorecard", res["codi_districte"])
+            cached_row = cache_get_json(cache_key)
+            if cached_row is not None:
+                set_output("district found (redis cache hit)")
+                return {"datos_distrito": cached_row}
+
             with Session(engine) as session:
                 row = (
                     session.execute(
@@ -200,7 +207,9 @@ def get_opportunity_score(direccion: str) -> dict[str, Any]:
             logger.warning("No hay datos en district_scorecard para el distrito %s", res["codi_districte"])
             return {"datos_distrito": None}
 
-        return {"datos_distrito": dict(row)}
+        datos_dict = dict(row)
+        cache_set_json(cache_key, datos_dict, TTL_DISTRICT_SECONDS)
+        return {"datos_distrito": datos_dict}
 
 
 def regulations_query(query: str) -> str:
@@ -214,10 +223,18 @@ def regulations_query(query: str) -> str:
         str: Built regulatory context from relevant chunks.
     """
     with span("agent", "tool_regulations_query", input_summary=f"{len(str(query))} chars"):
+        cache_key = make_cache_key("regulations_query", query)
+        cached_ctx = cache_get_json(cache_key)
+        if cached_ctx is not None and isinstance(cached_ctx, str):
+            set_output(f"{len(cached_ctx)} chars of context (redis cache hit)")
+            return cached_ctx
+
         with Session(engine) as session:
             documents = retrieve_relevant_chunks_with_rerank(session=session, query=query)
         context = build_context(documents)
         if isinstance(context, str):
+            if context:
+                cache_set_json(cache_key, context, TTL_RAG_SECONDS)
             set_output(f"{len(context)} chars of context")
     return context
 

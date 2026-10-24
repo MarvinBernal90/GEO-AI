@@ -18,6 +18,7 @@ import time
 
 import requests
 
+from backend.cache.redis_client import TTL_GEOCODING_SECONDS, cache_get_json, cache_set_json, make_cache_key
 from backend.observability import get_logger
 
 logger = get_logger("geo.amb_identify")
@@ -70,6 +71,11 @@ def identificar_zona_pgm(lat: float, lon: float) -> dict | None:
     Returns {"zona_pgm": ..., "clau_urb": ...} if a valid, supported zone is found.
     Returns None if the network fails, or if the zone is unsupported.
     """
+    cache_key = make_cache_key("amb_pgm", f"{lat:.5f}", f"{lon:.5f}")
+    cached = cache_get_json(cache_key)
+    if cached is not None:
+        return cached
+
     params = {
         "geometry": f'{{"x":{lon},"y":{lat}}}',
         "geometryType": "esriGeometryPoint",
@@ -87,7 +93,10 @@ def identificar_zona_pgm(lat: float, lon: float) -> dict | None:
             response = requests.get(AMB_IDENTIFY_URL, params=params, timeout=TIMEOUT_SEGUNDOS)
             response.raise_for_status()
             data = response.json()
-            return _extraer_zona_de_resultados(data.get("results", []))
+            resolved = _extraer_zona_de_resultados(data.get("results", []))
+            if resolved is not None:
+                cache_set_json(cache_key, resolved, TTL_GEOCODING_SECONDS)
+            return resolved
         except requests.RequestException:
             if intento < MAX_REINTENTOS:
                 logger.warning(
