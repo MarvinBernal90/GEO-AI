@@ -22,7 +22,6 @@ pgvector==0.5.0
 redis==5.2.1
 
 # --- RAG (Retrieval-Augmented Generation) and legal engine ---
-sentence-transformers==5.7.0
 anthropic==0.122.0
 
 # --- Orchestrator agent (AI graphs) ---
