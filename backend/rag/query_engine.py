@@ -20,6 +20,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from backend.cache.redis_client import TTL_RAG_SECONDS, cache_get_json, cache_set_json, make_cache_key
 from backend.db.models import LegalChunk
 from backend.observability.metrics import set_output, span
 from backend.rag.embeddings import MODEL_NAME as EMBEDDING_MODEL_NAME
@@ -300,6 +301,16 @@ def generate_answer(
     Passes the strict system instructions, the retrieved legal context, and
     the user's question to the LLM Adapter.
     """
+    use_cache = llm_client is None and embed_fn is embed_texts
+    cache_key = make_cache_key("rag_answer", model, zona_pgm or "none", top_k, question) if use_cache else ""
+    if use_cache:
+        cached = cache_get_json(cache_key)
+        if cached is not None:
+            return {
+                "respuesta": cached["respuesta"],
+                "chunks_recuperados": [RetrievedChunk(**c) for c in cached["chunks_recuperados"]],
+            }
+
     chunks = retrieve_relevant_chunks(session, question, embed_fn=embed_fn, top_k=top_k, zona_pgm=zona_pgm)
 
     # Fast-fail if the database is empty or no relevant vectors are found
@@ -324,4 +335,23 @@ def generate_answer(
         messages=[{"role": "user", "content": user_message}],
     )
 
-    return {"respuesta": response.content[0].text, "chunks_recuperados": chunks}
+    result = {"respuesta": response.content[0].text, "chunks_recuperados": chunks}
+    if use_cache:
+        cache_set_json(
+            cache_key,
+            {
+                "respuesta": result["respuesta"],
+                "chunks_recuperados": [
+                    {
+                        "numero_articulo": c.numero_articulo,
+                        "titulo": c.titulo,
+                        "contenido": c.contenido,
+                        "distancia": float(c.distancia),
+                        "fuente_legal": c.fuente_legal,
+                    }
+                    for c in chunks
+                ],
+            },
+            TTL_RAG_SECONDS,
+        )
+    return result

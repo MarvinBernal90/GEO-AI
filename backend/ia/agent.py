@@ -21,6 +21,7 @@ from langgraph.graph import END, START, StateGraph
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from backend.cache.redis_client import TTL_DISTRICT_SECONDS, cache_get_json, cache_set_json, make_cache_key
 from backend.observability import get_logger
 from backend.observability.metrics import set_output, span
 from backend.rag.embeddings import EmbeddingFunction, embed_texts
@@ -169,6 +170,12 @@ def _crear_nodos_paralelos(
 
     def datos_socioeconomicos(state: ViabilityState) -> dict[str, Any]:
         with span("agent", "datos_socioeconomicos", input_summary=f"district {state['codi_districte']}"):
+            cache_key = make_cache_key("district_scorecard", state["codi_districte"])
+            cached = cache_get_json(cache_key)
+            if cached is not None:
+                set_output("district data loaded (redis cache hit)")
+                return {"datos_distrito": cached}
+
             with span("db", "district_scorecard_query"):
                 with Session(session.get_bind()) as node_session:
                     row = (
@@ -193,8 +200,10 @@ def _crear_nodos_paralelos(
                 set_output("no data for this district")
                 return {"datos_distrito": None}
 
+            datos_dict = dict(row)
+            cache_set_json(cache_key, datos_dict, TTL_DISTRICT_SECONDS)
             set_output("district data loaded")
-            return {"datos_distrito": dict(row)}
+            return {"datos_distrito": datos_dict}
 
     def normativa_legal(state: ViabilityState) -> dict[str, Any]:
         with span("agent", "normativa_legal", input_summary=f"zone {state['zona_pgm']}"):

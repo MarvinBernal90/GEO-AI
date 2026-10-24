@@ -18,6 +18,9 @@ ENV PYTHONUNBUFFERED=1 \
 # Definimos el directorio de trabajo interno del contenedor
 WORKDIR /app
 
+# Instalamos poppler-utils (pdftotext) para la extracción de PDFs normativos (RAG)
+RUN apt-get update && apt-get install -y --no-install-recommends poppler-utils && rm -rf /var/lib/apt/lists/*
+
 # ------------------------------------------------------------------------------
 # ESTRATEGIA DE CACHÉ DE CAPAS (Layer Caching)
 # ------------------------------------------------------------------------------
@@ -33,12 +36,12 @@ COPY backend/requirements.txt ./backend/requirements.txt
 # de pip y no desperdiciar megabytes en el contenedor final.
 RUN pip install --no-cache-dir -r backend/requirements.txt
 
-# Una vez instaladas las dependencias, ahora sí copiamos el resto de nuestro código.
+# Una vez instaladas las dependencias, copiamos el resto del código fuente.
 COPY backend/ ./backend/
+COPY database/ ./database/
+COPY scripts/ ./scripts/
 
 # Documentamos que internamente nuestra API trabaja por el puerto 8000.
-# (Esto no lo publica al exterior por sí solo, es solo informativo. La publicación 
-# real se hace en el docker-compose.yml mapeando 8080:8000).
 EXPOSE 8000
 
 # Lanzamos el servidor usando nuestro entrypoint principal (main.py).

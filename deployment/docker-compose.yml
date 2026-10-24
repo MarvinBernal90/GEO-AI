@@ -72,6 +72,21 @@ services:
       retries: 5
       start_period: 30s
 
+  redis:
+    image: redis:7-alpine
+    container_name: geoyield_redis
+    restart: unless-stopped
+    command: ["redis-server", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru", "--save", ""]
+    ports:
+      - "${REDIS_HOST_PORT:-6379}:6379"
+    networks:
+      - geoyield_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
   api:
     build:
       # The build 'context' is set to the repo root ('..') so the Dockerfile
@@ -95,6 +110,7 @@ services:
       # Mount the local data folder inside the container 
       # so that the API can access the CSV files in Phase 1 (until they are migrated to S3)
       - ../data:/app/data
+      - ~/.aws:/root/.aws
     # No log volume any more: logs go to stdout as JSON (one line per event),
     # which is what both `docker compose logs` and the ECS awslogs/FireLens
     # drivers collect. A file inside the container reaches no collector.
@@ -106,6 +122,8 @@ services:
     # for the database to confirm it's operational before starting the API.
     depends_on:
       postgis:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
 # ==============================================================================

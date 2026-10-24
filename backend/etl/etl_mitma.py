@@ -1,3 +1,4 @@
+import os
 import time
 
 import pandas as pd
@@ -46,11 +47,12 @@ def process_mitma_data() -> pd.DataFrame:
     # Process each mobility file from MITMA
     all_trips = []
 
-    # Size of chunk
-    chunk_size = 2_000_000
-    num_files = len(config.PATHS_MITMA_MOBILITY)
+    # Size of chunk (default 4,000,000 rows, configurable via MITMA_CHUNK_SIZE)
+    chunk_size = int(os.getenv("MITMA_CHUNK_SIZE", "4000000"))
+    mitma_paths = sorted(config.RAW_DATA_DIR.glob("*_Viajes_distritos.csv.gz"))
+    num_files = len(mitma_paths)
 
-    for file_idx, path in enumerate(config.PATHS_MITMA_MOBILITY):
+    for file_idx, path in enumerate(mitma_paths):
         PROGRESS["progress"] = int((file_idx / num_files) * 80)
         PROGRESS["message"] = f"Procesando archivo {file_idx + 1}/{num_files}: {path.name}"
         file_size_mb = path.stat().st_size / (1024 * 1024)
@@ -110,7 +112,7 @@ def process_mitma_data() -> pd.DataFrame:
     df_all_ages = pd.concat([t["ages"] for t in all_trips])
 
     # We tally the daily inbound and outbound trips and calculate the average
-    num_dias = len(config.PATHS_MITMA_MOBILITY)
+    num_dias = len(mitma_paths)
     df_grouped = df_all_totals.groupby("distrito_id", as_index=False)[["viajes_in", "viajes_out"]].sum()
     df_grouped["viajes_in_promedio"] = df_grouped["viajes_in"] / num_dias
     df_grouped["viajes_out_promedio"] = df_grouped["viajes_out"] / num_dias

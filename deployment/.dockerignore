@@ -26,11 +26,12 @@ __pycache__/
 
 # 4. DATOS LOCALES Y ESTADO
 # No copiamos bases de datos locales, logs de pruebas ni datos pesados.
-# En producción, estos recursos se inyectan mediante Volúmenes de Docker.
+# En producción, estos recursos se inyectan mediante Volúmenes de Docker o S3.
 *.db
 logs/
 metrics/
-data/
+data/raw/
+data/processed/
 models/
 
 # 5. CÓDIGO DE PRUEBAS
