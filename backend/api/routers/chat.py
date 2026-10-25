@@ -190,7 +190,9 @@ def chat_informe_stream(payload: ChatRequest, db: Session = Depends(get_session)
                 # Reuses _json_default from informes.py to handle Decimal database types
                 yield f"data: {json.dumps(evento, ensure_ascii=False, default=_json_default)}\n\n"
         except Exception:
-            logger.exception(f"Error procesando el chat para el mensaje: {payload.mensaje!r}")
+            # Length only: the message can contain an address (personal data) and
+            # the redactor works on key names, not free text.
+            logger.exception("Error procesando el chat (mensaje de %d caracteres)", len(payload.mensaje))
             error = {"type": "error", "detail": "No se pudo procesar tu mensaje. Inténtalo de nuevo."}
             yield f"data: {json.dumps(error, ensure_ascii=False)}\n\n"
 

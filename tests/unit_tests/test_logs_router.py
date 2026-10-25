@@ -38,11 +38,7 @@ def client(monkeypatch):
 def emitted_events(capsys):
     def _read():
         out = capsys.readouterr().out.strip().splitlines()
-        return [
-            json.loads(line)
-            for line in out
-            if line.startswith("{") and '"geoyield-frontend"' in line
-        ]
+        return [json.loads(line) for line in out if line.startswith("{") and '"geoyield-frontend"' in line]
 
     return _read
 
@@ -195,3 +191,18 @@ def test_unknown_keys_do_not_reject_the_batch(client):
 def test_an_oversized_message_is_rejected_by_the_schema(client):
     _configure()
     assert client.post("/api/logs", json=[{"level": "INFO", "message": "x" * 100_000}]).status_code == 422
+
+
+def test_a_spoofed_forwarded_for_prefix_does_not_dodge_the_rate_limit(client):
+    """CloudFront appends the real viewer IP; anything to its left is client-controlled."""
+    _configure()
+    codes = [
+        client.post(
+            "/api/logs",
+            json=[{"level": "INFO", "message": "spam"}],
+            headers={"X-Forwarded-For": f"1.2.3.{i}, 203.0.113.9"},
+        ).status_code
+        for i in range(logs_router.BUCKET_CAPACITY + 15)
+    ]
+
+    assert 429 in codes

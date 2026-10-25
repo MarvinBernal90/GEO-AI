@@ -50,6 +50,8 @@ jobs:
               "docker image prune -af || true",
               "cd /home/ubuntu/Geo-Yield-AI",
               "su - ubuntu -c \"cd /home/ubuntu/Geo-Yield-AI && git fetch origin develop && git checkout develop && git reset --hard origin/develop\"",
+              "sed -i /^SERVICE_VERSION=/d .env",
+              "echo SERVICE_VERSION='"${GITHUB_SHA::7}"' >> .env",
               "docker compose --env-file .env -f deployment/docker-compose.yml up -d --build",
               "docker exec geoyield_api python -m alembic -c database/alembic.ini upgrade head",
               "for i in $(seq 1 15); do curl -sf http://localhost:8080/health && break || sleep 2; done",

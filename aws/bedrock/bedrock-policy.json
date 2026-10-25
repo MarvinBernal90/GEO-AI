@@ -29,6 +29,7 @@
         "logs:CreateLogGroup",
         "logs:CreateLogStream",
         "logs:PutLogEvents",
+        "logs:PutRetentionPolicy",
         "logs:DescribeLogStreams"
       ],
       "Resource": [
