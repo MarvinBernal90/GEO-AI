@@ -22,6 +22,7 @@ import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
 from backend.ia.chat import (
+    _LANGUAGE_REMINDER,
     DEFAULT_AWS_REGION,
     DEFAULT_BEDROCK_MODEL,
     MAX_NUM_MESSAGES,
@@ -293,7 +294,8 @@ class TestGraphNodes:
         res = _node_assistant(state)
         assert res == {"messages": [mock_llm_tools.invoke.return_value]}
         called_messages = mock_llm_tools.invoke.call_args[0][0]
-        assert called_messages == [sys_msg, state["messages"][0]]
+        assert called_messages[0] == sys_msg
+        assert called_messages[1].content == "¿Cuál es la normativa?" + _LANGUAGE_REMINDER
 
     def test_node_summarize_under_limit(self):
         """_node_summarize increments counter when below MAX_NUM_MESSAGES."""
@@ -356,7 +358,7 @@ class TestNodeSummarizePrompt:
 
         # Verify summary prompt wording for initial summary
         called_human_msg = mock_llm.invoke.call_args[0][0][-1]
-        assert "Crea un resumen conciso teniendo en cuenta los mensajes" in called_human_msg.content
+        assert "Crea un resumen conciso y en español teniendo en cuenta los mensajes" in called_human_msg.content
 
     @patch("backend.ia.chat.llm")
     def test_over_max_num_messages_updates_existing_summary(self, mock_llm):
@@ -493,3 +495,99 @@ class TestTruncationWarning:
             reloaded = importlib.reload(chat_module)
             assert reloaded.ASSISTANT_MAX_TOKENS == 3000
         importlib.reload(chat_module)
+
+
+class TestUbicacionFromNomenclator:
+    """The "Generar Informe" button must not depend on the model calling get_opportunity_score."""
+
+    @staticmethod
+    def _stream(matches, address='Carrer de Sant Gil, 4'):
+        from types import SimpleNamespace
+
+        asked = json.dumps({"address": address})
+        call = SimpleNamespace(
+            content="",
+            tool_calls=[],
+            additional_kwargs={},
+            tool_call_chunks=[
+                {"id": "call-1", "index": 0, "args": asked[:12]},
+                {"id": None, "index": 0, "args": asked[12:]},
+            ],
+        )
+        tool = SimpleNamespace(name="find_in_nomenclator", content=json.dumps({"match": matches}), tool_call_id="call-1")
+        answer = SimpleNamespace(content="Respuesta", tool_calls=[], additional_kwargs={}, tool_call_chunks=[])
+        graph = MagicMock()
+        graph.stream.return_value = [
+            (call, {"langgraph_node": "assistant"}),
+            (tool, {"langgraph_node": "tools"}),
+            (answer, {"langgraph_node": "assistant"}),
+        ]
+        return graph
+
+    @patch("backend.ia.chat.identificar_zona_pgm", return_value={"zona_pgm": "nucli_antic"})
+    @patch("backend.ia.chat.geocodificar_direccion")
+    def test_one_official_address_enables_the_report_with_the_house_number(self, mock_geocode, _zona):
+        mock_geocode.return_value = {"codi_districte": 1, "lat": 41.38, "lon": 2.16, "direccion_encontrada": "4, Carrer de Sant Gil"}
+
+        events = list(_request_stream("pub en Sant Gil 4", "t:1", graph=self._stream(["Carrer de Sant Gil"])))
+
+        ubicacion = next(e for e in events if e["type"] == "ubicacion")
+        assert ubicacion["tool"] == "find_in_nomenclator"
+        assert (ubicacion["codi_districte"], ubicacion["zona_pgm"]) == (1, "nucli_antic")
+        mock_geocode.assert_called_once_with("Carrer de Sant Gil, 4")  # the number is kept
+        assert events[-1]["type"] == "done"
+
+    @patch("backend.ia.chat.geocodificar_direccion")
+    def test_no_match_or_several_matches_do_not_enable_the_report(self, mock_geocode):
+        for matches in ([], ["Carrer de Sant Gil", "Carrer de Sant Gil de Mar"]):
+            events = list(_request_stream("pub", "t:1", graph=self._stream(matches)))
+            assert "ubicacion" not in [e["type"] for e in events]
+        mock_geocode.assert_not_called()
+
+    @patch("backend.ia.chat.identificar_zona_pgm", return_value=None)
+    @patch("backend.ia.chat.geocodificar_direccion")
+    def test_falls_back_to_the_official_name_and_to_the_default_zone(self, mock_geocode, _zona):
+        mock_geocode.side_effect = [None, {"codi_districte": 2, "lat": 41.39, "lon": 2.16, "direccion_encontrada": "x"}]
+
+        events = list(_request_stream("pub", "t:1", graph=self._stream(["Carrer de París"], address="Paris 4")))
+
+        ubicacion = next(e for e in events if e["type"] == "ubicacion")
+        assert (ubicacion["codi_districte"], ubicacion["zona_pgm"]) == (2, "densificacio_urbana")
+        assert [c.args[0] for c in mock_geocode.call_args_list] == ["Paris 4", "Carrer de París"]
+
+    @patch("backend.ia.chat.geocodificar_direccion", side_effect=RuntimeError("nominatim down"))
+    def test_a_geocoding_failure_does_not_break_the_answer(self, _geocode):
+        events = list(_request_stream("pub", "t:1", graph=self._stream(["Carrer de Sant Gil"])))
+
+        types = [e["type"] for e in events]
+        assert "ubicacion" not in types and "error" not in types
+        assert types[-1] == "done"
+
+
+class TestLanguageReminder:
+    def test_the_reminder_goes_at_the_end_of_a_copy_of_the_last_user_message(self):
+        from backend.ia.chat import _with_language_reminder
+
+        saved = [HumanMessage(content="hola"), AIMessage(content="Això és català"), HumanMessage(content="¿Horario?")]
+
+        prompt = _with_language_reminder(saved)
+
+        assert prompt[-1].content == "¿Horario?" + _LANGUAGE_REMINDER
+        assert prompt[:-1] == saved[:-1]
+        assert saved[-1].content == "¿Horario?"  # the saved conversation is not changed
+
+    def test_the_reminder_is_also_added_after_a_tool_result(self):
+        from langchain_core.messages import ToolMessage
+
+        from backend.ia.chat import _with_language_reminder
+
+        prompt = _with_language_reminder([HumanMessage(content="q"), ToolMessage(content="Article en català", tool_call_id="1")])
+
+        assert prompt[-1].content == "Article en català" + _LANGUAGE_REMINDER
+
+    def test_nothing_is_added_when_the_last_message_is_not_user_or_tool(self):
+        from backend.ia.chat import _with_language_reminder
+
+        assert _with_language_reminder([]) == []
+        only_ai = [AIMessage(content="x")]
+        assert _with_language_reminder(only_ai) == only_ai

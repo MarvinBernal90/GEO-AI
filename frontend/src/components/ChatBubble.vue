@@ -17,6 +17,8 @@ back to the Orchestrator (App.vue).
 <script setup>
 import { computed } from 'vue'
 
+import { renderMarkdown } from '../utils/markdown.js'
+
 const props = defineProps({
   informe: { type: Object, required: true },
 })
@@ -45,9 +47,9 @@ const tieneArticulos = computed(() => {
     <div class="flex-1 space-y-4 rounded-2xl rounded-tl-sm border border-paper/10 bg-ink-light px-5 py-4 shadow-sm">
       <header>
         <p class="mb-1.5 font-mono text-[10px] font-semibold tracking-widest text-brass uppercase">Fundamento legal</p>
-        <p class="text-sm leading-relaxed whitespace-pre-line text-paper/90">
-          {{ informe.respuesta_legal }}
-        </p>
+        <!-- Safe: renderMarkdown escapes the HTML before adding its own tags -->
+        <!-- eslint-disable-next-line vue/no-v-html -->
+        <div class="markdown-body" v-html="renderMarkdown(informe.respuesta_legal)" />
       </header>
 
       <!-- Citations Section (RAG Traceability) -->
