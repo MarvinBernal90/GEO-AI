@@ -28,9 +28,11 @@ import sys
 
 sys.path.insert(0, "/home/claud/pontia/PJ")
 
+import json
 import logging
 import os
 from collections.abc import Iterator
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -46,6 +48,7 @@ from sqlalchemy.orm import Session
 
 from backend.cache import TTL_DISTRICT_SECONDS, TTL_RAG_SECONDS, cache_get_json, cache_set_json, make_cache_key
 from backend.db.connection import resolve_database_url
+from backend.geo.amb_identify import identificar_zona_pgm
 from backend.geo.geocoding import geocodificar_direccion
 from backend.ia.chat_history import append_history
 from backend.ia.thinking_filter import ThinkingStripper
@@ -166,20 +169,19 @@ def _record_llm_result(response: Any, current_span: Any) -> None:
 
 #### TOOLS DEFINITION
 
-# A tf-idf matrix with official street names is created. It will be used to get proper street names to feet to NOMINATIUM service, which translates direction to coordinates
+import pickle
+
+# Load precomputed tf-idf matrix with official street names to map directions to coordinates
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-STREETS_LIST = list(pd.read_csv(PROJECT_ROOT / "data" / "raw" / "nomenclator.csv")["nom_oficial"])
-TFIDF_VECTORIZER = TfidfVectorizer(
-    lowercase=True,
-    strip_accents="unicode",
-    ngram_range=(
-        1,
-        4,
-    ),  # por jemplo Carrer es siempre relevante como parte de un digrama. Haty nombre largos. Se ha probado que con este setting se ontienen buenos resultados
-    token_pattern=r"(?u)\b\w+\b",  # para que tenga en cuenta las palabras de una sola letra, como F en Carrer F
-    use_idf=False,  # Aunaque Carrer o Plaça son términos muy comunes, son totalmente relevantes, para distinguir Carrer de l'Àngel de Plça de l'Àngel, por ejemplo
-)
-TFIDF_MATRIX = TFIDF_VECTORIZER.fit_transform(STREETS_LIST)
+_PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
+
+with open(_PROCESSED_DIR / "streets_list.pkl", "rb") as _f:
+    STREETS_LIST = pickle.load(_f)
+with open(_PROCESSED_DIR / "tfidf_vectorizer.pkl", "rb") as _f:
+    TFIDF_VECTORIZER = pickle.load(_f)
+with open(_PROCESSED_DIR / "tfidf_matrix.pkl", "rb") as _f:
+    TFIDF_MATRIX = pickle.load(_f)
+
 SENSITIVITY = 0.1
 
 
@@ -188,8 +190,7 @@ def find_in_nomenclator(address: str) -> dict[list]:
     Args:
         address: a string indicating an address or part of it
 
-    Returns a list with the first ranked official addresses matching string up to a score distance less than SENSITIVITY (a global constant) from the first
-
+        Returns a dictionary with 'match' item containing a list with the first ranked official addresses matching string up to a score distance less than SENSITIVITY (a global constant) from the first
     """
     query = TFIDF_VECTORIZER.transform([address])
     dp = (TFIDF_MATRIX @ query.T).toarray().ravel()
@@ -220,12 +221,29 @@ def get_opportunity_score(direccion: str) -> dict[str, Any]:
             res = geocodificar_direccion(direccion)
             set_output("found" if res else "not found")
 
+        if not res or not res.get("codi_districte"):
+            return {"datos_distrito": None}
+
+        lat = res.get("lat")
+        lon = res.get("lon")
+        zona_info = identificar_zona_pgm(lat, lon) if lat is not None and lon is not None else None
+        zona_pgm = zona_info.get("zona_pgm") if zona_info else None
+        if not zona_pgm and res.get("codi_districte"):
+            zona_pgm = "nucli_antic" if res["codi_districte"] == 1 else "densificacio_urbana"
+
         with span("db", "district_scorecard_query"):
             cache_key = make_cache_key("chat_district_scorecard", res["codi_districte"])
             cached_row = cache_get_json(cache_key)
             if cached_row is not None:
                 set_output("district found (redis cache hit)")
-                return {"datos_distrito": cached_row}
+                return {
+                    "datos_distrito": cached_row,
+                    "codi_districte": res["codi_districte"],
+                    "zona_pgm": zona_pgm,
+                    "lat": lat,
+                    "lon": lon,
+                    "direccion_encontrada": res.get("direccion_encontrada"),
+                }
 
             with Session(engine) as session:
                 row = (
@@ -246,11 +264,28 @@ def get_opportunity_score(direccion: str) -> dict[str, Any]:
 
         if row is None:
             logger.warning("No hay datos en district_scorecard para el distrito %s", res["codi_districte"])
-            return {"datos_distrito": None}
+            return {
+                "datos_distrito": None,
+                "codi_districte": res["codi_districte"],
+                "zona_pgm": zona_pgm,
+                "lat": lat,
+                "lon": lon,
+                "direccion_encontrada": res.get("direccion_encontrada"),
+            }
 
-        datos_dict = dict(row)
+        datos_dict = {
+            k: float(v) if isinstance(v, Decimal) else v
+            for k, v in dict(row).items()
+        }
         cache_set_json(cache_key, datos_dict, TTL_DISTRICT_SECONDS)
-        return {"datos_distrito": datos_dict}
+        return {
+            "datos_distrito": datos_dict,
+            "codi_districte": res["codi_districte"],
+            "zona_pgm": zona_pgm,
+            "lat": lat,
+            "lon": lon,
+            "direccion_encontrada": res.get("direccion_encontrada"),
+        }
 
 
 def regulations_query(query: str) -> str:
@@ -318,7 +353,7 @@ Dispones de tres herramientas para ayudarte en tu tarea:
 Cuando identifiques una dirección en el prompt de usuario, usa find_in_nomenclator:
     - Si no devuelve ninguna, responde al usuario diciéndole que no se ha encontrado esa dirección en Barcelona
     - Si devuelve más de una, responde con la lista y que debe escoger una
-    - Si devuelve una, segue adelante evaluando la necesidad de usar el resto de herramientas para responder al usuario
+    - Solamente en case de devolver una sola, sigue adelante evaluando la necesidad de usar el resto de herramientas para responder al usuario
 Cuando respondas a las consultas de los usuarios, asegúrate de proporcionar información precisa y relevante, y de citar las fuentes de información cuando sea posible.
 Usa solamente datos que te proporcionen las herrmientas, de ningún otro lugar.
 Lista las fuentes. Sé específico en cuales son.
@@ -391,6 +426,7 @@ def _node_summarize(state: State):
 
         # first message is the HumanMessage that initated the conversation. This message is always kept and serves as 'title' of th conversation
         delete_messages = [RemoveMessage(id=m.id) for m in state["messages"][1:last_msg_to_del_index]]
+
         return {
             "summary": _extract_text_content(response.content),
             "num_responses": num_responses - NUM_MESSAGES_TO_SUMMARIZE,
@@ -432,6 +468,58 @@ def _request_stream(
             {"configurable": configurable},
             stream_mode="messages",
         ):
+            # Intercept tool completion to emit spatial and report activation metadata to frontend
+            if metadata.get("langgraph_node") == "tools":
+                tool_name = getattr(chunk, "name", None) or (
+                    getattr(chunk, "additional_kwargs", {}) or {}
+                ).get("name")
+                if tool_name == "get_opportunity_score":
+                    raw_content = getattr(chunk, "content", None)
+                    tool_data = None
+                    if isinstance(raw_content, dict):
+                        tool_data = raw_content
+                    elif isinstance(raw_content, str):
+                        try:
+                            tool_data = json.loads(raw_content)
+                        except Exception:
+                            try:
+                                import ast
+                                import re
+
+                                sanitized = re.sub(r"Decimal\((['\"]?)([\d.]+)\1\)", r"\2", raw_content)
+                                tool_data = ast.literal_eval(sanitized)
+                            except Exception:
+                                pass
+                        if not tool_data:
+                            import re
+
+                            m_dist = re.search(r"['\"]codi_districte['\"]:\s*(\d+)", raw_content)
+                            m_zona = re.search(r"['\"]zona_pgm['\"]:\s*['\"]([^'\"]+)['\"]", raw_content)
+                            m_lat = re.search(r"['\"]lat['\"]:\s*([-\d.]+)", raw_content)
+                            m_lon = re.search(r"['\"]lon['\"]:\s*([-\d.]+)", raw_content)
+                            m_dir = re.search(r"['\"]direccion_encontrada['\"]:\s*['\"]([^'\"]+)['\"]", raw_content)
+                            if m_dist:
+                                tool_data = {
+                                    "codi_districte": int(m_dist.group(1)),
+                                    "zona_pgm": m_zona.group(1) if m_zona else None,
+                                    "lat": float(m_lat.group(1)) if m_lat else None,
+                                    "lon": float(m_lon.group(1)) if m_lon else None,
+                                    "direccion_encontrada": m_dir.group(1) if m_dir else None,
+                                }
+                    if tool_data and tool_data.get("codi_districte"):
+                        zona_pgm = tool_data.get("zona_pgm") or (
+                            "nucli_antic" if tool_data.get("codi_districte") == 1 else "densificacio_urbana"
+                        )
+                        yield {
+                            "type": "ubicacion",
+                            "tool": "get_opportunity_score",
+                            "codi_districte": tool_data.get("codi_districte"),
+                            "zona_pgm": zona_pgm,
+                            "lat": tool_data.get("lat"),
+                            "lon": tool_data.get("lon"),
+                            "direccion_encontrada": tool_data.get("direccion_encontrada"),
+                        }
+
             # Only stream tokens from the assistant node intended for the user
             if metadata.get("langgraph_node") == "assistant":
                 # Filter out internal tool call argument tokens
@@ -536,10 +624,10 @@ if __name__ == "__main__":
         print()
 
     _print_stream(
-        "qué viabilidad tiene abrir un bar en calle París 234?",
-        "claudiberenguer:27",
+        "viabilidad de abrir una discoteca en Carrer Paris",
+        "claudiberenguer:47",
     )
-    _print_stream(
+    """ _print_stream(
         "y para un bar musical?",
         "claudiberenguer:27",
     )
@@ -550,4 +638,4 @@ if __name__ == "__main__":
     _print_stream(
         "dime cuanto serían las tasas para una terraza de 15m2 en calle Creucoberta",
         "claudiberenguer:27",
-    )
+    ) """

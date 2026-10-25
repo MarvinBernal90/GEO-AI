@@ -122,11 +122,14 @@ const respuestaPrompt = ref('')
 const procesandoChat = ref(false)
 const copiadoExitoso = ref(false)
 const responseTextarea = ref(null)
+const botonInformeDeshabilitado = ref(true)
+const datosInformeChat = ref(null)
 
-const usuario = ref('')
-const username = ref(null)
+const usuarioGuardado = typeof localStorage !== 'undefined' ? localStorage.getItem('geoyield_user') : null
+const usuario = ref(usuarioGuardado || '')
+const username = ref(usuarioGuardado || null)
 if (typeof window !== 'undefined') {
-  window.username = null
+  window.username = usuarioGuardado || null
 }
 const usuarioLogueado = username
 const cargandoLogin = ref(false)
@@ -288,10 +291,26 @@ function autoScrollResponse() {
   })
 }
 
+async function onGenerarInformeChat() {
+  if (botonInformeDeshabilitado.value || cargando.value) return
+  botonInformeDeshabilitado.value = true
+  const params = datosInformeChat.value || {
+    codiDistricte: codiDistrictePedido.value,
+    zonaPgm: 'densificacio_urbana',
+    ubicacion: ubicacionPedida.value,
+  }
+  if (!params.codiDistricte) return
+  if (!params.zonaPgm) {
+    params.zonaPgm = params.codiDistricte === 1 ? 'nucli_antic' : 'densificacio_urbana'
+  }
+  await onGenerar(params)
+}
+
 async function onEnviarChat() {
   const mensaje = mensajeChat.value.trim()
   if (!mensaje || procesandoChat.value) return
 
+  botonInformeDeshabilitado.value = true
   procesandoChat.value = true
 
   if (username.value !== null) {
@@ -324,6 +343,22 @@ async function onEnviarChat() {
         respuestaPrompt.value += texto
         autoScrollResponse()
       },
+      onUbicacion: (evento) => {
+        if (evento.codi_districte) {
+          codiDistrictePedido.value = evento.codi_districte
+        }
+        if (evento.lat != null && evento.lon != null) {
+          ubicacionPedida.value = { lat: evento.lat, lon: evento.lon }
+        }
+        datosInformeChat.value = {
+          codiDistricte: evento.codi_districte,
+          zonaPgm: evento.zona_pgm || (evento.codi_districte === 1 ? 'nucli_antic' : 'densificacio_urbana'),
+          ubicacion: evento.lat != null && evento.lon != null ? { lat: evento.lat, lon: evento.lon } : null,
+        }
+        if (evento.codi_districte) {
+          botonInformeDeshabilitado.value = false
+        }
+      },
       onError: (detail) => {
         error.value = detail
         procesandoChat.value = false
@@ -345,20 +380,32 @@ async function onEnviarChat() {
   ubicacionPedida.value = null
   reiniciarResultados()
 
+  let primerTokenChat = true
   await chatInformeStream(mensaje, {
     onAclaracion: (evento) => {
       mensajeAclaracionChat.value = { tipo: 'aviso', texto: evento.mensaje }
-      if (evento.codi_districte) distritoDesdeChat.value = evento.codi_districte
-      if (evento.zona_pgm) zonaDesdeChat.value = evento.zona_pgm
       if (evento.lat != null && evento.lon != null) {
         ubicacionDesdeChat.value = { lat: evento.lat, lon: evento.lon }
       }
+      const prefijo = respuestaPrompt.value ? `${respuestaPrompt.value.trim()}\n\n` : ''
+      respuestaPrompt.value = `${prefijo}AVISO: ${evento.mensaje}`
+      autoScrollResponse()
       procesandoChat.value = false
       cargando.value = false
     },
     onUbicacion: (evento) => {
       codiDistrictePedido.value = evento.codi_districte
-      ubicacionPedida.value = { lat: evento.lat, lon: evento.lon }
+      if (evento.lat != null && evento.lon != null) {
+        ubicacionPedida.value = { lat: evento.lat, lon: evento.lon }
+      }
+      datosInformeChat.value = {
+        codiDistricte: evento.codi_districte,
+        zonaPgm: evento.zona_pgm || (evento.codi_districte === 1 ? 'nucli_antic' : 'densificacio_urbana'),
+        ubicacion: evento.lat != null && evento.lon != null ? { lat: evento.lat, lon: evento.lon } : null,
+      }
+      if (evento.codi_districte) {
+        botonInformeDeshabilitado.value = false
+      }
     },
     onDatos: (evento) => {
       datosDistrito.value = evento.datos_distrito
@@ -368,7 +415,15 @@ async function onEnviarChat() {
       // Se mantiene procesandoChat activo mientras llegan los tokens
     },
     onToken: (texto) => {
+      if (primerTokenChat) {
+        primerTokenChat = false
+        const prefijo = respuestaPrompt.value ? `${respuestaPrompt.value.trim()}\n\n` : ''
+        respuestaPrompt.value = `${prefijo}PROMPT: ${mensaje}\nRESPONSE:\n`
+        mensajeChat.value = ''
+      }
       textoSintesis.value += texto
+      respuestaPrompt.value += texto
+      autoScrollResponse()
     },
     onError: (detail) => {
       error.value = detail
@@ -570,12 +625,29 @@ async function onEnviarChat() {
                   @keydown.enter.exact.prevent="onEnviarChat"
                 />
 
-                <div class="flex items-center justify-between pt-1">
+                <div class="flex items-center justify-between gap-2 pt-1">
                   <span class="text-[11px] text-paper/40">Enter para enviar &middot; Shift+Enter para nueva línea</span>
                   <button
                     type="button"
+                    :disabled="botonInformeDeshabilitado || cargando"
+                    class="flex shrink-0 items-center gap-2 rounded px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40"
+                    :class="
+                      botonInformeDeshabilitado || cargando
+                        ? 'border border-brass/30 bg-brass/10 text-brass'
+                        : 'bg-brass text-ink shadow-md hover:bg-brass/90 ring-1 ring-brass'
+                    "
+                    @click="onGenerarInformeChat"
+                  >
+                    <span
+                      v-if="cargando && !tieneResultados"
+                      class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"
+                    />
+                    <span>{{ cargando && !tieneResultados ? 'Generando…' : 'Generar Informe' }}</span>
+                  </button>
+                  <button
+                    type="button"
                     :disabled="procesandoChat || !mensajeChat.trim()"
-                    class="flex items-center gap-2 rounded bg-brass px-4 py-2 text-sm font-medium text-ink transition hover:bg-brass/90 disabled:cursor-not-allowed disabled:opacity-40"
+                    class="flex shrink-0 items-center gap-2 rounded bg-brass px-4 py-2 text-sm font-medium text-ink transition hover:bg-brass/90 disabled:cursor-not-allowed disabled:opacity-40"
                     @click="onEnviarChat"
                   >
                     <span
