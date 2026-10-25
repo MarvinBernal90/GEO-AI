@@ -14,7 +14,8 @@ Validates:
 6. Conversation summarization logic and memory compression.
 7. Graph execution and request dispatching.
 """
-
+import json
+import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -29,6 +30,7 @@ from backend.ia.chat import (
     _extract_text_content,
     _node_assistant,
     _node_summarize,
+    _request_stream,
     get_chat_llm,
     get_generation_model,
     get_opportunity_score,
@@ -146,8 +148,13 @@ class TestTools:
     @patch("backend.ia.chat.geocodificar_direccion")
     @patch("backend.ia.chat.Session")
     def test_get_opportunity_score_success(self, mock_session_cls, mock_geo):
-        """When geocoding and database row exist, returns populated datos_distrito."""
-        mock_geo.return_value = {"codi_districte": 2}
+        """When geocoding and database row exist, returns populated datos_distrito and spatial data."""
+        mock_geo.return_value = {
+            "codi_districte": 2,
+            "lat": 41.39,
+            "lon": 2.16,
+            "direccion_encontrada": "Carrer de Mallorca 200",
+        }
         mock_session = MagicMock()
         mock_session_cls.return_value.__enter__.return_value = mock_session
 
@@ -164,7 +171,11 @@ class TestTools:
         mock_session.execute.return_value.mappings.return_value = mock_mappings
 
         result = get_opportunity_score("Carrer de Mallorca 200")
-        assert result == {"datos_distrito": row_dict}
+        assert result["datos_distrito"] == row_dict
+        assert result["codi_districte"] == 2
+        assert result["zona_pgm"] is not None
+        assert result["lat"] == 41.39
+        assert result["lon"] == 2.16
 
     @patch("backend.ia.chat.geocodificar_direccion")
     @patch("backend.ia.chat.Session")
@@ -179,7 +190,64 @@ class TestTools:
         mock_session.execute.return_value.mappings.return_value = mock_mappings
 
         result = get_opportunity_score("Dirección sin datos")
-        assert result == {"datos_distrito": None}
+        assert result["datos_distrito"] is None
+        assert result["codi_districte"] == 99
+
+    def test_request_stream_yields_ubicacion_on_opportunity_score(self):
+        """_request_stream yields a ubicacion event when get_opportunity_score finishes."""
+        mock_graph = MagicMock()
+        tool_chunk = MagicMock()
+        tool_chunk.name = "get_opportunity_score"
+        tool_chunk.content = json.dumps({
+            "codi_districte": 2,
+            "zona_pgm": "densificacio_urbana",
+            "lat": 41.39,
+            "lon": 2.16,
+            "direccion_encontrada": "Carrer de Mallorca 200",
+        })
+        ai_chunk = MagicMock()
+        ai_chunk.content = "Respuesta final"
+        ai_chunk.tool_calls = []
+
+        mock_graph.stream.return_value = [
+            (tool_chunk, {"langgraph_node": "tools"}),
+            (ai_chunk, {"langgraph_node": "assistant"}),
+        ]
+
+        events = list(_request_stream("Hola", "thread:1", graph=mock_graph))
+        types = [e.get("type") for e in events]
+        assert "ubicacion" in types
+        ubicacion_ev = next(e for e in events if e.get("type") == "ubicacion")
+        assert ubicacion_ev["tool"] == "get_opportunity_score"
+        assert ubicacion_ev["codi_districte"] == 2
+        assert ubicacion_ev["zona_pgm"] == "densificacio_urbana"
+        assert ubicacion_ev["lat"] == 41.39
+
+    def test_request_stream_yields_ubicacion_with_decimal_repr(self):
+        """_request_stream yields ubicacion event even when tool output was formatted with Decimal(...)."""
+        mock_graph = MagicMock()
+        tool_chunk = MagicMock()
+        tool_chunk.name = "get_opportunity_score"
+        tool_chunk.content = (
+            "{'datos_distrito': {'renta_media': Decimal('21976.00')}, "
+            "'codi_districte': 2, 'zona_pgm': 'densificacio_urbana', 'lat': 41.39, 'lon': 2.16, "
+            "'direccion_encontrada': 'Carrer de Mallorca 200'}"
+        )
+        ai_chunk = MagicMock()
+        ai_chunk.content = "Respuesta"
+        ai_chunk.tool_calls = []
+
+        mock_graph.stream.return_value = [
+            (tool_chunk, {"langgraph_node": "tools"}),
+            (ai_chunk, {"langgraph_node": "assistant"}),
+        ]
+
+        events = list(_request_stream("Hola", "thread:1", graph=mock_graph))
+        types = [e.get("type") for e in events]
+        assert "ubicacion" in types
+        ubicacion_ev = next(e for e in events if e.get("type") == "ubicacion")
+        assert ubicacion_ev["tool"] == "get_opportunity_score"
+        assert ubicacion_ev["codi_districte"] == 2
 
     @patch("backend.ia.chat.retrieve_relevant_chunks_with_rerank")
     @patch("backend.ia.chat.build_context")
@@ -288,7 +356,7 @@ class TestNodeSummarizePrompt:
 
         # Verify summary prompt wording for initial summary
         called_human_msg = mock_llm.invoke.call_args[0][0][-1]
-        assert "Crea un resumen teniendo en cuenta los mensajes" in called_human_msg.content
+        assert "Crea un resumen conciso teniendo en cuenta los mensajes" in called_human_msg.content
 
     @patch("backend.ia.chat.llm")
     def test_over_max_num_messages_updates_existing_summary(self, mock_llm):
@@ -312,7 +380,7 @@ class TestNodeSummarizePrompt:
         assert res["summary"] == "Resumen actualizado"
 
         called_human_msg = mock_llm.invoke.call_args[0][0][-1]
-        assert "Este es un resumen de mensajes pasados: Resumen de la ronda 1" in called_human_msg.content
+        assert "Resumen de la ronda 1" in called_human_msg.content
 
 
 class TestReActGraphAndRequest:

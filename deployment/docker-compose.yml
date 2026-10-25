@@ -110,6 +110,10 @@ services:
       # Mount the local data folder inside the container 
       # so that the API can access the CSV files in Phase 1 (until they are migrated to S3)
       - ../data:/app/data
+      # RAG evaluation results (runs/*.json, corpus.json). They are generated outside the server and copied
+      # here (not in git); the API reads them from /app/evals/results (backend/api/routers/rag_evals.py)
+      # and the /metrics "Calidad RAG" tab shows them. Mounted from the host so a redeploy does not lose them.
+      - ../evals/results:/app/evals/results
       - ~/.aws:/root/.aws
     # No log volume any more: logs go to stdout as JSON (one line per event),
     # which is what both `docker compose logs` and the awslogs driver collect.

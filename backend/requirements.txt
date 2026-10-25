@@ -42,6 +42,13 @@ google-genai==2.18.1
 # relative to the previous 2.x version.
 pandas==3.0.2
 
+# --- Street name normalizer (TF-IDF Nomenclator) ---
+scikit-learn==1.6.1
+scipy==1.15.2
+
+# --- HTTP Client & Geocoding ---
+requests==2.32.3
+
 # --- Observability: direct CloudWatch shipping (OPTIONAL) ---
 # Only needed with LOG_CLOUDWATCH_ENABLED=true, i.e. when the host does NOT
 # collect stdout (the Render case). On ECS/Fargate/App Runner the host driver
