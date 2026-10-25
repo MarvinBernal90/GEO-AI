@@ -123,6 +123,33 @@ const respuestaPrompt = ref('')
 const procesandoChat = ref(false)
 const copiadoExitoso = ref(false)
 const responseTextarea = ref(null)
+const chatScrollContainer = ref(null)
+
+const listaMensajesChat = computed(() => {
+  if (!respuestaPrompt.value || !respuestaPrompt.value.trim()) return []
+  const raw = respuestaPrompt.value.trim()
+  const blocks = raw.split(/(?:^|\n)(?=PROMPT:\s*)/)
+  const list = []
+  for (const b of blocks) {
+    const trimmed = b.trim()
+    if (!trimmed) continue
+    if (trimmed.startsWith('PROMPT:')) {
+      const parts = trimmed.split(/\nRESPONSE:\s*/)
+      const promptText = parts[0].replace('PROMPT:', '').trim()
+      if (promptText) {
+        list.push({ role: 'user', text: promptText })
+      }
+      if (parts.length > 1 && parts[1].trim()) {
+        list.push({ role: 'assistant', text: parts[1].trim() })
+      }
+    } else if (trimmed.startsWith('AVISO:')) {
+      list.push({ role: 'assistant', text: trimmed })
+    } else {
+      list.push({ role: 'assistant', text: trimmed })
+    }
+  }
+  return list
+})
 const botonInformeDeshabilitado = ref(true)
 const datosInformeChat = ref(null)
 
@@ -286,6 +313,9 @@ async function copiarRespuesta() {
 
 function autoScrollResponse() {
   nextTick(() => {
+    if (chatScrollContainer.value) {
+      chatScrollContainer.value.scrollTop = chatScrollContainer.value.scrollHeight
+    }
     if (responseTextarea.value) {
       responseTextarea.value.scrollTop = responseTextarea.value.scrollHeight
     }
@@ -528,8 +558,106 @@ async function onEnviarChat() {
           </div>
         </div>
 
-        <!-- PROMPT TEXT BOX -->
-        <div class="space-y-2">
+        <!-- CONVERSATION / RESPONSE DISPLAY (ARRIBA) -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <label class="text-xs font-medium tracking-wide text-paper/70 uppercase">
+              Conversación / Respuesta del Asistente
+            </label>
+            <div class="flex items-center gap-2">
+              <button
+                v-if="respuestaPrompt"
+                type="button"
+                class="text-xs text-paper/50 transition hover:text-paper"
+                @click="limpiarRespuesta"
+              >
+                Limpiar
+              </button>
+              <button
+                v-if="respuestaPrompt"
+                type="button"
+                class="flex items-center gap-1 rounded border border-paper/20 px-2 py-0.5 text-xs text-brass transition hover:bg-brass/10"
+                @click="copiarRespuesta"
+              >
+                {{ copiadoExitoso ? '✓ Copiado' : 'Copiar' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Message Bubbles Container -->
+          <div
+            ref="chatScrollContainer"
+            class="flex max-h-[460px] min-h-[160px] flex-col gap-3 overflow-y-auto rounded-lg border border-paper/20 bg-ink p-4"
+          >
+            <div v-if="listaMensajesChat.length === 0" class="flex h-full items-center justify-center py-8 text-center">
+              <p class="font-mono text-xs text-paper/30">La respuesta del asistente aparecerá aquí en tiempo real...</p>
+            </div>
+
+            <template v-else>
+              <div
+                v-for="(msg, idx) in listaMensajesChat"
+                :key="idx"
+                class="flex w-full"
+                :class="msg.role === 'user' ? 'justify-end' : 'justify-start'"
+              >
+                <!-- User Message Bubble (ALINEADO A LA DERECHA) -->
+                <div
+                  v-if="msg.role === 'user'"
+                  class="max-w-[85%] rounded-2xl rounded-tr-sm bg-brass/20 border border-brass/40 px-4 py-2.5 text-right shadow-sm sm:max-w-[75%]"
+                >
+                  <p class="font-mono text-[10px] font-semibold tracking-wider text-brass uppercase mb-1">
+                    Tú (Consulta)
+                  </p>
+                  <p class="text-xs text-paper whitespace-pre-wrap leading-relaxed">
+                    {{ msg.text }}
+                  </p>
+                </div>
+
+                <!-- Assistant Response Bubble (ALINEADO A LA IZQUIERDA) -->
+                <div
+                  v-else
+                  class="max-w-[90%] rounded-2xl rounded-tl-sm border border-paper/20 bg-ink-light px-4 py-3 text-left shadow-sm sm:max-w-[85%]"
+                >
+                  <div class="flex items-center gap-2 mb-1.5 border-b border-paper/10 pb-1">
+                    <span
+                      class="flex h-5 w-5 items-center justify-center rounded-full bg-brass text-[10px] font-bold text-ink"
+                    >
+                      GY
+                    </span>
+                    <span class="font-mono text-[10px] font-semibold tracking-wider text-brass uppercase">
+                      GeoYield Asistente
+                    </span>
+                  </div>
+                  <p class="font-mono text-xs text-paper/90 whitespace-pre-wrap leading-relaxed">
+                    {{ msg.text }}
+                  </p>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <!-- Citations Pills -->
+          <div v-if="articulosCitados.length > 0" class="pt-1">
+            <p class="mb-1.5 font-mono text-[10px] font-semibold tracking-wider text-brass uppercase">
+              Artículos legales citados:
+            </p>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="articulo in articulosCitados"
+                :key="`${articulo.fuente_legal}-${articulo.numero_articulo}`"
+                type="button"
+                class="flex items-center gap-1.5 rounded-full border border-brass/30 bg-brass/10 px-3 py-1 font-mono text-xs text-brass transition-all hover:bg-brass hover:text-ink hover:shadow-md focus:ring-2 focus:ring-brass focus:outline-none"
+                title="Abrir visor de normativa"
+                @click="articuloSeleccionado = articulo"
+              >
+                Art. {{ articulo.numero_articulo }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- PROMPT / CONSULTA INPUT BOX (ABAJO) -->
+        <div class="space-y-2 border-t border-paper/10 pt-4">
           <div class="flex items-center justify-between">
             <label for="prompt-input" class="text-xs font-medium tracking-wide text-paper/70 uppercase">
               Prompt / Consulta
@@ -555,89 +683,35 @@ async function onEnviarChat() {
 
           <div class="flex items-center justify-between gap-2 pt-1">
             <span class="text-[11px] text-paper/40">Enter para enviar &middot; Shift+Enter para nueva línea</span>
-            <button
-              type="button"
-              :disabled="botonInformeDeshabilitado || cargando"
-              class="flex shrink-0 items-center gap-2 rounded px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40"
-              :class="
-                botonInformeDeshabilitado || cargando
-                  ? 'border border-brass/30 bg-brass/10 text-brass'
-                  : 'bg-brass text-ink shadow-md hover:bg-brass/90 ring-1 ring-brass'
-              "
-              @click="onGenerarInformeChat"
-            >
-              <span
-                v-if="cargando && !tieneResultados"
-                class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"
-              />
-              <span>{{ cargando && !tieneResultados ? 'Generando…' : 'Generar Informe' }}</span>
-            </button>
-            <button
-              type="button"
-              :disabled="procesandoChat || !mensajeChat.trim()"
-              class="flex shrink-0 items-center gap-2 rounded bg-brass px-4 py-2 text-sm font-medium text-ink transition hover:bg-brass/90 disabled:cursor-not-allowed disabled:opacity-40"
-              @click="onEnviarChat"
-            >
-              <span
-                v-if="procesandoChat"
-                class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-ink border-t-transparent"
-              />
-              <span>{{ procesandoChat ? 'Analizando…' : 'Enviar' }}</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- RESPONSE TEXT BOX -->
-        <div class="space-y-2 border-t border-paper/10 pt-4">
-          <div class="flex items-center justify-between">
-            <label for="response-output" class="text-xs font-medium tracking-wide text-paper/70 uppercase">
-              Respuesta
-            </label>
             <div class="flex items-center gap-2">
               <button
-                v-if="respuestaPrompt"
                 type="button"
-                class="text-xs text-paper/50 transition hover:text-paper"
-                @click="limpiarRespuesta"
+                :disabled="botonInformeDeshabilitado || cargando"
+                class="flex shrink-0 items-center gap-2 rounded px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40"
+                :class="
+                  botonInformeDeshabilitado || cargando
+                    ? 'border border-brass/30 bg-brass/10 text-brass'
+                    : 'bg-brass text-ink shadow-md hover:bg-brass/90 ring-1 ring-brass'
+                "
+                @click="onGenerarInformeChat"
               >
-                Limpiar
+                <span
+                  v-if="cargando && !tieneResultados"
+                  class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"
+                />
+                <span>{{ cargando && !tieneResultados ? 'Generando…' : 'Generar Informe' }}</span>
               </button>
               <button
-                v-if="respuestaPrompt"
                 type="button"
-                class="flex items-center gap-1 rounded border border-paper/20 px-2 py-0.5 text-xs text-brass transition hover:bg-brass/10"
-                @click="copiarRespuesta"
+                :disabled="procesandoChat || !mensajeChat.trim()"
+                class="flex shrink-0 items-center gap-2 rounded bg-brass px-4 py-2 text-sm font-medium text-ink transition hover:bg-brass/90 disabled:cursor-not-allowed disabled:opacity-40"
+                @click="onEnviarChat"
               >
-                {{ copiadoExitoso ? '✓ Copiado' : 'Copiar' }}
-              </button>
-            </div>
-          </div>
-
-          <textarea
-            id="response-output"
-            ref="responseTextarea"
-            :value="respuestaPrompt"
-            readonly
-            rows="12"
-            placeholder="La respuesta del asistente aparecerá aquí en tiempo real..."
-            class="w-full resize-y rounded-lg border border-paper/20 bg-ink px-4 py-3 font-mono text-xs leading-relaxed text-paper placeholder:text-paper/30 focus:border-brass focus:outline-none"
-          />
-
-          <!-- Citations Pills -->
-          <div v-if="articulosCitados.length > 0" class="pt-2">
-            <p class="mb-1.5 font-mono text-[10px] font-semibold tracking-wider text-brass uppercase">
-              Artículos legales citados:
-            </p>
-            <div class="flex flex-wrap gap-2">
-              <button
-                v-for="articulo in articulosCitados"
-                :key="`${articulo.fuente_legal}-${articulo.numero_articulo}`"
-                type="button"
-                class="flex items-center gap-1.5 rounded-full border border-brass/30 bg-brass/10 px-3 py-1 font-mono text-xs text-brass transition-all hover:bg-brass hover:text-ink hover:shadow-md focus:ring-2 focus:ring-brass focus:outline-none"
-                title="Abrir visor de normativa"
-                @click="articuloSeleccionado = articulo"
-              >
-                Art. {{ articulo.numero_articulo }}
+                <span
+                  v-if="procesandoChat"
+                  class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-ink border-t-transparent"
+                />
+                <span>{{ procesandoChat ? 'Analizando…' : 'Enviar' }}</span>
               </button>
             </div>
           </div>
