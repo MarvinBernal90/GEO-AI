@@ -590,9 +590,7 @@ async function onEnviarChat() {
             class="flex max-h-[460px] min-h-[160px] flex-col gap-3 overflow-y-auto rounded-lg border border-paper/20 bg-ink p-4"
           >
             <div v-if="listaMensajesChat.length === 0" class="flex h-full items-center justify-center py-8 text-center">
-              <p class="font-mono text-xs text-paper/30">
-                La respuesta del asistente aparecerá aquí en tiempo real...
-              </p>
+              <p class="font-mono text-xs text-paper/30">La respuesta del asistente aparecerá aquí en tiempo real...</p>
             </div>
 
             <template v-else>
@@ -621,7 +619,9 @@ async function onEnviarChat() {
                   class="max-w-[90%] rounded-2xl rounded-tl-sm border border-paper/20 bg-ink-light px-4 py-3 text-left shadow-sm sm:max-w-[85%]"
                 >
                   <div class="flex items-center gap-2 mb-1.5 border-b border-paper/10 pb-1">
-                    <span class="flex h-5 w-5 items-center justify-center rounded-full bg-brass text-[10px] font-bold text-ink">
+                    <span
+                      class="flex h-5 w-5 items-center justify-center rounded-full bg-brass text-[10px] font-bold text-ink"
+                    >
                       GY
                     </span>
                     <span class="font-mono text-[10px] font-semibold tracking-wider text-brass uppercase">
