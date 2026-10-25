@@ -205,14 +205,14 @@ def find_in_nomenclator(address: str) -> dict[str, list[str]]:
         query = TFIDF_VECTORIZER.transform([address])
         dp = (TFIDF_MATRIX @ query.T).toarray().ravel()
         ranking = sorted(zip(STREETS_LIST, dp, strict=True), key=lambda x: x[1], reverse=True)
-        if not ranking:
+        if not ranking or ranking[0][1] < 0.2:
             return {"match": []}
         res = []
         max_score = ranking[0][1]
         for doc, score in ranking:
-            res.append(doc)
             if max_score - score > SENSITIVITY:
                 break
+            res.append(doc)
         return {"match": res}
     except Exception as exc:
         logger.error("Error evaluating address in find_in_nomenclator: %s", exc)
