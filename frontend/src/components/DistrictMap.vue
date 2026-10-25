@@ -8,7 +8,7 @@ Renders the interactive map using Vue-Leaflet. Dynamically fetches and plots
 competitors using client-side clustering for performance optimization.
 -->
 <script setup>
-import { ref, watch } from 'vue'
+import { onActivated, ref, watch } from 'vue'
 import L from 'leaflet'
 
 // ---------------------------------------------------------------------------
@@ -85,6 +85,11 @@ async function cargarCompetidores() {
 
 // Reactively reload data if the user changes the district OR the specific address
 watch(() => [props.codiDistricte, props.ubicacion], cargarCompetidores, { immediate: true, deep: true })
+
+onActivated(() => {
+  // Leaflet requires a resize event to recalculate map container dimensions when unhidden by KeepAlive
+  window.dispatchEvent(new Event('resize'))
+})
 
 // ---------------------------------------------------------------------------
 // SEMANTIC MAP DESIGN (CSS-IN-JS)

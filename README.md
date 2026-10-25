@@ -144,6 +144,25 @@ Ver [`docs/diagram.md`](docs/diagram.md) para el diagrama de alto nivel y [`docs
 
    Para ampliar el corpus con las zonas investigadas más allá de las 3 originales, ver [`scripts/pgm_research/`](scripts/pgm_research/) (incluye el proceso completo y `load_new_articles.py`, listo para volver a correr si la base de datos se reinicia).
 
+7. **Cargar users** (requiere de archivo `data/raw/users/users.csv`):
+```bash
+   DB_HOST_OVERRIDE=localhost python -m database.load_users data/raw/users/users.csv
+```
+
+8. **Inicializar tf-idf del nomenclator de calles** ( requiere de archivo `data/raw/users/users.csv`):
+```bash
+   DB_HOST_OVERRIDE=localhost python -m database.load_users data/raw/nomenclator.csv
+
+```
+8. **Conectar a aws**:
+```bash
+   aws sso login --profile AdministratorAccess-192445490421
+```
+   Se debe tener instalado el `AWS CLI`
+   Los modelos de BedRock requieren de credeciales de AWS. Con este sistema, SSO, se refrescan automáticamente mientras dure la sesión
+
+
+
 ### Levantar la API (backend)
 
 ```bash
@@ -235,10 +254,12 @@ Usa un directorio 'chat_history en la raíz del proyecto para guardar las conver
 ### Usuarios
 Existe una base de usuarios predefinida. Son 4 usuarios correspondientes a los nombres de usuarios github de los 4 integrantes del equipo más un usuario llamado 'administrador'
 Se cargan en el etl inicial de del archivo `data/users/users.csv`
+La tabla se carga en la fase de etl ejecutando `database/load_users.py`
 
 ### Verificación direcciones contra el nomenclator oficial de la ciudad de Barcelona
 Para poder obtener con garantías las coordenadas de Nominatium y con ello el distrito del geoportal de la AMB es necesario disponer de una dirección real. Para ello existe una matriz rf-idf con el nomenclator oficial con la cual se infiere la dirección real a partir de la cadena corresponodiente identificada en el prompt.
 El archivo con las direcciones oficiales es `data/raw/nomenclator.csv`
+En la fase de etl se deben crear el objeto TfIdfVectorizer y la matriz. Se crea ejecutando `backend/etl/tfidf.py`
 
 ### Ejecutar los tests
 
