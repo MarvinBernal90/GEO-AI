@@ -168,33 +168,55 @@ def _record_llm_result(response: Any, current_span: Any) -> None:
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
 
-with open(_PROCESSED_DIR / "streets_list.pkl", "rb") as _f:
-    STREETS_LIST = pickle.load(_f)
-with open(_PROCESSED_DIR / "tfidf_vectorizer.pkl", "rb") as _f:
-    TFIDF_VECTORIZER = pickle.load(_f)
-with open(_PROCESSED_DIR / "tfidf_matrix.pkl", "rb") as _f:
-    TFIDF_MATRIX = pickle.load(_f)
+STREETS_LIST: list[str] = []
+TFIDF_VECTORIZER: Any = None
+TFIDF_MATRIX: Any = None
+
+try:
+    with open(_PROCESSED_DIR / "streets_list.pkl", "rb") as _f:
+        STREETS_LIST = pickle.load(_f)
+    with open(_PROCESSED_DIR / "tfidf_vectorizer.pkl", "rb") as _f:
+        TFIDF_VECTORIZER = pickle.load(_f)
+    with open(_PROCESSED_DIR / "tfidf_matrix.pkl", "rb") as _f:
+        TFIDF_MATRIX = pickle.load(_f)
+    logger.info("Nomenclator TF-IDF model successfully loaded (%d streets)", len(STREETS_LIST))
+except Exception as _exc:
+    logger.warning(
+        "Could not load nomenclator TF-IDF files from %s: %s. Address normalization tool will return empty matches.",
+        _PROCESSED_DIR,
+        _exc,
+    )
 
 SENSITIVITY = 0.1
 
 
-def find_in_nomenclator(address: str) -> dict[list]:
+def find_in_nomenclator(address: str) -> dict[str, list[str]]:
     """
     Args:
         address: a string indicating an address or part of it
 
         Returns a dictionary with 'match' item containing a list with the first ranked official addresses matching string up to a score distance less than SENSITIVITY (a global constant) from the first
     """
-    query = TFIDF_VECTORIZER.transform([address])
-    dp = (TFIDF_MATRIX @ query.T).toarray().ravel()
-    ranking = sorted(zip(STREETS_LIST, dp, strict=True), key=lambda x: x[1], reverse=True)
-    res = []
-    max_score = ranking[0][1]
-    for doc, score in ranking:
-        res.append(doc)
-        if max_score - score > SENSITIVITY:
-            break
-    return {"match": res}
+    if TFIDF_VECTORIZER is None or TFIDF_MATRIX is None or not STREETS_LIST:
+        logger.warning("find_in_nomenclator called but nomenclator TF-IDF model is not loaded.")
+        return {"match": []}
+
+    try:
+        query = TFIDF_VECTORIZER.transform([address])
+        dp = (TFIDF_MATRIX @ query.T).toarray().ravel()
+        ranking = sorted(zip(STREETS_LIST, dp, strict=True), key=lambda x: x[1], reverse=True)
+        if not ranking:
+            return {"match": []}
+        res = []
+        max_score = ranking[0][1]
+        for doc, score in ranking:
+            res.append(doc)
+            if max_score - score > SENSITIVITY:
+                break
+        return {"match": res}
+    except Exception as exc:
+        logger.error("Error evaluating address in find_in_nomenclator: %s", exc)
+        return {"match": []}
 
 
 def get_opportunity_score(direccion: str) -> dict[str, Any]:
