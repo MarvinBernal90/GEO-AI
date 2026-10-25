@@ -232,6 +232,14 @@ El chat del asistente es con memoria. Las conversaciones son guardadas en base d
 El agente, con dos tools, el generador de 'opportunity score' y el RAG, está hecho con langgraph con output en modo stream, de forma que se puede entregar la respuesta por SSE al frontend. Para prevenir un crecimiento desmesurado de la ventana de contexto a medida que avanza la conversación, los mensajes más antiguos son eliminados de él y sustituidos un resumen. La historia de la conversación sí se mantienen íntegra, este tratamiento es específico del contexto
 Usa un directorio 'chat_history en la raíz del proyecto para guardar las conversaciones. Esto puede canviarse a la hora de subirlo a la nube.
 
+### Usuarios
+Existe una base de usuarios predefinida. Son 4 usuarios correspondientes a los nombres de usuarios github de los 4 integrantes del equipo más un usuario llamado 'administrador'
+Se cargan en el etl inicial de del archivo `data/users/users.csv`
+
+### Verificación direcciones contra el nomenclator oficial de la ciudad de Barcelona
+Para poder obtener con garantías las coordenadas de Nominatium y con ello el distrito del geoportal de la AMB es necesario disponer de una dirección real. Para ello existe una matriz rf-idf con el nomenclator oficial con la cual se infiere la dirección real a partir de la cadena corresponodiente identificada en el prompt.
+El archivo con las direcciones oficiales es `data/raw/nomenclator.csv`
+
 ### Ejecutar los tests
 
 ```bash
