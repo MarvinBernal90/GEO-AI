@@ -36,13 +36,11 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-import pandas as pd
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, RemoveMessage, SystemMessage
 from langgraph.checkpoint.postgres import PostgresSaver
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
-from sklearn.feature_extraction.text import TfidfVectorizer
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
@@ -273,10 +271,7 @@ def get_opportunity_score(direccion: str) -> dict[str, Any]:
                 "direccion_encontrada": res.get("direccion_encontrada"),
             }
 
-        datos_dict = {
-            k: float(v) if isinstance(v, Decimal) else v
-            for k, v in dict(row).items()
-        }
+        datos_dict = {k: float(v) if isinstance(v, Decimal) else v for k, v in dict(row).items()}
         cache_set_json(cache_key, datos_dict, TTL_DISTRICT_SECONDS)
         return {
             "datos_distrito": datos_dict,
@@ -350,7 +345,7 @@ Dispones de tres herramientas para ayudarte en tu tarea:
 1. find_in_nomenclator: devuelve una lista de direcciones oficiales que se corresponden a una direccion indicada como input
 2. get_opportunity_score: devuelve un score a partir de una dirección en la ciudad de Barcelona.
 3. regulations_query: Esta herramienta te permite obtener información sobre aspectos regulatorios y legales relacionados con la apertura de negocios en Barcelona.
-Cuando identifiques una dirección en el prompt de usuario, usa find_in_nomenclator:
+Cuando identifiques una dirección o una calle o lgar en el prompt de usuario, usa find_in_nomenclator para intentar conretarlo:
     - Si no devuelve ninguna, responde al usuario diciéndole que no se ha encontrado esa dirección en Barcelona
     - Si devuelve más de una, responde con la lista y que debe escoger una
     - Solamente en case de devolver una sola, sigue adelante evaluando la necesidad de usar el resto de herramientas para responder al usuario
@@ -470,9 +465,7 @@ def _request_stream(
         ):
             # Intercept tool completion to emit spatial and report activation metadata to frontend
             if metadata.get("langgraph_node") == "tools":
-                tool_name = getattr(chunk, "name", None) or (
-                    getattr(chunk, "additional_kwargs", {}) or {}
-                ).get("name")
+                tool_name = getattr(chunk, "name", None) or (getattr(chunk, "additional_kwargs", {}) or {}).get("name")
                 if tool_name == "get_opportunity_score":
                     raw_content = getattr(chunk, "content", None)
                     tool_data = None

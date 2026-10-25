@@ -6,21 +6,22 @@ File: frontend/src/views/HomeView.vue
 
 This is the main page (route "/"). It manages the global application state
 (coordinates, active district, streaming status) and distributes it down to
-its child components (Map, Form, Chat) via props.
-Refactored layout:
-- Left Column: Actual contents (Dossier header, Viability Form, Verdict Card,
-  District Map, Legal basis).
-- Right Column: Interactive Prompt Text Box and Response Text Box.
+its child components (Map, Verdict, Chat) via props.
+Layout:
+- Top Header: Geo-Yield-AI brand tag on the left and Métricas button at the right end.
+- Interactive Chat Panel: Full-width prompt text box, actions, and real-time response.
+- Results Section: Full-width dossier verdict, district map, and legal basis.
 -->
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
-import ViabilityForm from '../components/ViabilityForm.vue'
 import VerdictCard from '../components/VerdictCard.vue'
 import ChatBubble from '../components/ChatBubble.vue'
 import DistrictMap from '../components/DistrictMap.vue'
 import RegulationsViewer from '../components/RegulationsViewer.vue'
 import { assistantStream, chatInformeStream, generarInformeStream, getHistory, loginUser } from '../services/api.js'
 import { createLogger } from '../services/logger.js'
+
+defineOptions({ name: 'HomeView' })
 
 const log = createLogger('app.informe')
 
@@ -312,6 +313,11 @@ async function onEnviarChat() {
 
   botonInformeDeshabilitado.value = true
   procesandoChat.value = true
+  datosInformeChat.value = null
+  codiDistrictePedido.value = null
+  ubicacionPedida.value = null
+  articuloSeleccionado.value = null
+  reiniciarResultados()
 
   if (username.value !== null) {
     updateThreadId()
@@ -442,282 +448,252 @@ async function onEnviarChat() {
 
 <template>
   <main class="fondo-plano min-h-screen">
-    <div class="mx-auto max-w-[1600px] px-4 py-8 sm:px-6 lg:px-8">
-      <!-- Responsive 2-column layout: left for actual contents, right for prompt & response -->
-      <div class="grid grid-cols-1 items-start gap-8 lg:grid-cols-12">
-        <!-- LEFT COLUMN: Actual Contents -->
-        <div class="space-y-8 lg:col-span-7 xl:col-span-7">
-          <header class="text-center sm:text-left">
-            <div class="mb-2 flex items-center justify-between gap-4">
-              <p class="font-mono text-xs font-bold tracking-[0.2em] text-brass uppercase">Geo-Yield-AI</p>
-              <RouterLink
-                to="/metrics"
-                class="rounded border border-paper/20 px-2.5 py-1 font-mono text-[11px] tracking-wider text-paper/70 uppercase transition hover:border-brass hover:text-brass focus:ring-2 focus:ring-brass/50 focus:outline-none"
-              >
-                Métricas →
-              </RouterLink>
-            </div>
-            <h1 class="font-display text-3xl font-semibold text-paper sm:text-4xl xl:text-5xl">
-              Dossier de viabilidad de hostelería
-            </h1>
-            <p class="mt-4 text-sm leading-relaxed text-paper/70 sm:text-base">
-              Selecciona un distrito y una zona urbanística de Barcelona para generar un informe que cruza la normativa
-              legal vigente con datos socioeconómicos reales.
-            </p>
-          </header>
+    <div class="mx-auto max-w-[1600px] space-y-8 px-4 py-8 sm:px-6 lg:px-8">
+      <!-- Full-Width Header with Métricas Button at the Right End -->
+      <header class="flex items-center justify-between gap-4">
+        <p class="font-mono text-xs font-bold tracking-[0.2em] text-brass uppercase">Geo-Yield-AI</p>
+        <RouterLink
+          to="/metrics"
+          class="rounded border border-paper/20 px-2.5 py-1 font-mono text-[11px] tracking-wider text-paper/70 uppercase transition hover:border-brass hover:text-brass focus:ring-2 focus:ring-brass/50 focus:outline-none"
+        >
+          Métricas →
+        </RouterLink>
+      </header>
 
-          <!-- Viability Form Section -->
-          <section class="rounded-xl border border-paper/15 bg-ink-light/50 p-6 shadow-lg backdrop-blur-sm">
-            <ViabilityForm
-              :cargando="cargando"
-              :distrito-inicial="distritoDesdeChat"
-              :zona-inicial="zonaDesdeChat"
-              :ubicacion-inicial="ubicacionDesdeChat"
-              :mensaje-inicial="mensajeAclaracionChat"
-              @generar="onGenerar"
-            />
-          </section>
-
-          <!-- Error Alert Banner -->
-          <div
-            v-if="error"
-            class="flex items-center gap-3 rounded-lg border border-rojo/40 bg-rojo/10 px-5 py-4 text-sm text-paper shadow-sm"
-          >
-            {{ error }}
-          </div>
-
-          <!-- Loading Indicator -->
-          <div
-            v-if="cargando && !tieneResultados"
-            class="flex items-center justify-center gap-3 py-12 text-sm text-paper/60"
-          >
-            <span class="h-2.5 w-2.5 animate-ping rounded-full bg-brass" />
-            Consultando la normativa y analizando datos del distrito...
-          </div>
-
-          <!-- Results Section -->
-          <section v-if="tieneResultados" class="animate-fade-in space-y-6">
-            <VerdictCard v-if="semaforo" :informe="{ semaforo, resumen, datos_distrito: datosDistrito || {} }" />
-            <div
-              v-else
-              class="flex items-center gap-3 rounded-xl border border-paper/15 bg-paper px-6 py-5 text-sm text-ink/60 shadow-sm"
+      <!-- Full-Width Interactive Chat Panel (previously right column) -->
+      <section class="space-y-6 rounded-xl border border-paper/15 bg-ink-light/50 p-6 shadow-lg backdrop-blur-sm">
+        <!-- Panel Header -->
+        <div class="border-b border-paper/10 pb-4">
+          <div class="flex items-center justify-between">
+            <p class="font-mono text-xs font-bold tracking-[0.2em] text-brass uppercase">Asistente IA</p>
+            <span
+              v-if="procesandoChat"
+              class="flex items-center gap-1.5 font-mono text-xs text-brass animate-pulse"
             >
               <span class="h-2 w-2 animate-ping rounded-full bg-brass" />
-              Generando el veredicto…
-            </div>
+              Procesando…
+            </span>
+            <span
+              v-else-if="respuestaPrompt"
+              class="rounded bg-[#d1fae5] px-2 py-0.5 font-mono text-xs font-medium text-[#065f46]"
+            >
+              Respuesta lista
+            </span>
+            <span v-else class="font-mono text-xs text-paper/40">En espera</span>
+          </div>
+          <h2 class="mt-1 font-display text-xl font-semibold text-paper">Consulta interactiva</h2>
+          <p class="mt-1 text-xs text-paper/60">
+            Formula tu consulta en lenguaje natural para evaluar la viabilidad o normativa de tu negocio.
+          </p>
 
-            <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
-              <DistrictMap
-                v-if="datosDistrito"
-                class="h-full min-h-[300px] overflow-hidden rounded-xl border border-paper/15 shadow-sm"
-                :codi-districte="codiDistrictePedido"
-                :nom-districte="datosDistrito.nom_districte"
-                :ubicacion="ubicacionPedida"
-              />
-
-              <ChatBubble
-                v-if="respuestaLegal"
-                :informe="{ respuesta_legal: respuestaLegal, articulos_citados: articulosCitados }"
-                @ver-articulo="articuloSeleccionado = $event"
-              />
-            </div>
-          </section>
+          <!-- User Login Line -->
+          <div class="mt-3 flex items-center gap-2">
+            <label for="user-input" class="shrink-0 font-mono text-xs text-paper/70">user: </label>
+            <input
+              id="user-input"
+              v-model="usuario"
+              type="text"
+              placeholder="introduce usuario (github username)"
+              class="flex-1 rounded border border-paper/20 bg-ink px-3 py-1.5 font-mono text-xs text-paper placeholder:text-paper/30 focus:border-brass focus:ring-1 focus:ring-brass focus:outline-none"
+              @keydown.enter.prevent="onLogin"
+            />
+            <button
+              type="button"
+              :disabled="!usuario.trim() || cargandoLogin"
+              class="shrink-0 rounded bg-brass px-3 py-1.5 text-xs font-medium text-ink transition hover:bg-brass/90 disabled:cursor-not-allowed disabled:opacity-40"
+              @click="onLogin"
+            >
+              {{ cargandoLogin ? 'Verificando…' : 'Login' }}
+            </button>
+          </div>
+          <div
+            v-if="usuarioLogueado"
+            class="mt-1.5 flex items-center gap-1.5 font-mono text-[11px] text-[#065f46]"
+          >
+            <span class="h-1.5 w-1.5 rounded-full bg-[#065f46]" />
+            <span
+              >Usuario activo: <strong>{{ usuarioLogueado }}</strong></span
+            >
+          </div>
+          <!-- Conversation Selection Line -->
+          <div class="mt-3 flex flex-col gap-1.5">
+            <label for="conversation-select" class="font-mono text-xs text-paper/70">
+              selecciona para continuar una conversacion:
+            </label>
+            <select
+              id="conversation-select"
+              v-model="conversacionSeleccionada"
+              class="w-full rounded border border-paper/20 bg-ink px-3 py-1.5 font-mono text-xs text-paper focus:border-brass focus:ring-1 focus:ring-brass focus:outline-none"
+              @change="onSeleccionarConversacion"
+            >
+              <option value="">nueva conversación</option>
+              <option v-for="c in conversaciones" :key="c.id" :value="c.id">
+                {{ c.title }}
+              </option>
+            </select>
+          </div>
         </div>
 
-        <!-- RIGHT COLUMN: Prompt Text Box & Response Text Box -->
-        <div class="lg:col-span-5 xl:col-span-5">
-          <aside class="space-y-6 lg:sticky lg:top-8">
-            <div class="space-y-6 rounded-xl border border-paper/15 bg-ink-light/50 p-6 shadow-lg backdrop-blur-sm">
-              <!-- Panel Header -->
-              <div class="border-b border-paper/10 pb-4">
-                <div class="flex items-center justify-between">
-                  <p class="font-mono text-xs font-bold tracking-[0.2em] text-brass uppercase">Asistente IA</p>
-                  <span
-                    v-if="procesandoChat"
-                    class="flex items-center gap-1.5 font-mono text-xs text-brass animate-pulse"
-                  >
-                    <span class="h-2 w-2 animate-ping rounded-full bg-brass" />
-                    Procesando…
-                  </span>
-                  <span
-                    v-else-if="respuestaPrompt"
-                    class="rounded bg-[#d1fae5] px-2 py-0.5 font-mono text-xs font-medium text-[#065f46]"
-                  >
-                    Respuesta lista
-                  </span>
-                  <span v-else class="font-mono text-xs text-paper/40">En espera</span>
-                </div>
-                <h2 class="mt-1 font-display text-xl font-semibold text-paper">Consulta interactiva</h2>
-                <p class="mt-1 text-xs text-paper/60">
-                  Formula tu consulta en lenguaje natural para evaluar la viabilidad o normativa de tu negocio.
-                </p>
+        <!-- PROMPT TEXT BOX -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <label for="prompt-input" class="text-xs font-medium tracking-wide text-paper/70 uppercase">
+              Prompt / Consulta
+            </label>
+            <button
+              v-if="mensajeChat"
+              type="button"
+              class="text-xs text-paper/50 transition hover:text-paper"
+              @click="limpiarPrompt"
+            >
+              Limpiar
+            </button>
+          </div>
 
-                <!-- User Login Line -->
-                <div class="mt-3 flex items-center gap-2">
-                  <label for="user-input" class="shrink-0 font-mono text-xs text-paper/70">user: </label>
-                  <input
-                    id="user-input"
-                    v-model="usuario"
-                    type="text"
-                    placeholder="introduce usuario (github username)"
-                    class="flex-1 rounded border border-paper/20 bg-ink px-3 py-1.5 font-mono text-xs text-paper placeholder:text-paper/30 focus:border-brass focus:ring-1 focus:ring-brass focus:outline-none"
-                    @keydown.enter.prevent="onLogin"
-                  />
-                  <button
-                    type="button"
-                    :disabled="!usuario.trim() || cargandoLogin"
-                    class="shrink-0 rounded bg-brass px-3 py-1.5 text-xs font-medium text-ink transition hover:bg-brass/90 disabled:cursor-not-allowed disabled:opacity-40"
-                    @click="onLogin"
-                  >
-                    {{ cargandoLogin ? 'Verificando…' : 'Login' }}
-                  </button>
-                </div>
-                <div
-                  v-if="usuarioLogueado"
-                  class="mt-1.5 flex items-center gap-1.5 font-mono text-[11px] text-[#065f46]"
-                >
-                  <span class="h-1.5 w-1.5 rounded-full bg-[#065f46]" />
-                  <span
-                    >Usuario activo: <strong>{{ usuarioLogueado }}</strong></span
-                  >
-                </div>
-                <!-- Conversation Selection Line -->
-                <div class="mt-3 flex flex-col gap-1.5">
-                  <label for="conversation-select" class="font-mono text-xs text-paper/70">
-                    selecciona para continuar una conversacion:
-                  </label>
-                  <select
-                    id="conversation-select"
-                    v-model="conversacionSeleccionada"
-                    class="w-full rounded border border-paper/20 bg-ink px-3 py-1.5 font-mono text-xs text-paper focus:border-brass focus:ring-1 focus:ring-brass focus:outline-none"
-                    @change="onSeleccionarConversacion"
-                  >
-                    <option value="">nueva conversación</option>
-                    <option v-for="c in conversaciones" :key="c.id" :value="c.id">
-                      {{ c.title }}
-                    </option>
-                  </select>
-                </div>
-              </div>
+          <textarea
+            id="prompt-input"
+            v-model="mensajeChat"
+            rows="3"
+            placeholder="p. ej. Quiero abrir un bar en Carrer de Sant Pau 1, ¿me lo recomiendas?"
+            class="w-full resize-y rounded-lg border border-paper/20 bg-ink px-3.5 py-2.5 text-sm text-paper placeholder:text-paper/30 focus:border-brass focus:ring-1 focus:ring-brass focus:outline-none"
+            @keydown.enter.exact.prevent="onEnviarChat"
+          />
 
-              <!-- PROMPT TEXT BOX -->
-              <div class="space-y-2">
-                <div class="flex items-center justify-between">
-                  <label for="prompt-input" class="text-xs font-medium tracking-wide text-paper/70 uppercase">
-                    Prompt / Consulta
-                  </label>
-                  <button
-                    v-if="mensajeChat"
-                    type="button"
-                    class="text-xs text-paper/50 transition hover:text-paper"
-                    @click="limpiarPrompt"
-                  >
-                    Limpiar
-                  </button>
-                </div>
-
-                <textarea
-                  id="prompt-input"
-                  v-model="mensajeChat"
-                  rows="3"
-                  placeholder="p. ej. Quiero abrir un bar en Carrer de Sant Pau 1, ¿me lo recomiendas?"
-                  class="w-full resize-y rounded-lg border border-paper/20 bg-ink px-3.5 py-2.5 text-sm text-paper placeholder:text-paper/30 focus:border-brass focus:ring-1 focus:ring-brass focus:outline-none"
-                  @keydown.enter.exact.prevent="onEnviarChat"
-                />
-
-                <div class="flex items-center justify-between gap-2 pt-1">
-                  <span class="text-[11px] text-paper/40">Enter para enviar &middot; Shift+Enter para nueva línea</span>
-                  <button
-                    type="button"
-                    :disabled="botonInformeDeshabilitado || cargando"
-                    class="flex shrink-0 items-center gap-2 rounded px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40"
-                    :class="
-                      botonInformeDeshabilitado || cargando
-                        ? 'border border-brass/30 bg-brass/10 text-brass'
-                        : 'bg-brass text-ink shadow-md hover:bg-brass/90 ring-1 ring-brass'
-                    "
-                    @click="onGenerarInformeChat"
-                  >
-                    <span
-                      v-if="cargando && !tieneResultados"
-                      class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"
-                    />
-                    <span>{{ cargando && !tieneResultados ? 'Generando…' : 'Generar Informe' }}</span>
-                  </button>
-                  <button
-                    type="button"
-                    :disabled="procesandoChat || !mensajeChat.trim()"
-                    class="flex shrink-0 items-center gap-2 rounded bg-brass px-4 py-2 text-sm font-medium text-ink transition hover:bg-brass/90 disabled:cursor-not-allowed disabled:opacity-40"
-                    @click="onEnviarChat"
-                  >
-                    <span
-                      v-if="procesandoChat"
-                      class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-ink border-t-transparent"
-                    />
-                    <span>{{ procesandoChat ? 'Analizando…' : 'Enviar' }}</span>
-                  </button>
-                </div>
-              </div>
-
-              <!-- RESPONSE TEXT BOX -->
-              <div class="space-y-2 border-t border-paper/10 pt-4">
-                <div class="flex items-center justify-between">
-                  <label for="response-output" class="text-xs font-medium tracking-wide text-paper/70 uppercase">
-                    Respuesta
-                  </label>
-                  <div class="flex items-center gap-2">
-                    <button
-                      v-if="respuestaPrompt"
-                      type="button"
-                      class="text-xs text-paper/50 transition hover:text-paper"
-                      @click="limpiarRespuesta"
-                    >
-                      Limpiar
-                    </button>
-                    <button
-                      v-if="respuestaPrompt"
-                      type="button"
-                      class="flex items-center gap-1 rounded border border-paper/20 px-2 py-0.5 text-xs text-brass transition hover:bg-brass/10"
-                      @click="copiarRespuesta"
-                    >
-                      {{ copiadoExitoso ? '✓ Copiado' : 'Copiar' }}
-                    </button>
-                  </div>
-                </div>
-
-                <textarea
-                  id="response-output"
-                  ref="responseTextarea"
-                  :value="respuestaPrompt"
-                  readonly
-                  rows="12"
-                  placeholder="La respuesta del asistente aparecerá aquí en tiempo real..."
-                  class="w-full resize-y rounded-lg border border-paper/20 bg-ink px-4 py-3 font-mono text-xs leading-relaxed text-paper placeholder:text-paper/30 focus:border-brass focus:outline-none"
-                />
-
-                <!-- Citations Pills -->
-                <div v-if="articulosCitados.length > 0" class="pt-2">
-                  <p class="mb-1.5 font-mono text-[10px] font-semibold tracking-wider text-brass uppercase">
-                    Artículos legales citados:
-                  </p>
-                  <div class="flex flex-wrap gap-2">
-                    <button
-                      v-for="articulo in articulosCitados"
-                      :key="`${articulo.fuente_legal}-${articulo.numero_articulo}`"
-                      type="button"
-                      class="flex items-center gap-1.5 rounded-full border border-brass/30 bg-brass/10 px-3 py-1 font-mono text-xs text-brass transition-all hover:bg-brass hover:text-ink hover:shadow-md focus:ring-2 focus:ring-brass focus:outline-none"
-                      title="Abrir visor de normativa"
-                      @click="articuloSeleccionado = articulo"
-                    >
-                      Art. {{ articulo.numero_articulo }}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </aside>
+          <div class="flex items-center justify-between gap-2 pt-1">
+            <span class="text-[11px] text-paper/40">Enter para enviar &middot; Shift+Enter para nueva línea</span>
+            <button
+              type="button"
+              :disabled="botonInformeDeshabilitado || cargando"
+              class="flex shrink-0 items-center gap-2 rounded px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40"
+              :class="
+                botonInformeDeshabilitado || cargando
+                  ? 'border border-brass/30 bg-brass/10 text-brass'
+                  : 'bg-brass text-ink shadow-md hover:bg-brass/90 ring-1 ring-brass'
+              "
+              @click="onGenerarInformeChat"
+            >
+              <span
+                v-if="cargando && !tieneResultados"
+                class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"
+              />
+              <span>{{ cargando && !tieneResultados ? 'Generando…' : 'Generar Informe' }}</span>
+            </button>
+            <button
+              type="button"
+              :disabled="procesandoChat || !mensajeChat.trim()"
+              class="flex shrink-0 items-center gap-2 rounded bg-brass px-4 py-2 text-sm font-medium text-ink transition hover:bg-brass/90 disabled:cursor-not-allowed disabled:opacity-40"
+              @click="onEnviarChat"
+            >
+              <span
+                v-if="procesandoChat"
+                class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-ink border-t-transparent"
+              />
+              <span>{{ procesandoChat ? 'Analizando…' : 'Enviar' }}</span>
+            </button>
+          </div>
         </div>
+
+        <!-- RESPONSE TEXT BOX -->
+        <div class="space-y-2 border-t border-paper/10 pt-4">
+          <div class="flex items-center justify-between">
+            <label for="response-output" class="text-xs font-medium tracking-wide text-paper/70 uppercase">
+              Respuesta
+            </label>
+            <div class="flex items-center gap-2">
+              <button
+                v-if="respuestaPrompt"
+                type="button"
+                class="text-xs text-paper/50 transition hover:text-paper"
+                @click="limpiarRespuesta"
+              >
+                Limpiar
+              </button>
+              <button
+                v-if="respuestaPrompt"
+                type="button"
+                class="flex items-center gap-1 rounded border border-paper/20 px-2 py-0.5 text-xs text-brass transition hover:bg-brass/10"
+                @click="copiarRespuesta"
+              >
+                {{ copiadoExitoso ? '✓ Copiado' : 'Copiar' }}
+              </button>
+            </div>
+          </div>
+
+          <textarea
+            id="response-output"
+            ref="responseTextarea"
+            :value="respuestaPrompt"
+            readonly
+            rows="12"
+            placeholder="La respuesta del asistente aparecerá aquí en tiempo real..."
+            class="w-full resize-y rounded-lg border border-paper/20 bg-ink px-4 py-3 font-mono text-xs leading-relaxed text-paper placeholder:text-paper/30 focus:border-brass focus:outline-none"
+          />
+
+          <!-- Citations Pills -->
+          <div v-if="articulosCitados.length > 0" class="pt-2">
+            <p class="mb-1.5 font-mono text-[10px] font-semibold tracking-wider text-brass uppercase">
+              Artículos legales citados:
+            </p>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="articulo in articulosCitados"
+                :key="`${articulo.fuente_legal}-${articulo.numero_articulo}`"
+                type="button"
+                class="flex items-center gap-1.5 rounded-full border border-brass/30 bg-brass/10 px-3 py-1 font-mono text-xs text-brass transition-all hover:bg-brass hover:text-ink hover:shadow-md focus:ring-2 focus:ring-brass focus:outline-none"
+                title="Abrir visor de normativa"
+                @click="articuloSeleccionado = articulo"
+              >
+                Art. {{ articulo.numero_articulo }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Error Alert Banner -->
+      <div
+        v-if="error"
+        class="flex items-center gap-3 rounded-lg border border-rojo/40 bg-rojo/10 px-5 py-4 text-sm text-paper shadow-sm"
+      >
+        {{ error }}
       </div>
+
+      <!-- Loading Indicator -->
+      <div
+        v-if="cargando && !tieneResultados"
+        class="flex items-center justify-center gap-3 py-12 text-sm text-paper/60"
+      >
+        <span class="h-2.5 w-2.5 animate-ping rounded-full bg-brass" />
+        Consultando la normativa y analizando datos del distrito...
+      </div>
+
+      <!-- Results Section -->
+      <section v-if="tieneResultados" class="animate-fade-in space-y-6">
+        <VerdictCard v-if="semaforo" :informe="{ semaforo, resumen, datos_distrito: datosDistrito || {} }" />
+        <div
+          v-else
+          class="flex items-center gap-3 rounded-xl border border-paper/15 bg-paper px-6 py-5 text-sm text-ink/60 shadow-sm"
+        >
+          <span class="h-2 w-2 animate-ping rounded-full bg-brass" />
+          Generando el veredicto…
+        </div>
+
+        <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <DistrictMap
+            v-if="datosDistrito"
+            class="h-full min-h-[300px] overflow-hidden rounded-xl border border-paper/15 shadow-sm"
+            :codi-districte="codiDistrictePedido"
+            :nom-districte="datosDistrito.nom_districte"
+            :ubicacion="ubicacionPedida"
+          />
+
+          <ChatBubble
+            v-if="respuestaLegal"
+            :informe="{ respuesta_legal: respuestaLegal, articulos_citados: articulosCitados }"
+            @ver-articulo="articuloSeleccionado = $event"
+          />
+        </div>
+      </section>
     </div>
 
     <!-- Legal Article Modal Viewer -->
