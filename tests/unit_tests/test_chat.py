@@ -59,7 +59,7 @@ class TestChatLLMResolution:
             assert llm.model_id == DEFAULT_BEDROCK_MODEL
             assert llm.region_name == DEFAULT_AWS_REGION
             assert llm.provider == "amazon"
-            assert llm.max_tokens == 2048
+            assert llm.max_tokens == 4096
             assert llm.disable_streaming is False
 
     def test_custom_generation_model_env(self):
@@ -463,3 +463,33 @@ class TestReActGraphAndRequest:
         assert len(events) == 1
         assert events[0]["type"] == "error"
         assert "detail" in events[0]
+
+
+class TestTruncationWarning:
+    def test_warns_when_the_answer_was_cut_by_the_token_limit(self, caplog):
+        from backend.ia.chat import _record_llm_result
+
+        cut = AIMessage(content="texto cortado", response_metadata={"stopReason": "max_tokens"})
+        with caplog.at_level(logging.WARNING, logger="geoyield_agent"):
+            _record_llm_result(cut, None)
+
+        assert "output token limit" in caplog.text
+
+    def test_does_not_warn_on_a_normal_end_of_turn(self, caplog):
+        from backend.ia.chat import _record_llm_result
+
+        done = AIMessage(content="respuesta completa", response_metadata={"stopReason": "end_turn"})
+        with caplog.at_level(logging.WARNING, logger="geoyield_agent"):
+            _record_llm_result(done, None)
+
+        assert "output token limit" not in caplog.text
+
+    def test_the_default_limit_can_be_set_from_the_environment(self):
+        import importlib
+
+        import backend.ia.chat as chat_module
+
+        with patch.dict("os.environ", {"ASSISTANT_MAX_TOKENS": "3000"}):
+            reloaded = importlib.reload(chat_module)
+            assert reloaded.ASSISTANT_MAX_TOKENS == 3000
+        importlib.reload(chat_module)

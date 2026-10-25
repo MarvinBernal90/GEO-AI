@@ -79,6 +79,9 @@ def get_generation_model() -> str:
 GENERATION_MODEL = get_generation_model()
 MAX_NUM_MESSAGES = int(os.environ.get("MAX_NUM_MESSAGES", 5))
 NUM_MESSAGES_TO_SUMMARIZE = int(os.environ.get("NUM_MESSAGES_TO_SUMMARIZE", 3))
+# Output token limit of each LLM call of the assistant. At 2048 the answers of the assistant
+# were cut in the middle of a sentence (the call ended with stopReason "max_tokens").
+ASSISTANT_MAX_TOKENS = int(os.environ.get("ASSISTANT_MAX_TOKENS", 4096))
 
 engine = create_engine(resolve_database_url())
 
@@ -87,7 +90,7 @@ def get_chat_llm(
     model: str | None = None,
     region_name: str | None = None,
     temperature: float = 0.0,
-    max_tokens: int = 2048,
+    max_tokens: int = ASSISTANT_MAX_TOKENS,
     disable_streaming: bool = False,
 ) -> Any:
     """
@@ -99,7 +102,7 @@ def get_chat_llm(
         model: Foundation model identifier (defaults to GENERATION_MODEL).
         region_name: AWS region (defaults to AWS_REGION).
         temperature: Sampling temperature (defaults to 0.0).
-        max_tokens: Maximum tokens to generate (defaults to 2048).
+        max_tokens: Maximum tokens to generate (defaults to ASSISTANT_MAX_TOKENS, 4096).
         disable_streaming: Whether to disable Converse streaming (defaults to False,
             as Amazon Nova natively supports ConverseStream token streaming).
     """
@@ -141,12 +144,23 @@ class State(MessagesState):
 
 
 #### METRICS HELPER
+def _warn_if_truncated(response: Any) -> None:
+    """Log a warning when the model stopped because it reached the output token limit."""
+    metadata = getattr(response, "response_metadata", None) or {}
+    if metadata.get("stopReason") == "max_tokens":
+        logger.warning("LLM answer cut by the output token limit (ASSISTANT_MAX_TOKENS=%s)", ASSISTANT_MAX_TOKENS)
+
+
 def _record_llm_result(response: Any, current_span: Any) -> None:
     """
     Store the token usage and a short output summary of an LLM call on its span.
     LangChain puts the usage in `response.usage_metadata`. Never raises: metrics
     must not break an answer.
     """
+    try:
+        _warn_if_truncated(response)
+    except Exception:
+        logger.debug("Could not check the stop reason", exc_info=True)
     if current_span is None:
         return
     try:
@@ -371,6 +385,8 @@ Usa solamente datos que te proporcionen las herrmientas, de ningún otro lugar.
 Lista las fuentes. Sé específico en cuales son.
 Si no eres capaz dem responder a la petición del usuario con la información disponible, dilo claramente.
 Responde siempre en español, aunque el usuario escriba en otro idioma.
+Cuando necesites una herramienta, llámala directamente: no describas antes los pasos que vas a seguir.
+Sé conciso: responde lo esencial sin repetir información.
 No escribas tu razonamiento interno ni uses etiquetas como <thinking>: escribe solo la respuesta final para el usuario.
 No admitas preguntas fuera del ámbito de de tu expertise
 """
