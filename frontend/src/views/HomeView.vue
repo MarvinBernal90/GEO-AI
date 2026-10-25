@@ -466,10 +466,7 @@ async function onEnviarChat() {
         <div class="border-b border-paper/10 pb-4">
           <div class="flex items-center justify-between">
             <p class="font-mono text-xs font-bold tracking-[0.2em] text-brass uppercase">Asistente IA</p>
-            <span
-              v-if="procesandoChat"
-              class="flex items-center gap-1.5 font-mono text-xs text-brass animate-pulse"
-            >
+            <span v-if="procesandoChat" class="flex items-center gap-1.5 font-mono text-xs text-brass animate-pulse">
               <span class="h-2 w-2 animate-ping rounded-full bg-brass" />
               Procesando…
             </span>
@@ -506,10 +503,7 @@ async function onEnviarChat() {
               {{ cargandoLogin ? 'Verificando…' : 'Login' }}
             </button>
           </div>
-          <div
-            v-if="usuarioLogueado"
-            class="mt-1.5 flex items-center gap-1.5 font-mono text-[11px] text-[#065f46]"
-          >
+          <div v-if="usuarioLogueado" class="mt-1.5 flex items-center gap-1.5 font-mono text-[11px] text-[#065f46]">
             <span class="h-1.5 w-1.5 rounded-full bg-[#065f46]" />
             <span
               >Usuario activo: <strong>{{ usuarioLogueado }}</strong></span

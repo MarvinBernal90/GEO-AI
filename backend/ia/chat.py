@@ -24,13 +24,10 @@ Metrics: the LLM calls and the tools are measured with spans (time, tokens, step
 Spans only keep sizes and tool names, never the text of the user.
 """
 
-import sys
-
-sys.path.insert(0, "/home/claud/pontia/PJ")
-
 import json
 import logging
 import os
+import pickle
 from collections.abc import Iterator
 from decimal import Decimal
 from pathlib import Path
@@ -166,8 +163,6 @@ def _record_llm_result(response: Any, current_span: Any) -> None:
 
 
 #### TOOLS DEFINITION
-
-import pickle
 
 # Load precomputed tf-idf matrix with official street names to map directions to coordinates
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
