@@ -483,6 +483,7 @@ async function onEnviarChat() {
       <header class="flex items-center justify-between gap-4">
         <p class="font-mono text-xs font-bold tracking-[0.2em] text-brass uppercase">Geo-Yield-AI</p>
         <RouterLink
+          v-if="usuarioLogueado"
           to="/metrics"
           class="rounded border border-paper/20 px-2.5 py-1 font-mono text-[11px] tracking-wider text-paper/70 uppercase transition hover:border-brass hover:text-brass focus:ring-2 focus:ring-brass/50 focus:outline-none"
         >
