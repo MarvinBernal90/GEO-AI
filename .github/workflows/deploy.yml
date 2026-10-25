@@ -54,6 +54,8 @@ jobs:
               "aws s3 sync s3://geoyield-raw-data-192445490421-eu-central-1/processed /home/ubuntu/Geo-Yield-AI/data/processed --region eu-central-1 || true",
               "aws s3 sync s3://geoyield-raw-data-192445490421-eu-central-1/data/processed /home/ubuntu/Geo-Yield-AI/data/processed --region eu-central-1 || true",
               "chown -R ubuntu:ubuntu /home/ubuntu/Geo-Yield-AI/data",
+              "sed -i /^SERVICE_VERSION=/d .env",
+              "echo SERVICE_VERSION='"${GITHUB_SHA::7}"' >> .env",
               "docker compose --env-file .env -f deployment/docker-compose.yml up -d --build",
               "docker exec geoyield_api python -m alembic -c database/alembic.ini upgrade head",
               "for i in $(seq 1 15); do curl -sf http://localhost:8080/health && break || sleep 2; done",

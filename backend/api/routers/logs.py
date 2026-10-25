@@ -7,6 +7,7 @@ Public and unauthenticated, hence the caps, rate limit and sanitising below.
 """
 
 import logging
+import os
 import threading
 import time
 
@@ -37,10 +38,18 @@ _buckets: dict[str, tuple[float, float]] = {}
 _buckets_lock = threading.Lock()
 
 
+# Proxies between the internet and this process (CloudFront = 1; add one for
+# an ALB in front). Each appends the address it saw, so the entry we can trust
+# is counted from the right; everything left of it is client-controlled.
+TRUSTED_PROXY_HOPS = max(int(os.getenv("TRUSTED_PROXY_HOPS", "1") or 1), 1)
+
+
 def _client_ip(request: Request) -> str:
     forwarded = request.headers.get("X-Forwarded-For")
     if forwarded:
-        return forwarded.split(",")[0].strip()[:64]
+        hops = [hop.strip() for hop in forwarded.split(",") if hop.strip()]
+        if hops:
+            return hops[max(len(hops) - TRUSTED_PROXY_HOPS, 0)][:64]
     return request.client.host if request.client else "unknown"
 
 

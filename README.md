@@ -336,8 +336,16 @@ docker compose -f deployment/docker-compose.yml logs -f api | jq .
 
 **How logs reach CloudWatch.** The browser cannot talk to CloudWatch without exposing AWS credentials, so it posts batches to `POST /api/logs` and the backend re-emits them through its own logger. From there, two routes:
 
-1. **stdout (default, recommended).** On ECS/Fargate/App Runner the host driver (`awslogs`/FireLens) already collects it: no boto3, no credentials, no added latency and no `PutLogEvents` rate limit. Leave `LOG_CLOUDWATCH_GROUP` empty there.
-2. **Direct shipping.** For hosts that do *not* collect stdout, such as Render. Set `LOG_CLOUDWATCH_GROUP` and install the optional `boto3` and `watchtower` (commented out in `backend/requirements.txt`). It only activates when `ENV=production`.
+1. **stdout collected by the host (default, recommended).** On ECS/Fargate/App Runner the host driver (`awslogs`/FireLens) already collects it. On the **EC2 + docker compose** deployment nothing does by default (the `json-file` driver keeps logs on the box), so `deployment/docker-compose.yml` sets `logging: driver: awslogs` on the `api` service (group `/geoyield/api`, override with `LOG_CLOUDWATCH_DOCKER_GROUP`). The Docker daemon authenticates with the instance profile, whose policy is `aws/bedrock/bedrock-policy.json`. Leave `LOG_CLOUDWATCH_GROUP` **unset** here, or every line is ingested twice.
+2. **Direct shipping.** For hosts that do *not* collect stdout and where you cannot change the log driver, such as Render. Set `LOG_CLOUDWATCH_GROUP` and install the optional `boto3` and `watchtower` (commented out in `backend/requirements.txt`). It only activates when `ENV=production`.
+
+**Production checklist (EC2 `.env`).** `ENV=production` (JSON, INFO), `CORS_ORIGINS=<CloudFront frontend origin>` (otherwise the browser cannot call the API or post to `/api/logs`), `TRUSTED_PROXY_HOPS` matching the proxies in front of the API. `SERVICE_VERSION` and the frontend's `VITE_APP_VERSION` are set to the commit SHA by the deploy workflows. Each model call also emits an `llm.invoke` event (`model`, `duration_ms`, `input_tokens`, `output_tokens`, `outcome`):
+
+```
+fields @timestamp, context.model, duration_ms, context.input_tokens, context.output_tokens
+| filter event = "llm.invoke" and context.outcome = "ok"
+| stats avg(duration_ms), sum(context.output_tokens) by context.model
+```
 
 **Privacy (GDPR).** The geocoder's free-text address is personal data and is never logged; the resulting district and zone are stored instead. `backend/observability/logging_config.py` also redacts a set of sensitive keys (`direccion`, `email`, `token`, `api_key`...) both in our own logs and in those arriving from the browser.
 

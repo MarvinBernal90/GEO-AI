@@ -116,9 +116,27 @@ services:
       - ../evals/results:/app/evals/results
       - ~/.aws:/root/.aws
     # No log volume any more: logs go to stdout as JSON (one line per event),
-    # which is what both `docker compose logs` and the ECS awslogs/FireLens
-    # drivers collect. A file inside the container reaches no collector.
+    # which is what both `docker compose logs` and the awslogs driver collect.
+    # A file inside the container reaches no collector.
     #   docker compose logs -f api | jq .
+    #
+    # On EC2 nothing ships stdout to CloudWatch unless we ask the Docker daemon
+    # to (the default json-file driver stays on the box). The daemon uses the
+    # instance profile (see aws/bedrock/bedrock-policy.json), so no keys.
+    # non-blocking: a CloudWatch outage drops buffered lines instead of
+    # stalling the API on every log call.
+    # Because the awslogs driver ships stdout, the app's own watchtower
+    # shipping must stay off here (leave LOG_CLOUDWATCH_GROUP unset), or every
+    # line is ingested twice.
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: "${AWS_REGION:-eu-central-1}"
+        awslogs-group: "${LOG_CLOUDWATCH_DOCKER_GROUP:-/geoyield/api}"
+        awslogs-create-group: "true"
+        tag: "{{.Name}}"
+        mode: non-blocking
+        max-buffer-size: 4m
     networks:
       - geoyield_net
     # Startup dependency:

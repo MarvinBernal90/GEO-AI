@@ -149,3 +149,59 @@ class TestGetLLMAdapterFactory:
 
             adapter = get_llm_adapter()
             assert isinstance(adapter, GeminiAsAnthropicAdapter)
+
+
+class TestLlmInvokeLogEvent:
+    """Every model call must leave one structured `llm.invoke` line for CloudWatch."""
+
+    @staticmethod
+    def _events(caplog):
+        return [r for r in caplog.records if getattr(r, "event", None) == "llm.invoke"]
+
+    def test_create_logs_tokens_and_outcome(self, caplog):
+        client = MagicMock()
+        client.converse.return_value = {
+            "output": {"message": {"content": [{"text": "ok"}]}},
+            "stopReason": "end_turn",
+            "usage": {"inputTokens": 12, "outputTokens": 3},
+        }
+        adapter = BedrockAsAnthropicAdapter(region_name="eu-central-1", client=client)
+
+        with caplog.at_level("INFO", logger="geoyield.rag.bedrock_adapter"):
+            adapter.create(model="m", max_tokens=10, system="s", messages=[{"role": "user", "content": "hola"}])
+
+        (record,) = self._events(caplog)
+        assert record.context["outcome"] == "ok"
+        assert record.context["input_tokens"] == 12
+        assert record.context["output_tokens"] == 3
+        assert "hola" not in record.getMessage(), "the prompt text must never be logged"
+
+    def test_create_logs_an_error_when_bedrock_fails(self, caplog):
+        client = MagicMock()
+        client.converse.side_effect = RuntimeError("throttled")
+        adapter = BedrockAsAnthropicAdapter(region_name="eu-central-1", client=client)
+
+        with caplog.at_level("INFO", logger="geoyield.rag.bedrock_adapter"):
+            with pytest.raises(RuntimeError):
+                adapter.create(model="m", max_tokens=10, system="s", messages=[{"role": "user", "content": "x"}])
+
+        (record,) = self._events(caplog)
+        assert record.levelname == "ERROR"
+        assert record.context["outcome"] == "error"
+
+    def test_stream_logs_one_event_when_the_client_disconnects(self, caplog):
+        client = MagicMock()
+        client.converse_stream.return_value = {
+            "stream": [{"contentBlockDelta": {"delta": {"text": "a"}}}, {"contentBlockDelta": {"delta": {"text": "b"}}}]
+        }
+        adapter = BedrockAsAnthropicAdapter(region_name="eu-central-1", client=client)
+
+        with caplog.at_level("INFO", logger="geoyield.rag.bedrock_adapter"):
+            stream = adapter.create_stream(
+                model="m", max_tokens=10, system="s", messages=[{"role": "user", "content": "x"}]
+            )
+            next(stream)
+            stream.close()
+
+        (record,) = self._events(caplog)
+        assert record.context["outcome"] == "cancelled"

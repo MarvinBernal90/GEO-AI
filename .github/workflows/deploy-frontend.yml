@@ -48,7 +48,9 @@ jobs:
         working-directory: frontend
         env:
           VITE_API_BASE_URL: https://d2yya2azx26rn0.cloudfront.net
-        run: npm run build
+        # The short SHA lands in the "version" field of every log event, so an
+        # error spike can be tied to the deploy that caused it.
+        run: VITE_APP_VERSION="${GITHUB_SHA::7}" npm run build
 
       # 5. Autenticarse en AWS con las credenciales de IAM
       - name: Configure AWS Credentials

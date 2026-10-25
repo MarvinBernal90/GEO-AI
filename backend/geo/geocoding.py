@@ -106,7 +106,8 @@ def geocodificar_direccion(direccion: str) -> dict | None:
         response = requests.get(NOMINATIM_URL, params=params, headers={"User-Agent": USER_AGENT}, timeout=5)
         response.raise_for_status()
     except requests.RequestException:
-        logger.exception(f"Error consultando Nominatim para la dirección: {direccion!r}")
+        # The address is personal data (GDPR): log its size, never the text.
+        logger.exception("Error consultando Nominatim (dirección de %d caracteres)", len(direccion))
         return None
 
     resultados = json.loads(response.text)

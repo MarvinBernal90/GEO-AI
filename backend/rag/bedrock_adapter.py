@@ -23,7 +23,7 @@ import time
 from collections.abc import Generator
 from typing import Any
 
-from backend.observability import get_logger
+from backend.observability import get_logger, log_event
 from backend.observability.metrics import add_usage, span
 
 logger = get_logger("rag.bedrock_adapter")
@@ -53,6 +53,28 @@ def _record_usage(model: str, usage: Any, current_span: Any) -> None:
         )
     except Exception:
         logger.warning("Could not record Bedrock token usage", exc_info=True)
+
+
+def _log_llm_call(
+    model: str, started: float, usage: Any, *, stream: bool, outcome: str, stop_reason: str | None = None
+) -> None:
+    """One structured line per model call, so CloudWatch can chart latency, tokens and failures. Never raises."""
+    try:
+        log_event(
+            logger,
+            "ERROR" if outcome == "error" else "INFO",
+            f"Bedrock {'stream' if stream else 'converse'} {outcome}",
+            event="llm.invoke",
+            duration_ms=(time.perf_counter() - started) * 1000,
+            model=model,
+            stream=stream,
+            outcome=outcome,
+            stop_reason=stop_reason,
+            input_tokens=_usage_count(usage, "inputTokens"),
+            output_tokens=_usage_count(usage, "outputTokens"),
+        )
+    except Exception:
+        pass
 
 
 def _prompt_chars(bedrock_messages: list[dict[str, Any]]) -> int:
@@ -148,13 +170,18 @@ class BedrockAsAnthropicAdapter:
             "temperature": temperature,
         }
 
+        started = time.perf_counter()
         with span("llm", "llm_call", model=model, input_summary=f"{_prompt_chars(bedrock_messages)} chars") as current:
-            response = self._client.converse(
-                modelId=model,
-                system=system_param,
-                messages=bedrock_messages,
-                inferenceConfig=inference_config,
-            )
+            try:
+                response = self._client.converse(
+                    modelId=model,
+                    system=system_param,
+                    messages=bedrock_messages,
+                    inferenceConfig=inference_config,
+                )
+            except Exception:
+                _log_llm_call(model, started, None, stream=False, outcome="error")
+                raise
 
             output_message = response.get("output", {}).get("message", {})
             content_blocks = output_message.get("content", [])
@@ -165,6 +192,7 @@ class BedrockAsAnthropicAdapter:
                 current.output_summary = f"{len(text_out)} chars"
 
         stop_reason = response.get("stopReason")
+        _log_llm_call(model, started, response.get("usage"), stream=False, outcome="ok", stop_reason=stop_reason)
         if stop_reason == "max_tokens":
             logger.warning(f"Bedrock generation reached maxTokens ({max_tokens}). Response may be truncated.")
 
@@ -217,6 +245,7 @@ class BedrockAsAnthropicAdapter:
         ) as current:
             started = time.perf_counter()
             last_usage = None
+            outcome = "error"
             try:
                 response = self._client.converse_stream(
                     modelId=model,
@@ -235,8 +264,14 @@ class BedrockAsAnthropicAdapter:
                             yield text_delta
                     elif "metadata" in event:
                         last_usage = event["metadata"].get("usage")
+                outcome = "ok"
+            except GeneratorExit:
+                # The client closed the stream early; not a model failure.
+                outcome = "cancelled"
+                raise
             finally:
                 _record_usage(model, last_usage, current)
+                _log_llm_call(model, started, last_usage, stream=True, outcome=outcome)
 
 
 def get_llm_adapter(client: Any = None) -> Any:
