@@ -1,0 +1,70 @@
+<!--
+==============================================================================
+UI COMPONENT: AI RESPONSE BUBBLE & CITATIONS
+==============================================================================
+File: frontend/src/components/ChatBubble.vue
+
+Dumb/Presentational Component.
+Receives the AI's legal response via Props and renders the text alongside 
+interactive pill-buttons for each cited legal article.
+
+Architectural Note:
+This component does not manage the state of the PDF Viewer (VisorNormativa).
+It strictly follows "Props Down, Events Up" by emitting the 'ver-articulo' event 
+back to the Orchestrator (App.vue).
+-->
+
+<script setup>
+import { computed } from 'vue'
+
+import { renderMarkdown } from '../utils/markdown.js'
+
+const props = defineProps({
+  informe: { type: Object, required: true },
+})
+
+const emit = defineEmits(['ver-articulo'])
+// Defensive Computing (Streaming Data Safety):
+// Since the report arrives via SSE Streaming, the 'articulos_citados' array
+// might be undefined during the first few chunks. Directly checking .length
+// would crash the Vue Virtual DOM.
+const tieneArticulos = computed(() => {
+  return Array.isArray(props.informe.articulos_citados) && props.informe.articulos_citados.length > 0
+})
+</script>
+
+<template>
+  <div class="flex gap-4">
+    <!-- Chat Avatar -->
+    <div
+      class="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-brass/40 bg-ink text-brass shadow-sm font-display text-sm"
+      aria-hidden="true"
+    >
+      GY
+    </div>
+
+    <!-- Message Bubble -->
+    <div class="flex-1 space-y-4 rounded-2xl rounded-tl-sm border border-paper/10 bg-ink-light px-5 py-4 shadow-sm">
+      <header>
+        <p class="mb-1.5 font-mono text-[10px] font-semibold tracking-widest text-brass uppercase">Fundamento legal</p>
+        <!-- Safe: renderMarkdown escapes the HTML before adding its own tags -->
+        <!-- eslint-disable-next-line vue/no-v-html -->
+        <div class="markdown-body" v-html="renderMarkdown(informe.respuesta_legal)" />
+      </header>
+
+      <!-- Citations Section (RAG Traceability) -->
+      <footer v-if="tieneArticulos" class="flex flex-wrap gap-2 border-t border-paper/10 pt-4">
+        <button
+          v-for="articulo in informe.articulos_citados"
+          :key="`${articulo.fuente_legal}-${articulo.numero_articulo}`"
+          type="button"
+          class="flex items-center gap-1.5 rounded-full border border-brass/30 bg-brass/10 px-3 py-1 font-mono text-xs text-brass transition-all hover:bg-brass hover:text-ink hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brass"
+          title="Abrir visor de normativa"
+          @click="emit('ver-articulo', articulo)"
+        >
+          Art. {{ articulo.numero_articulo }}
+        </button>
+      </footer>
+    </div>
+  </div>
+</template>

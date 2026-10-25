@@ -1,65 +1,167 @@
+# ==============================================================================
+# LOCAL INFRASTRUCTURE ORCHESTRATION (Docker Compose)
+# ==============================================================================
+# This file defines and coordinates the containers for the Geo-Yield-AI
+# project. It follows the separation-of-concerns principle:
+# 1. Data layer (postgis): relational, spatial and vector storage.
+# 2. Logic layer (api): FastAPI backend.
+# ==============================================================================
+
 services:
 
   postgis:
-    # se utiliza la imagen oficial de postgis, que incluye tanto postgresql como postgis, lo que permite tener una base de datos geoespacial lista para usar sin necesidad de configuraciones adicionales
-    image: postgis/postgis:18-master
+    # Design decision (custom build):
+    # Instead of using the official prebuilt image, we build our own based on
+    # deployment/Dockerfile.postgis. This lets us unify PostgreSQL, PostGIS
+    # (spatial data) and pgvector (AI/RAG engine) in a single database engine,
+    # optimizing resources.
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile.postgis
     container_name: geoyield_db
+    # Restart policy: the container survives machine restarts, but respects
+    # the developer stopping it manually with 'stop'.
+    restart: unless-stopped
+    # Secrets and variable management:
+    # We use a single .env file at the repo root as the single source of
+    # truth. Technical note: we avoid using the 'environment:' block here
+    # because Docker Compose would try to interpolate the variables early
+    # (leaving them empty) and would overwrite the correct values injected by
+    # 'env_file'.
     env_file:
-      - .env # se cargan las variables de entorno desde el archivo .env ubicado en el mismo directorio que el docker-compose.yml, lo que permite configurar fácilmente el usuario, contraseña y base de datos sin necesidad de modificar el docker-compose.yml directamente
-    environment:
-    # estas variables de entorno son las que se utilizan para configurar la base de datos postgresql, y se corresponden con los valores definidos en el archivo .env, lo que permite una configuración flexible y segura sin necesidad de hardcodear estos valores en el docker-compose.yml
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    # la base de datos se expone solo a la red interna de docker, no al host, por eso se usa 'expose' en lugar de 'ports'
-    expose:
-      - "5432"
-    # se monta un volumen para persistir los datos de la base de datos, mapeando al directorio en el contenedor indicado en la documentación oficial de la imagen (dockerhub)
+      - ../.env  # Single .env at the repo root (previously there was ambiguity between one in deployment/ and one at the root)
+    # NOTE (a real bug, caught at runtime): there is no extra
+    # "environment: POSTGRES_DB: ${POSTGRES_DB}..." block declared here.
+    # Docker Compose interpolates ${VAR} while parsing the YAML using the
+    # .env of the compose file's OWN directory (deployment/), NOT the one in
+    # env_file (../.env) -- since there is no .env there, those variables
+    # resolve to empty strings, and because "environment:" takes precedence
+    # over "env_file:", they overwrote the correct values that env_file had
+    # already injected properly. Result: POSTGRES_PASSWORD arrived empty at
+    # the container and Postgres refused to start. env_file alone is already
+    # enough to pass these variables to the container -- there is no need to
+    # duplicate them.
+    # Published to the host (not just 'expose') so Alembic and the ETL can be
+    # run from outside Docker during development (see README, Phase 1).
+    # A deliberate trade-off for a local development environment: in a real
+    # deployment this should not be published to the host.
+    # Honours POSTGRES_HOST_PORT from the root .env, so a Postgres already
+    # running on the host does not block startup. Interpolation reads the
+    # .env of the compose file's directory, so run compose with
+    # `--env-file .env` from the repo root (see README).
+    ports:
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
     volumes:
+    # Data persistence:
+    # Specific adjustment for official images from PostgreSQL 18 onward: the
+    # volume must be mounted at the parent directory (/var/lib/postgresql),
+    # since the image manages the per-version subfolders internally.
       - geoyield_db:/var/lib/postgresql
-    # la api y la base de datos se encuentran ane una red interna tipo bridge para que puedan comunicarse entre sí, pero no estén expuestas al host
     networks:
       - geoyield_net
-    # solventa el asunto ya comentado en clase de que al api intenta conectar a la base de datos antes de que esta esté inicializada y lista para aceptar conexiones, lo que provoca errores de conexión
-    # con esto se da un periodo de gracia de 30 segundos a partrie de cual se lanzan hasta 5 pings antes de declara la base de datos 'unhealty'
-    # se da 5s hasta dar u ping por fallido y se reintentan cada 10s, lo que da un margen de hasta 1 minuto para que la base de datos esté lista antes de que el api deje de intentar conectar
+    # Health check:
+    # Ensures the database is ready to accept TCP connections before the API
+    # tries to start.
+    # Technical note: we use double dollar ($$) to stop Compose from
+    # evaluating the variable while reading the YAML; we want it evaluated by
+    # the shell INSIDE the container using the values from the .env file.
     healthcheck:
-      test: ["CMD", "geoyield", "ping", "-h", "127.0.0.1"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
 
-  api: 
-    # la imagen se construye a partir del Dockerfile ubicado en el mismo directorio que el docker-compose.yml, lo que permite incluir todas las dependencias necesarias para ejecutar el api, incluyendo el conector de mariadb para python
-    build: ./
-    container_name: geoyield_api
-    env_file:
-      - .env # se cargan las variables de entorno desde el archivo .env ubicado en el mismo directorio que el docker-compose.yml, lo que permite configurar fácilmente la cadena de conexión a la base de datos sin necesidad de modificar el docker-compose.yml directamente
-    # se expone al host en el puerto 8080, mapeando al puerto 8000 del contenedor donde se ejecuta el api, lo que permite acceder al api desde el host a través de localhost:8080
+  redis:
+    image: redis:7-alpine
+    container_name: geoyield_redis
+    restart: unless-stopped
+    command: ["redis-server", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru", "--save", ""]
     ports:
-      - "8080:8000"
-    # cadena de conexión en base a documentación. Ver valores de las variables de entorno de MARIADB_USER y MARIADB_PASSWORD en el servicio de mariadb
-    # el puerto en la red interna es siempre el del contendor
-    volumes:
-      - geoyield_log:/logs
-      - geoyield_metrics:/metrics
-    # environment: las variables de entorno se cargan en main.py a través de load_dotenv(), por lo que no es necesario definirlas aquí
+      - "${REDIS_HOST_PORT:-6379}:6379"
     networks:
       - geoyield_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      # The build 'context' is set to the repo root ('..') so the Dockerfile
+      # can access the /backend folder and copy the application's source
+      # code.
+      context: ..
+      dockerfile: deployment/Dockerfile
+    container_name: geoyield_api
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      - DB_HOST_OVERRIDE=
+      - DB_PORT_OVERRIDE=
+    # Port mapping to avoid collisions:
+    # The API runs internally on port 8000, but we expose it on 8080 to avoid
+    # conflicting with other local applications on the host.
+    ports:
+      - "8080:8000"
+    volumes:
+      # Mount the local data folder inside the container 
+      # so that the API can access the CSV files in Phase 1 (until they are migrated to S3)
+      - ../data:/app/data
+      # RAG evaluation results (runs/*.json, corpus.json). They are generated outside the server and copied
+      # here (not in git); the API reads them from /app/evals/results (backend/api/routers/rag_evals.py)
+      # and the /metrics "Calidad RAG" tab shows them. Mounted from the host so a redeploy does not lose them.
+      - ../evals/results:/app/evals/results
+      - ~/.aws:/root/.aws
+    # No log volume any more: logs go to stdout as JSON (one line per event),
+    # which is what both `docker compose logs` and the awslogs driver collect.
+    # A file inside the container reaches no collector.
+    #   docker compose logs -f api | jq .
+    #
+    # On EC2 nothing ships stdout to CloudWatch unless we ask the Docker daemon
+    # to (the default json-file driver stays on the box). The daemon uses the
+    # instance profile (see aws/bedrock/bedrock-policy.json), so no keys.
+    # non-blocking: a CloudWatch outage drops buffered lines instead of
+    # stalling the API on every log call.
+    # Because the awslogs driver ships stdout, the app's own watchtower
+    # shipping must stay off here (leave LOG_CLOUDWATCH_GROUP unset), or every
+    # line is ingested twice.
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: "${AWS_REGION:-eu-central-1}"
+        awslogs-group: "${LOG_CLOUDWATCH_DOCKER_GROUP:-/geoyield/api}"
+        awslogs-create-group: "true"
+        tag: "{{.Name}}"
+        mode: non-blocking
+        max-buffer-size: 4m
+    networks:
+      - geoyield_net
+    # Startup dependency:
+    # Thanks to the 'condition: service_healthy' block, Docker patiently waits
+    # for the database to confirm it's operational before starting the API.
     depends_on:
       postgis:
-        # solventa el problema de que el api intente conectar a la base de datos antes de que esta esté inicializada y lista para aceptar conexiones, lo que provoca errores de conexión
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
-# son volumenes de docker, no se mapean a directorios del host, lo que permite que docker gestione la persistencia de los datos sin necesidad de preocuparse por la estructura de directorios del host, y también evita problemas de permisos que pueden surgir al mapear volúmenes a directorios del host
-# si se hubiesen mapeado a directorios del host, habría que asegurarse de que esos directorios existen y tienen los permisos adecuados antes de iniciar los contenedores, lo que añade complejidad a la configuración y despliegue
+# ==============================================================================
+# DOCKER-MANAGED RESOURCES
+# ==============================================================================
+
+# Named volumes:
+# Persistence is delegated to the Docker engine instead of mapping OS folders
+# (bind mounts), avoiding permission issues (especially between
+# Linux/Windows/macOS).
 volumes:
   geoyield_db:
-  geoyield_logs:
 
+# Internal network (bridge):
+# Isolates communication between containers, letting them discover each other
+# via automatic DNS resolution (using service names: 'postgis').
 networks:
   geoyield_net:
     driver: bridge
-
- 

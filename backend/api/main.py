@@ -1,35 +1,48 @@
-import uvicorn
+"""
+Main API entrypoint.
+
+This script acts as the application launcher. Its sole responsibility,
+before starting the web server (Uvicorn), is to prepare the runtime
+environment:
+1. Load environment variables.
+2. Configure the logging system (delegated to backend.observability, which
+   is also invoked from api.py, so a direct `uvicorn backend.api.api:app`
+   start is covered too).
+"""
+
 import os
-from pathlib import Path
+
+import uvicorn
 from dotenv import load_dotenv
-import logging  
 
-
-#env_path = os.path.join(os.path.dirname(__file__), 'env', '.env')
-#load_dotenv(env_path)
-
-# carga las variables de entorno dese el archivo .env
-# las variables de entorno se cargan a nivel de proceso, por lo que estaran disponibles en todos los módulos
+# 1. Environment variable loading.
+# Runs at the top of the file to guarantee that secrets and configuration
+# from the .env file are available in the OS environment BEFORE the rest
+# of the application's modules are imported.
 load_dotenv()
 
-# directorios del proyecto
-PROJECT_ROOT = Path(__file__).resolve().parent
-LOG_DIR = PROJECT_ROOT / "logs"
-LOG_DIR.mkdir(exist_ok=True)
+# Logging config now lives in backend/observability and is also invoked from
+# api.py, so a `uvicorn backend.api.api:app` start (which never imports this
+# module) still gets JSON output and honours LOG_LEVEL.
+from backend.observability import configure_logging  # noqa: E402
 
-# configuración del logging. El modulo logging controla el log a nivel de aplicación. 
-# para obtener el logger en cada módulo se debe llamar a logging.getLogger("geoyield_api"), lo que permite tener un control centralizado del logging y configurar diferentes niveles de logging para diferentes módulos si se desea, aunque en este caso se ha optado por un nivel de logging global configurado a través de la variable de entorno LOG_LEVEL
-log_level = int(os.getenv('LOG_LEVEL', '20'))  # Default to INFO level (20)
-logging.basicConfig(level=log_level, 
-                    format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',
-                    handlers=[
-                        logging.FileHandler(str(LOG_DIR / "geoyield_api.log")),  # Log to file
-                        logging.StreamHandler()  # Also log to console
-                    ])
-logger = logging.getLogger("geoyield_api")    
+configure_logging()
 
+# 2. Uvicorn server startup.
 if __name__ == "__main__":
-    uvicorn.run("app.api:app", host="0.0.0.0", port=8000
-                ,log_level=log_level
-                ,reload=True
-                )
+    # Check the environment to decide whether to enable hot reload.
+    # In local development it's very useful for the API to restart itself
+    # on save, but in production (Docker/cloud) it must be disabled so it
+    # doesn't waste resources or affect performance.
+    is_dev = os.getenv("ENV", "development") == "development"
+
+    # We pass the app path as a string, which is a requirement for Uvicorn
+    # so reload mode works correctly.
+    uvicorn.run(
+        "backend.api.api:app",
+        host="0.0.0.0",
+        port=8000,
+        # Stops uvicorn installing its own plain-text logging config over ours.
+        log_config=None,
+        reload=is_dev,
+    )

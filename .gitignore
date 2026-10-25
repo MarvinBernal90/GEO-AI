@@ -16,6 +16,12 @@ data/
 *.csv
 *.tsv
 *.json
+# ...but *.json above is meant for raw data only. Without these exceptions it
+# also swallows the frontend manifests, which is why frontend/package.json was
+# never committed and the app could not be installed from a clean clone.
+!frontend/package.json
+!frontend/package-lock.json
+!**/.vscode/*.json
 *.xlsx
 *.parquet
 *.zip
@@ -31,6 +37,7 @@ __pycache__/
 *.egg-info/
 build/
 dist/
+.coverage
 
 # --- Virtual environments ---
 #.env
@@ -39,13 +46,43 @@ env/
 venv/
 ENV/
 *.env
+.vscode/
 
 # --- CI/CD secrets ---
 *.pem
 *.key
 .envrc
 .env.*
+!.env.example
 
 # --- Misc ---
 README_devops_g5.md
 tmp/
+find_file
+find_text
+
+# Archivos de prueba y mapas locales
+generar_mapa_dependencias.py
+mapa_dependencias_template.html
+mapa_dependencias.html
+prueba_agente.py
+prueba_rag.py
+
+# Bundled district outlines used by the map
+!frontend/src/assets/distritos-bcn.json
+
+chat_history/
+
+# Local/test artifacts
+test-results/
+
+# --- RAG evals ---
+# Everything the evals generate stays on your machine: model-reply caches, drafts, and the run results the
+# dashboard reads (each run file is thousands of lines). Re-create them with `python -m evals.run_eval`.
+# Committed on purpose: the question sets (evals/questions/) and holdout_log.jsonl, the small record of holdout use.
+evals/results/*
+!evals/results/holdout_log.jsonl
+
+
+# AWS info
+!aws/bedrock/*.json

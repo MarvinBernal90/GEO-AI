@@ -1,0 +1,31 @@
+# ==============================================================================
+# PYTHON TOOLING CONFIGURATION (Ruff)
+# ==============================================================================
+# File: pyproject.toml
+#
+# Ruff is the single linter + formatter + import sorter for the Python code.
+# It is currently enforced on `backend/` only (see .github/workflows/integrate.yml
+# and the "Lint y formato del backend" section of README.md); the scope is set by
+# the commands, not by this file. Pytest keeps its own config in pytest.ini.
+
+[tool.ruff]
+target-version = "py312"  # Same version as the CI and deployment/Dockerfile.
+line-length = 120
+# Treat the repository root as a source root so `backend` is sorted as
+# first-party by the import rules.
+src = ["."]
+
+[tool.ruff.lint]
+# E/W: pycodestyle, F: pyflakes, I: isort, B: bugbear, UP: pyupgrade.
+select = ["E", "F", "W", "I", "B", "UP"]
+# The formatter owns line length. Long lines left over are docstring/comment
+# headers and string literals that are intentionally not re-wrapped.
+ignore = ["E501"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI declares dependencies as default values (`x = Depends(get_db)`).
+# That is the framework's idiom, so B008 must not flag it.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Body"]
+
+[tool.ruff.format]
+quote-style = "double"

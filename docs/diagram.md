@@ -1,60 +1,43 @@
+# Architecture diagram
+
+How a request flows through the system. The report pipeline fans out into data and legal branches (run in parallel) and fans in at the synthesis step.
+
 ```mermaid
----
-config:
-  layout: elk
----
 graph TD
-    A[User Input] -->|Business Description| B[ChatBot Interface]
-    B -->|Name, Field, Target Audience| C{Processing Engine}
-    
-    C -->|Mobility Data| D[Dynamic Mobility Analysis]
-    D -->|Big Data from MITMA| E[Pedestrian Flow Analysis]
-    E -->|Patterns & Affluence| F1[Mobility Insights]
-    
-    C -->|Regulatory Data| G[Automated Regulatory Validation]
-    G -->|PGOU & Local Ordinances| H[Legal Feasibility Check]
-    H -->|Licenses, Regulations| F2[Compliance Results]
-    
-    C -->|Demographic Data| I[Sociodemographic Analysis]
-    I -->|Population Density, Age, Income| J[Population Profile]
-    J -->|Target Match| F3[Demographic Insights]
-    
-    C -->|Market Data| K[Competitive Intelligence]
-    K -->|Competitors & POIs| L[Market Saturation Analysis]
-    L -->|Attraction Poles| F4[Competition Insights]
-    
-    %% Added Google Places API branch
-    K -->|External Data| GP[Google Places API]
-    GP -->|Field-related Competitors & Reviews| L
-    L -->|Review Scores| F4
-    
-    F1 --> M[Ranking Engine]
-    F2 --> M
-    F3 --> M
-    F4 --> M
-    
-    M -->|Consolidated Score| N[Results Aggregation]
-    N -->|Natural Language| O[Ranked Location Recommendations]
-    O -->|Best Zones| P[User Output]
-    
-    style A fill:#eef2ff,stroke:#818cf8,color:#1e1b4b
-    style B fill:#f0fdfa,stroke:#2dd4bf,color:#1e1b4b
-    style C fill:#f5f3ff,stroke:#a78bfa,color:#1e1b4b
-    style D fill:#fff7ed,stroke:#fb923c,color:#1e1b4b
-    style E fill:#fff7ed,stroke:#fb923c,color:#1e1b4b
-    style F1 fill:#fff7ed,stroke:#fb923c,color:#1e1b4b
-    style G fill:#fdf4ff,stroke:#e879f9,color:#1e1b4b
-    style H fill:#fdf4ff,stroke:#e879f9,color:#1e1b4b
-    style F2 fill:#fdf4ff,stroke:#e879f9,color:#1e1b4b
-    style I fill:#ecfeff,stroke:#22d3ee,color:#1e1b4b
-    style J fill:#ecfeff,stroke:#22d3ee,color:#1e1b4b
-    style F3 fill:#ecfeff,stroke:#22d3ee,color:#1e1b4b
-    style K fill:#f0fdf4,stroke:#4ade80,color:#1e1b4b
-    style L fill:#f0fdf4,stroke:#4ade80,color:#1e1b4b
-    style GP fill:#f0fdf4,stroke:#4ade80,color:#1e1b4b
-    style F4 fill:#f0fdf4,stroke:#4ade80,color:#1e1b4b
-    style M fill:#fefce8,stroke:#facc15,color:#1e1b4b
-    style N fill:#fefce8,stroke:#facc15,color:#1e1b4b
-    style O fill:#f0f9ff,stroke:#38bdf8,color:#1e1b4b
-    style P fill:#f0f9ff,stroke:#38bdf8,color:#1e1b4b
+    U[User] --> FE[Vue SPA]
+    FE -->|form| REP[POST /api/reports/stream]
+    FE -->|free text| CHAT[POST /api]
+    FE -->|logged in| AST[POST /api/assistant]
+
+    CHAT --> NLU[Intent extraction<br/>address, district, question]
+    NLU --> GEO[Nominatim geocoding<br/>+ AMB zone lookup]
+    GEO -->|unclear| ASK[aclaracion event:<br/>ask the user]
+    GEO -->|resolved| REP2[Viability graph]
+    CHAT -->|no location and thread_id| AST
+    REP --> REP2
+
+    subgraph REP2[Viability graph - LangGraph]
+        direction LR
+        D[datos_socioeconomicos<br/>district_scorecard + mobility]
+        N[normativa_legal<br/>RAG for the PGM zone]
+        D --> S[sintesis_final<br/>verde / ambar / rojo]
+        N --> S
+    end
+
+    AST --> RA[ReAct agent<br/>PostgresSaver memory]
+    RA -->|tool| FN[find_in_nomenclator<br/>TF-IDF street match]
+    RA -->|tool| OS[get_opportunity_score]
+    RA -->|tool| RQ[regulations_query<br/>embed, search, rerank]
+
+    D --> PG[(Postgres<br/>PostGIS + pgvector)]
+    N --> PG
+    OS --> PG
+    RQ --> PG
+    N --> BR[Bedrock<br/>Titan, Rerank, Nova]
+    RQ --> BR
+    S --> BR
+    RA --> BR
+
+    S -->|SSE tokens + verdict| FE
+    RA -->|SSE tokens| FE
 ```

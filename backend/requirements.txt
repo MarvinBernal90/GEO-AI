@@ -1,39 +1,65 @@
-annotated-doc==0.0.4
-annotated-types==0.7.0
-anyio==4.13.0
-certifi==2026.2.25
-charset-normalizer==3.4.7
-click==8.3.2
-colorama==0.4.6
-coverage==7.13.5
-dotenv==0.9.9
+# ==============================================================================
+# BACKEND DIRECT DEPENDENCIES (Geo-Yield-AI)
+# ==============================================================================
+# A strict version-pinning policy is applied, using '==' to guarantee exact
+# reproducibility (avoiding the "works on my machine" syndrome).
+
+# --- Web framework ---
 fastapi==0.135.3
-greenlet==3.3.2
-h11==0.16.0
-idna==3.11
-iniconfig==2.3.0
-joblib==1.5.3
-numpy==2.2.6
-packaging==26.0
-pandas==2.2.3
-pluggy==1.6.0
-psycopg2-binary==2.9.12
+uvicorn==0.43.0
+starlette==0.48.0
+
+# --- Data validation and configuration ---
 pydantic==2.12.5
-pydantic_core==2.41.5
+python-dotenv==1.2.2
+
+# --- Persistence and database layer ---
+SQLAlchemy==2.0.49
+psycopg2-binary==2.9.12
+alembic==1.19.1
+geoalchemy2==0.20.0
+pgvector==0.5.0
+redis==5.2.1
+
+# --- RAG (Retrieval-Augmented Generation) and legal engine ---
+anthropic==0.122.0
+
+# --- Orchestrator agent (AI graphs) ---
+langgraph==1.2.11
+langgraph-checkpoint-postgres==3.0.4
+psycopg[binary]==3.2.6
+langchain-aws==1.8.1
+
+# Optional: only for testing with a free-tier key while the Anthropic account
+# gets funded (see backend/rag/gemini_adapter.py). This is not the final
+# provider decision -- that remains Claude.
+google-genai==2.18.1
+
+# --- Data processing (ETL) ---
+# Technical note (risk management): the controlled jump to major version 3.0
+# was made after thoroughly verifying its compatibility. The data pipeline's
+# integration tests (test_etl.py) certified there are no breaking changes
+# relative to the previous 2.x version.
+pandas==3.0.2
+
+# --- Street name normalizer (TF-IDF Nomenclator) ---
+scikit-learn==1.6.1
+scipy==1.15.2
+
+# --- HTTP Client & Geocoding ---
+requests==2.32.3
+
+# --- Observability: direct CloudWatch shipping (OPTIONAL) ---
+# Only needed with LOG_CLOUDWATCH_ENABLED=true, i.e. when the host does NOT
+# collect stdout (the Render case). On ECS/Fargate/App Runner the host driver
+# already ships stdout and these two are unnecessary.
+#
+# --- AWS SDK (Amazon Bedrock inference + CloudWatch logging) ---
+boto3>=1.34.0
+botocore[crt]>=1.34.0
+# watchtower==3.5.0
+
+# --- Code quality and testing ---
 pytest==8.3.5
 pytest-cov==4.1.0
-python-dateutil==2.9.0.post0
-python-dotenv==1.2.2
-pytz==2026.1.post1
-requests==2.33.1
-scikit-learn==1.8.0
-scipy==1.17.1
-six==1.17.0
-SQLAlchemy==2.0.49
-starlette==1.0.0
-threadpoolctl==3.6.0
-typing-inspection==0.4.2
-typing_extensions==4.15.0
-tzdata==2026.2
-urllib3==2.6.3
-uvicorn==0.43.0
+httpx==0.28.1

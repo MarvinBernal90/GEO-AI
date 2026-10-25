@@ -1,0 +1,593 @@
+"""
+==============================================================================
+UNIT TESTS: REACT CHAT AGENT (BEDROCK GENERATION MODEL)
+==============================================================================
+File: tests/unit_tests/test_chat.py
+
+Comprehensive unit tests for the ReAct chat agent in backend.ia.chat.
+Validates:
+1. Bedrock model resolution (GENERATION_MODEL) using ChatBedrockConverse.
+2. Provider fallback support (Gemini) and explicit argument overrides.
+3. Content extraction across diverse LangChain response formats.
+4. Tool executions (geocoding, scorecard database querying, and RAG).
+5. Assistant node prompt formatting with and without prior conversational summary.
+6. Conversation summarization logic and memory compression.
+7. Graph execution and request dispatching.
+"""
+import json
+import logging
+from unittest.mock import MagicMock, patch
+
+import pytest
+from langchain_core.messages import AIMessage, HumanMessage
+
+from backend.ia.chat import (
+    _LANGUAGE_REMINDER,
+    DEFAULT_AWS_REGION,
+    DEFAULT_BEDROCK_MODEL,
+    MAX_NUM_MESSAGES,
+    NUM_MESSAGES_TO_SUMMARIZE,
+    State,
+    _extract_text_content,
+    _node_assistant,
+    _node_summarize,
+    _request_stream,
+    get_chat_llm,
+    get_generation_model,
+    get_opportunity_score,
+    react_graph,
+    regulations_query,
+    request,
+    sys_msg,
+    tools,
+)
+
+
+@pytest.fixture(autouse=True)
+def history_in_a_temp_folder(tmp_path, monkeypatch):
+    """The tests must not write chat history files inside the repository."""
+    monkeypatch.setattr("backend.ia.chat.REPO_ROOT", tmp_path)
+
+
+class TestChatLLMResolution:
+    def test_default_chat_llm_is_bedrock(self):
+        """Chat LLM defaults to ChatBedrockConverse with Bedrock GENERATION_MODEL."""
+        with patch.dict("os.environ", {}, clear=True):
+            model_name = get_generation_model()
+            assert model_name == DEFAULT_BEDROCK_MODEL
+            llm = get_chat_llm()
+            assert llm.__class__.__name__ == "ChatBedrockConverse"
+            assert llm.model_id == DEFAULT_BEDROCK_MODEL
+            assert llm.region_name == DEFAULT_AWS_REGION
+            assert llm.provider == "amazon"
+            assert llm.max_tokens == 4096
+            assert llm.disable_streaming is False
+
+    def test_custom_generation_model_env(self):
+        """Chat LLM respects custom GENERATION_MODEL and AWS_REGION in environment."""
+        custom_model = "amazon.nova-pro-v1:0"
+        with patch.dict("os.environ", {"GENERATION_MODEL": custom_model, "AWS_REGION": "us-east-1"}, clear=True):
+            assert get_generation_model() == custom_model
+            llm = get_chat_llm()
+            assert llm.__class__.__name__ == "ChatBedrockConverse"
+            assert llm.model_id == custom_model
+            assert llm.region_name == "us-east-1"
+            assert llm.provider == "amazon"
+
+    def test_legacy_gemini_string_in_bedrock_mode_resolves_to_bedrock_default(self):
+        """If legacy models/gemini string is in GENERATION_MODEL without LLM_PROVIDER=gemini, it resolves to Bedrock."""
+        with patch.dict("os.environ", {"GENERATION_MODEL": "models/gemini-3.6-flash"}, clear=True):
+            assert get_generation_model() == DEFAULT_BEDROCK_MODEL
+            llm = get_chat_llm()
+            assert llm.__class__.__name__ == "ChatBedrockConverse"
+            assert llm.model_id == DEFAULT_BEDROCK_MODEL
+
+    def test_explicit_gemini_fallback(self):
+        """Chat LLM falls back to ChatGoogleGenerativeAI when LLM_PROVIDER=gemini."""
+        with patch.dict(
+            "os.environ",
+            {
+                "LLM_PROVIDER": "gemini",
+                "GENERATION_MODEL": "gemini-2.5-flash",
+                "GOOGLE_API_KEY": "fake_key_for_testing",
+            },
+            clear=True,
+        ):
+            assert get_generation_model() == "gemini-2.5-flash"
+            llm = get_chat_llm()
+            assert llm.__class__.__name__ == "ChatGoogleGenerativeAI"
+            assert llm.model == "gemini-2.5-flash"
+
+    def test_get_chat_llm_explicit_parameters(self):
+        """Passing explicit arguments to get_chat_llm overrides environment defaults."""
+        llm = get_chat_llm(
+            model="amazon.nova-micro-v1:0",
+            region_name="eu-west-1",
+            temperature=0.5,
+            max_tokens=1024,
+            disable_streaming=True,
+        )
+        assert llm.__class__.__name__ == "ChatBedrockConverse"
+        assert llm.model_id == "amazon.nova-micro-v1:0"
+        assert llm.region_name == "eu-west-1"
+        assert llm.temperature == 0.5
+        assert llm.max_tokens == 1024
+        assert llm.disable_streaming is True
+
+
+class TestContentExtraction:
+    def test_extract_text_from_string(self):
+        assert _extract_text_content("Resumen de prueba") == "Resumen de prueba"
+
+    def test_extract_text_from_list_of_dicts(self):
+        blocks = [{"type": "text", "text": "Parte 1. "}, {"type": "text", "text": "Parte 2."}]
+        assert _extract_text_content(blocks) == "Parte 1. Parte 2."
+
+    def test_extract_text_from_objects_with_text_attribute(self):
+        block = type("Block", (), {"text": "Texto extraído"})()
+        assert _extract_text_content([block]) == "Texto extraído"
+
+    def test_extract_text_fallback_to_str(self):
+        assert _extract_text_content([123, 456]) == "123456"
+        assert _extract_text_content(999) == "999"
+
+
+class TestTools:
+    def test_tools_list_registered(self):
+        """Verifies that tools registered in backend.ia.chat contain the expected functions."""
+        tool_names = [t.__name__ for t in tools]
+        assert "get_opportunity_score" in tool_names
+        assert "regulations_query" in tool_names
+
+    @patch("backend.ia.chat.geocodificar_direccion")
+    def test_get_opportunity_score_no_geocoding(self, mock_geo):
+        """When geocoding fails, returns datos_distrito: None."""
+        mock_geo.return_value = None
+        result = get_opportunity_score("calle inexistente 999")
+        assert result == {"datos_distrito": None}
+
+    @patch("backend.ia.chat.geocodificar_direccion")
+    @patch("backend.ia.chat.Session")
+    def test_get_opportunity_score_success(self, mock_session_cls, mock_geo):
+        """When geocoding and database row exist, returns populated datos_distrito and spatial data."""
+        mock_geo.return_value = {
+            "codi_districte": 2,
+            "lat": 41.39,
+            "lon": 2.16,
+            "direccion_encontrada": "Carrer de Mallorca 200",
+        }
+        mock_session = MagicMock()
+        mock_session_cls.return_value.__enter__.return_value = mock_session
+
+        row_dict = {
+            "codi_districte": 2,
+            "nom_districte": "Eixample",
+            "renta_media": 22000.0,
+            "daily_foot_traffic": 15000,
+            "total_competitors": 250,
+            "opportunity_score": 85.5,
+        }
+        mock_mappings = MagicMock()
+        mock_mappings.first.return_value = row_dict
+        mock_session.execute.return_value.mappings.return_value = mock_mappings
+
+        result = get_opportunity_score("Carrer de Mallorca 200")
+        assert result["datos_distrito"] == row_dict
+        assert result["codi_districte"] == 2
+        assert result["zona_pgm"] is not None
+        assert result["lat"] == 41.39
+        assert result["lon"] == 2.16
+
+    @patch("backend.ia.chat.geocodificar_direccion")
+    @patch("backend.ia.chat.Session")
+    def test_get_opportunity_score_not_found_in_db(self, mock_session_cls, mock_geo):
+        """When geocoding succeeds but database has no record for the district, returns None."""
+        mock_geo.return_value = {"codi_districte": 99}
+        mock_session = MagicMock()
+        mock_session_cls.return_value.__enter__.return_value = mock_session
+
+        mock_mappings = MagicMock()
+        mock_mappings.first.return_value = None
+        mock_session.execute.return_value.mappings.return_value = mock_mappings
+
+        result = get_opportunity_score("Dirección sin datos")
+        assert result["datos_distrito"] is None
+        assert result["codi_districte"] == 99
+
+    def test_request_stream_yields_ubicacion_on_opportunity_score(self):
+        """_request_stream yields a ubicacion event when get_opportunity_score finishes."""
+        mock_graph = MagicMock()
+        tool_chunk = MagicMock()
+        tool_chunk.name = "get_opportunity_score"
+        tool_chunk.content = json.dumps({
+            "codi_districte": 2,
+            "zona_pgm": "densificacio_urbana",
+            "lat": 41.39,
+            "lon": 2.16,
+            "direccion_encontrada": "Carrer de Mallorca 200",
+        })
+        ai_chunk = MagicMock()
+        ai_chunk.content = "Respuesta final"
+        ai_chunk.tool_calls = []
+
+        mock_graph.stream.return_value = [
+            (tool_chunk, {"langgraph_node": "tools"}),
+            (ai_chunk, {"langgraph_node": "assistant"}),
+        ]
+
+        events = list(_request_stream("Hola", "thread:1", graph=mock_graph))
+        types = [e.get("type") for e in events]
+        assert "ubicacion" in types
+        ubicacion_ev = next(e for e in events if e.get("type") == "ubicacion")
+        assert ubicacion_ev["tool"] == "get_opportunity_score"
+        assert ubicacion_ev["codi_districte"] == 2
+        assert ubicacion_ev["zona_pgm"] == "densificacio_urbana"
+        assert ubicacion_ev["lat"] == 41.39
+
+    def test_request_stream_yields_ubicacion_with_decimal_repr(self):
+        """_request_stream yields ubicacion event even when tool output was formatted with Decimal(...)."""
+        mock_graph = MagicMock()
+        tool_chunk = MagicMock()
+        tool_chunk.name = "get_opportunity_score"
+        tool_chunk.content = (
+            "{'datos_distrito': {'renta_media': Decimal('21976.00')}, "
+            "'codi_districte': 2, 'zona_pgm': 'densificacio_urbana', 'lat': 41.39, 'lon': 2.16, "
+            "'direccion_encontrada': 'Carrer de Mallorca 200'}"
+        )
+        ai_chunk = MagicMock()
+        ai_chunk.content = "Respuesta"
+        ai_chunk.tool_calls = []
+
+        mock_graph.stream.return_value = [
+            (tool_chunk, {"langgraph_node": "tools"}),
+            (ai_chunk, {"langgraph_node": "assistant"}),
+        ]
+
+        events = list(_request_stream("Hola", "thread:1", graph=mock_graph))
+        types = [e.get("type") for e in events]
+        assert "ubicacion" in types
+        ubicacion_ev = next(e for e in events if e.get("type") == "ubicacion")
+        assert ubicacion_ev["tool"] == "get_opportunity_score"
+        assert ubicacion_ev["codi_districte"] == 2
+
+    @patch("backend.ia.chat.retrieve_relevant_chunks_with_rerank")
+    @patch("backend.ia.chat.build_context")
+    @patch("backend.ia.chat.Session")
+    def test_regulations_query(self, mock_session_cls, mock_build_context, mock_retrieve):
+        """RAG query retrieves relevant chunks and formats regulatory context."""
+        mock_session = MagicMock()
+        mock_session_cls.return_value.__enter__.return_value = mock_session
+        mock_retrieve.return_value = ["chunk1", "chunk2"]
+        mock_build_context.return_value = "Contexto normativo sintetizado"
+
+        res = regulations_query("horarios cafetería")
+        assert res == "Contexto normativo sintetizado"
+        mock_retrieve.assert_called_once()
+        mock_build_context.assert_called_once_with(["chunk1", "chunk2"])
+
+
+class TestGraphNodes:
+    @patch("backend.ia.chat.llm_with_tools")
+    def test_node_assistant(self, mock_llm_tools):
+        """_node_assistant properly prepares context and invokes llm_with_tools."""
+        mock_llm_tools.invoke.return_value = AIMessage(content="OK")
+        state: State = {
+            "messages": [HumanMessage(content="hola")],
+            "num_responses": 0,
+            "summary": "Resumen previo",
+        }
+        res = _node_assistant(state)
+        assert res == {"messages": [mock_llm_tools.invoke.return_value]}
+        called_messages = mock_llm_tools.invoke.call_args[0][0]
+        assert called_messages[0] == sys_msg
+        assert "Resumen de la conversación previa: Resumen previo" in called_messages[1].content
+
+    @patch("backend.ia.chat.llm_with_tools")
+    def test_node_assistant_without_summary(self, mock_llm_tools):
+        """_node_assistant sends the system message and the raw messages when no summary exists."""
+        mock_llm_tools.invoke.return_value = AIMessage(content="Respuesta sin resumen")
+        state: State = {
+            "messages": [HumanMessage(content="¿Cuál es la normativa?")],
+            "num_responses": 1,
+            "summary": "",
+        }
+        res = _node_assistant(state)
+        assert res == {"messages": [mock_llm_tools.invoke.return_value]}
+        called_messages = mock_llm_tools.invoke.call_args[0][0]
+        assert called_messages[0] == sys_msg
+        assert called_messages[1].content == "¿Cuál es la normativa?" + _LANGUAGE_REMINDER
+
+    def test_node_summarize_under_limit(self):
+        """_node_summarize increments counter when below MAX_NUM_MESSAGES."""
+        state: State = {
+            "messages": [HumanMessage(content="msg")],
+            "num_responses": 1,
+            "summary": "",
+        }
+        res = _node_summarize(state)
+        assert res == {"num_responses": 2}
+
+    @patch("backend.ia.chat.llm")
+    def test_node_summarize_over_limit(self, mock_llm):
+        """_node_summarize triggers summary via llm when exceeding MAX_NUM_MESSAGES."""
+        mock_llm.invoke.return_value = AIMessage(content="Resumen compilado")
+        state: State = {
+            "messages": [
+                HumanMessage(id="h1", content="q1"),
+                AIMessage(id="a1", content="r1"),
+                HumanMessage(id="h2", content="q2"),
+                AIMessage(id="a2", content="r2"),
+                HumanMessage(id="h3", content="q3"),
+                AIMessage(id="a3", content="r3"),
+                HumanMessage(id="h4", content="q4"),
+                AIMessage(id="a4", content="r4"),
+            ],
+            "num_responses": 6,
+            "summary": "",
+        }
+        res = _node_summarize(state)
+        assert res["summary"] == "Resumen compilado"
+        assert res["num_responses"] == 4
+        assert len(res["messages"]) > 0
+
+
+class TestNodeSummarizePrompt:
+    @patch("backend.ia.chat.llm")
+    def test_over_max_num_messages_triggers_summary_initial(self, mock_llm):
+        """When num_responses exceeds MAX_NUM_MESSAGES without previous summary, creates new summary."""
+        mock_llm.invoke.return_value = AIMessage(content="Nuevo resumen creado")
+        state: State = {
+            "messages": [
+                HumanMessage(id="h1", content="q1"),
+                AIMessage(id="a1", content="r1"),
+                HumanMessage(id="h2", content="q2"),
+                AIMessage(id="a2", content="r2"),
+                HumanMessage(id="h3", content="q3"),
+                AIMessage(id="a3", content="r3"),
+                HumanMessage(id="h4", content="q4"),
+                AIMessage(id="a4", content="r4"),
+            ],
+            "num_responses": MAX_NUM_MESSAGES + 1,
+            "summary": "",
+        }
+        res = _node_summarize(state)
+        assert "summary" in res
+        assert res["summary"] == "Nuevo resumen creado"
+        assert res["num_responses"] == (MAX_NUM_MESSAGES + 2) - NUM_MESSAGES_TO_SUMMARIZE
+        assert len(res["messages"]) > 0
+
+        # Verify summary prompt wording for initial summary
+        called_human_msg = mock_llm.invoke.call_args[0][0][-1]
+        assert "Crea un resumen conciso y en español teniendo en cuenta los mensajes" in called_human_msg.content
+
+    @patch("backend.ia.chat.llm")
+    def test_over_max_num_messages_updates_existing_summary(self, mock_llm):
+        """When previous summary exists, updates summary prompt includes existing summary."""
+        mock_llm.invoke.return_value = AIMessage(content="Resumen actualizado")
+        state: State = {
+            "messages": [
+                HumanMessage(id="h1", content="q1"),
+                AIMessage(id="a1", content="r1"),
+                HumanMessage(id="h2", content="q2"),
+                AIMessage(id="a2", content="r2"),
+                HumanMessage(id="h3", content="q3"),
+                AIMessage(id="a3", content="r3"),
+                HumanMessage(id="h4", content="q4"),
+                AIMessage(id="a4", content="r4"),
+            ],
+            "num_responses": 6,
+            "summary": "Resumen de la ronda 1",
+        }
+        res = _node_summarize(state)
+        assert res["summary"] == "Resumen actualizado"
+
+        called_human_msg = mock_llm.invoke.call_args[0][0][-1]
+        assert "Resumen de la ronda 1" in called_human_msg.content
+
+
+class TestReActGraphAndRequest:
+    def test_react_graph_nodes_and_edges(self):
+        """Verifies that the compiled react_graph contains the expected state nodes."""
+        expected_nodes = {"__start__", "assistant", "tools", "summarize"}
+        assert expected_nodes.issubset(set(react_graph.nodes.keys()))
+
+    @patch("backend.ia.chat.react_graph.invoke")
+    def test_request_dispatches_to_graph_and_returns_last_message_when_not_streaming(self, mock_invoke):
+        """request function dispatches user content and thread_id to react_graph.invoke when stream=False."""
+        mock_response = AIMessage(content="Horarios de cafetería: 06:00 a 02:00")
+        mock_invoke.return_value = {
+            "messages": [
+                HumanMessage(content="horarios cafetería"),
+                mock_response,
+            ]
+        }
+
+        result = request("horarios cafetería", thread="test_thread_42", stream=False)
+        assert result == mock_response
+        assert result.content == "Horarios de cafetería: 06:00 a 02:00"
+
+        mock_invoke.assert_called_once_with(
+            {"messages": [{"role": "user", "content": "horarios cafetería"}]},
+            {"configurable": {"thread_id": "test_thread_42"}},
+        )
+
+    @patch("backend.ia.chat.react_graph.stream")
+    def test_request_stream_yields_tokens_and_done(self, mock_stream):
+        """request function streams assistant tokens and finishes with done event."""
+        mock_stream.return_value = [
+            (AIMessage(content="Horarios "), {"langgraph_node": "assistant"}),
+            (AIMessage(content="de cafetería"), {"langgraph_node": "assistant"}),
+        ]
+
+        events = list(request("horarios cafetería", thread="test_thread_42"))
+        assert events == [
+            {"type": "token", "text": "Horarios "},
+            {"type": "token", "text": "de cafetería"},
+            {"type": "done", "text": "Horarios de cafetería"},
+        ]
+
+        mock_stream.assert_called_once_with(
+            {"messages": [{"role": "user", "content": "horarios cafetería"}]},
+            {"configurable": {"thread_id": "test_thread_42"}},
+            stream_mode="messages",
+        )
+
+    @patch("backend.ia.chat.react_graph.stream")
+    def test_request_stream_filters_tool_calls_and_non_assistant_nodes(self, mock_stream):
+        """request function ignores tool calls and nodes other than assistant."""
+        tool_call_msg = AIMessage(
+            content="",
+            tool_calls=[{"name": "regulations_query", "args": {"query": "horarios"}, "id": "1", "type": "tool_call"}],
+        )
+        tool_msg = AIMessage(content="Raw regulations context")
+        assistant_ans = AIMessage(content="Respuesta al usuario")
+        summary_msg = AIMessage(content="Resumen interno")
+
+        mock_stream.return_value = [
+            (tool_call_msg, {"langgraph_node": "assistant"}),
+            (tool_msg, {"langgraph_node": "tools"}),
+            (assistant_ans, {"langgraph_node": "assistant"}),
+            (summary_msg, {"langgraph_node": "summarize"}),
+        ]
+
+        events = list(request("horarios cafetería", thread="test_thread_42"))
+        assert events == [
+            {"type": "token", "text": "Respuesta al usuario"},
+            {"type": "done", "text": "Respuesta al usuario"},
+        ]
+
+    @patch("backend.ia.chat.react_graph.stream")
+    def test_request_stream_handles_exceptions_gracefully(self, mock_stream):
+        """request function yields an error event if graph streaming fails."""
+        mock_stream.side_effect = RuntimeError("Bedrock connection timeout")
+
+        events = list(request("horarios cafetería", thread="test_thread_42"))
+        assert len(events) == 1
+        assert events[0]["type"] == "error"
+        assert "detail" in events[0]
+
+
+class TestTruncationWarning:
+    def test_warns_when_the_answer_was_cut_by_the_token_limit(self, caplog):
+        from backend.ia.chat import _record_llm_result
+
+        cut = AIMessage(content="texto cortado", response_metadata={"stopReason": "max_tokens"})
+        with caplog.at_level(logging.WARNING, logger="geoyield_agent"):
+            _record_llm_result(cut, None)
+
+        assert "output token limit" in caplog.text
+
+    def test_does_not_warn_on_a_normal_end_of_turn(self, caplog):
+        from backend.ia.chat import _record_llm_result
+
+        done = AIMessage(content="respuesta completa", response_metadata={"stopReason": "end_turn"})
+        with caplog.at_level(logging.WARNING, logger="geoyield_agent"):
+            _record_llm_result(done, None)
+
+        assert "output token limit" not in caplog.text
+
+    def test_the_default_limit_can_be_set_from_the_environment(self):
+        import importlib
+
+        import backend.ia.chat as chat_module
+
+        with patch.dict("os.environ", {"ASSISTANT_MAX_TOKENS": "3000"}):
+            reloaded = importlib.reload(chat_module)
+            assert reloaded.ASSISTANT_MAX_TOKENS == 3000
+        importlib.reload(chat_module)
+
+
+class TestUbicacionFromNomenclator:
+    """The "Generar Informe" button must not depend on the model calling get_opportunity_score."""
+
+    @staticmethod
+    def _stream(matches, address='Carrer de Sant Gil, 4'):
+        from types import SimpleNamespace
+
+        asked = json.dumps({"address": address})
+        call = SimpleNamespace(
+            content="",
+            tool_calls=[],
+            additional_kwargs={},
+            tool_call_chunks=[
+                {"id": "call-1", "index": 0, "args": asked[:12]},
+                {"id": None, "index": 0, "args": asked[12:]},
+            ],
+        )
+        tool = SimpleNamespace(name="find_in_nomenclator", content=json.dumps({"match": matches}), tool_call_id="call-1")
+        answer = SimpleNamespace(content="Respuesta", tool_calls=[], additional_kwargs={}, tool_call_chunks=[])
+        graph = MagicMock()
+        graph.stream.return_value = [
+            (call, {"langgraph_node": "assistant"}),
+            (tool, {"langgraph_node": "tools"}),
+            (answer, {"langgraph_node": "assistant"}),
+        ]
+        return graph
+
+    @patch("backend.ia.chat.identificar_zona_pgm", return_value={"zona_pgm": "nucli_antic"})
+    @patch("backend.ia.chat.geocodificar_direccion")
+    def test_one_official_address_enables_the_report_with_the_house_number(self, mock_geocode, _zona):
+        mock_geocode.return_value = {"codi_districte": 1, "lat": 41.38, "lon": 2.16, "direccion_encontrada": "4, Carrer de Sant Gil"}
+
+        events = list(_request_stream("pub en Sant Gil 4", "t:1", graph=self._stream(["Carrer de Sant Gil"])))
+
+        ubicacion = next(e for e in events if e["type"] == "ubicacion")
+        assert ubicacion["tool"] == "find_in_nomenclator"
+        assert (ubicacion["codi_districte"], ubicacion["zona_pgm"]) == (1, "nucli_antic")
+        mock_geocode.assert_called_once_with("Carrer de Sant Gil, 4")  # the number is kept
+        assert events[-1]["type"] == "done"
+
+    @patch("backend.ia.chat.geocodificar_direccion")
+    def test_no_match_or_several_matches_do_not_enable_the_report(self, mock_geocode):
+        for matches in ([], ["Carrer de Sant Gil", "Carrer de Sant Gil de Mar"]):
+            events = list(_request_stream("pub", "t:1", graph=self._stream(matches)))
+            assert "ubicacion" not in [e["type"] for e in events]
+        mock_geocode.assert_not_called()
+
+    @patch("backend.ia.chat.identificar_zona_pgm", return_value=None)
+    @patch("backend.ia.chat.geocodificar_direccion")
+    def test_falls_back_to_the_official_name_and_to_the_default_zone(self, mock_geocode, _zona):
+        mock_geocode.side_effect = [None, {"codi_districte": 2, "lat": 41.39, "lon": 2.16, "direccion_encontrada": "x"}]
+
+        events = list(_request_stream("pub", "t:1", graph=self._stream(["Carrer de París"], address="Paris 4")))
+
+        ubicacion = next(e for e in events if e["type"] == "ubicacion")
+        assert (ubicacion["codi_districte"], ubicacion["zona_pgm"]) == (2, "densificacio_urbana")
+        assert [c.args[0] for c in mock_geocode.call_args_list] == ["Paris 4", "Carrer de París"]
+
+    @patch("backend.ia.chat.geocodificar_direccion", side_effect=RuntimeError("nominatim down"))
+    def test_a_geocoding_failure_does_not_break_the_answer(self, _geocode):
+        events = list(_request_stream("pub", "t:1", graph=self._stream(["Carrer de Sant Gil"])))
+
+        types = [e["type"] for e in events]
+        assert "ubicacion" not in types and "error" not in types
+        assert types[-1] == "done"
+
+
+class TestLanguageReminder:
+    def test_the_reminder_goes_at_the_end_of_a_copy_of_the_last_user_message(self):
+        from backend.ia.chat import _with_language_reminder
+
+        saved = [HumanMessage(content="hola"), AIMessage(content="Això és català"), HumanMessage(content="¿Horario?")]
+
+        prompt = _with_language_reminder(saved)
+
+        assert prompt[-1].content == "¿Horario?" + _LANGUAGE_REMINDER
+        assert prompt[:-1] == saved[:-1]
+        assert saved[-1].content == "¿Horario?"  # the saved conversation is not changed
+
+    def test_the_reminder_is_also_added_after_a_tool_result(self):
+        from langchain_core.messages import ToolMessage
+
+        from backend.ia.chat import _with_language_reminder
+
+        prompt = _with_language_reminder([HumanMessage(content="q"), ToolMessage(content="Article en català", tool_call_id="1")])
+
+        assert prompt[-1].content == "Article en català" + _LANGUAGE_REMINDER
+
+    def test_nothing_is_added_when_the_last_message_is_not_user_or_tool(self):
+        from backend.ia.chat import _with_language_reminder
+
+        assert _with_language_reminder([]) == []
+        only_ai = [AIMessage(content="x")]
+        assert _with_language_reminder(only_ai) == only_ai

@@ -1,19 +1,48 @@
-#FROM python:3.10.20-slim
-# Inicialmente no se había instaldo el package mariadb, por lo que cuando el container no levantaba porqué sqlalchemhy
-# intentaba importarlo y no lo encontraba. Al hcerlo, enteonces fallaba la creación de la imágen porqué decía que faltaba
-# el 'MariaDB Connector/C'. Se ha buscado y se ha visto que ese conector debe estar presente en el sisntema operativo
-# Es por ello que se ha tenido que importar una imágen más completa de python - la estándar de dockerhub en lugar de la slim inicial
-# porqué enm esa faltaba el 'mariadb C connector'
-FROM python:3.11.15-trixie
+# ==============================================================================
+# DOCKERFILE DE LA API (Backend)
+# ==============================================================================
+# Este archivo define cómo se construye la imagen de nuestra aplicación FastAPI.
+# Elegimos la versión "slim" (reducida) de Python 3.12 porque elimina librerías 
+# del sistema operativo que no necesitamos, haciendo que el contenedor sea 
+# más ligero, rápido de descargar y con menor superficie de ataques de seguridad.
+FROM python:3.12-slim
 
-ARG WORKDIR=/app
+# Ajustes obligatorios para ejecutar Python dentro de contenedores:
+# 1. PYTHONUNBUFFERED=1: Fuerza a que los logs (prints y system logs) salgan 
+#    por pantalla de inmediato sin quedarse atascados en la memoria intermedia.
+# 2. PYTHONDONTWRITEBYTECODE=1: Evita que Python genere archivos basura (.pyc) 
+#    en el disco duro, manteniendo la imagen limpia.
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
-WORKDIR ${WORKDIR}
+# Definimos el directorio de trabajo interno del contenedor
+WORKDIR /app
 
-COPY ./ ./
+# Instalamos poppler-utils (pdftotext) para la extracción de PDFs normativos (RAG)
+RUN apt-get update && apt-get install -y --no-install-recommends poppler-utils && rm -rf /var/lib/apt/lists/*
 
-RUN pip install -r ./requirements.txt
+# ------------------------------------------------------------------------------
+# ESTRATEGIA DE CACHÉ DE CAPAS (Layer Caching)
+# ------------------------------------------------------------------------------
+# En lugar de copiar toda la carpeta "backend" de golpe, primero copiamos 
+# SOLO el archivo de dependencias (requirements.txt). 
+# ¿Por qué? Si hacemos un cambio en el código fuente (ej. en api.py) pero no 
+# añadimos librerías nuevas, Docker usará la memoria caché en este paso y NO 
+# volverá a descargar todos los paquetes de internet. Esto reduce el tiempo 
+# de compilación de varios minutos a apenas un par de segundos.
+COPY backend/requirements.txt ./backend/requirements.txt
 
-CMD ["python", "-m", "main"]
+# Instalamos las librerías. Usamos --no-cache-dir para borrar el instalador 
+# de pip y no desperdiciar megabytes en el contenedor final.
+RUN pip install --no-cache-dir -r backend/requirements.txt
 
+# Una vez instaladas las dependencias, copiamos el resto del código fuente.
+COPY backend/ ./backend/
+COPY database/ ./database/
+COPY scripts/ ./scripts/
 
+# Documentamos que internamente nuestra API trabaja por el puerto 8000.
+EXPOSE 8000
+
+# Lanzamos el servidor usando nuestro entrypoint principal (main.py).
+CMD ["python", "-m", "backend.api.main"]

@@ -1,0 +1,8 @@
+# ==============================================================================
+# BACKEND DEVELOPMENT-ONLY TOOLS (Geo-Yield-AI)
+# ==============================================================================
+# Not installed in the production image: deployment/Dockerfile only installs
+# backend/requirements.txt. Used locally and by the `backend-lint` CI job.
+
+# --- Linter + formatter (configured in the root pyproject.toml) ---
+ruff==0.16.9

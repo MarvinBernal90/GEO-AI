@@ -1,45 +1,93 @@
-name: Deploy Model
+name: Deploy Backend to EC2 (Frankfurt)
+
+# ==============================================================================
+# PIPELINE DE CI/CD: DESPLIEGUE CONTINUO DEL BACKEND EN AWS EC2 (eu-central-1)
+# ==============================================================================
+# Se dispara automáticamente al hacer push a la rama `develop` cuando cambian
+# archivos del backend, base de datos o despliegue, o manualmente (workflow_dispatch).
+# Utiliza AWS Systems Manager (SSM Run Command) para actualizar el repositorio,
+# reconstruir los contenedores (`geoyield_redis`, `geoyield_api`) y aplicar
+# migraciones Alembic sin necesidad de exponer claves SSH privadas en GitHub Secrets.
+# ==============================================================================
 
 on:
+  push:
+    branches:
+      - develop
+    paths:
+      - 'backend/**'
+      - 'database/**'
+      - 'deployment/**'
+      - '.github/workflows/deploy.yml'
   workflow_dispatch:
-    inputs:
-      api_version:
-        description: 'Version of the API to deploy'
-        required: true
-        default: 'latest'
-      model_release:
-        description: 'Version of the model to deploy'
-        required: true
-        default: 'latest'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  deploy:
+  deploy-backend:
+    name: Update & Restart Backend on EC2 Frankfurt
     runs-on: ubuntu-latest
-    env:
-      POSTGRES_DB: ${{ vars.POSTGRES_DB }}
-      POSTGRES_USER: ${{ vars.POSTGRES_USER }}
-      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-      DATABASE_URL: ${{ vars.DATABASE_URL }} 
-      LOG_LEVEL: ${{ vars.LOG_LEVEL }}
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4  # v3 no permite fetch de tags, lo que es necesario para poder hacer checkout a una versión específica del api si no se quiere desplegar la última, por eso se usa v4
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          fetch-depth: 0  # Fetch all tags and history
-      
-      - name: Deploy to Render
-        env:
-          MODEL_RELEASE: ${{ inputs.model_release }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-central-1
+
+      - name: Trigger SSM Deployment on EC2 (i-0ea3a1136e12a6166)
         run: |
-          latest=$(git tag | sort -r | head -n1)
-          if [[ "${{ inputs.api_version }}" != "latest" ]]; then
-            git checkout ${{ inputs.api_version }}
-          else
-            git checkout $latest
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "i-0ea3a1136e12a6166" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Auto-deploy develop branch from GitHub Actions" \
+            --parameters 'commands=[
+              "set -e",
+              "mkdir -p /root/.aws /home/ubuntu/.aws",
+              "docker builder prune -af --filter until=24h || true",
+              "docker image prune -af || true",
+              "cd /home/ubuntu/Geo-Yield-AI",
+              "su - ubuntu -c \"cd /home/ubuntu/Geo-Yield-AI && git fetch origin develop && git checkout develop && git reset --hard origin/develop\"",
+              "mkdir -p /home/ubuntu/Geo-Yield-AI/data/processed",
+              "aws s3 sync s3://geoyield-raw-data-192445490421-eu-central-1/processed /home/ubuntu/Geo-Yield-AI/data/processed --region eu-central-1 || true",
+              "aws s3 sync s3://geoyield-raw-data-192445490421-eu-central-1/data/processed /home/ubuntu/Geo-Yield-AI/data/processed --region eu-central-1 || true",
+              "chown -R ubuntu:ubuntu /home/ubuntu/Geo-Yield-AI/data",
+              "sed -i /^SERVICE_VERSION=/d .env",
+              "echo SERVICE_VERSION='"${GITHUB_SHA::7}"' >> .env",
+              "docker compose --env-file .env -f deployment/docker-compose.yml up -d --build",
+              "docker exec geoyield_api python -m alembic -c database/alembic.ini upgrade head",
+              "for i in $(seq 1 15); do curl -sf http://localhost:8080/health && break || sleep 2; done",
+              "curl -sf http://localhost:8080/health"
+            ]' \
+            --query "Command.CommandId" \
+            --output text)
+
+          echo "Dispatched SSM Command ID: $COMMAND_ID"
+
+          # Wait up to 10 minutes (120 * 5s) instead of aws ssm wait's default 100s limit
+          STATUS="InProgress"
+          for i in $(seq 1 120); do
+            STATUS=$(aws ssm get-command-invocation \
+              --command-id "$COMMAND_ID" \
+              --instance-id "i-0ea3a1136e12a6166" \
+              --query "Status" \
+              --output text 2>/dev/null || echo "Pending")
+            echo "[$i/120] SSM Status: $STATUS"
+            if [ "$STATUS" = "Success" ] || [ "$STATUS" = "Failed" ] || [ "$STATUS" = "Cancelled" ] || [ "$STATUS" = "TimedOut" ]; then
+              break
+            fi
+            sleep 5
+          done
+
+          aws ssm get-command-invocation \
+            --command-id "$COMMAND_ID" \
+            --instance-id "i-0ea3a1136e12a6166" \
+            --query "[Status,StandardOutputContent,StandardErrorContent]" \
+            --output text
+
+          if [ "$STATUS" != "Success" ]; then
+            echo "SSM deployment command ended with status: $STATUS"
+            exit 1
           fi
-          #echo "se estaría haciendo el curl con el modelo ${MODEL_RELEASE} y ls version ${GITHUB_REF}"
-          curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}

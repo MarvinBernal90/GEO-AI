@@ -1,5 +1,12 @@
 name: Integration
 
+# ==============================================================================
+# CONTINUOUS INTEGRATION (CI) WORKFLOW
+# ==============================================================================
+# Runs on every Pull Request to validate that the new code does not break
+# existing functionality. Acts as the main quality gate before allowing a
+# merge into 'develop' or 'main'.
+
 on:
   workflow_dispatch:
   pull_request:
@@ -12,6 +19,9 @@ jobs:
       contents: read
       pull-requests: write
 
+    env:
+      DATABASE_URL: "sqlite:///:memory:"
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -19,28 +29,126 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
 
+      # ------------------------------------------------------------------
+      # TEST EXECUTION AND COVERAGE METRICS
+      # ------------------------------------------------------------------
       - name: Run tests and capture logs
         id: tests
-        continue-on-error: true  
+        # Deliberately set to 'true'. If the tests fail, the pipeline does not
+        # stop immediately. This guarantees that the next step (artifact
+        # upload) always runs so the logs are preserved.
+        continue-on-error: true
+        env:
+          DATABASE_URL: "sqlite:///:memory:"
         run: |
           mkdir -p test-results
-          PYTHONPATH=. pytest tests/unit_tests/ --capture=tee-sys --cov=backend --cov-report=term --cov-report=html --junitxml=test-results/results.xml > test-results/results.log
+          # PYTHONPATH=. is injected to resolve absolute imports.
+          # A coverage report (--cov) and XML logs are generated for static analysis.
+          PYTHONPATH=. pytest tests/unit_tests/ --capture=tee-sys --cov=backend --cov-report=term --cov-report=html --junitxml=test-results/results.xml 2>&1 | tee test-results/results.log
 
+      # ------------------------------------------------------------------
+      # ARTIFACT PERSISTENCE FOR DEBUGGING
+      # ------------------------------------------------------------------
       - name: Upload Test Results Artifact
         uses: actions/upload-artifact@v4
         with:
           name: pytest-results
           path: test-results/
 
+      # ------------------------------------------------------------------
+      # FINAL STATUS VALIDATION (QUALITY GATE)
+      # ------------------------------------------------------------------
       - name: Fail the job if tests failed
         if: steps.tests.outcome == 'failure'
         run: |
+          # We explicitly evaluate the result of the test step.
+          # If it failed, we force exit code 1 to mark the PR red
+          # and prevent the defective code from being integrated.
           echo "La suite de pruebas unitarias o de modelo ha fallado. Revisa el artefacto 'pytest-results' para ver los logs."
           exit 1
+
+  # ==============================================================================
+  # FRONTEND LINT AND FORMATTING
+  # ==============================================================================
+  # Runs in parallel with the Python job. Fails the PR if ESLint finds errors or
+  # if any file does not comply with Prettier formatting.
+  frontend-lint:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
+
+      # The build used to run only at deploy time, after the merge. Running it
+      # here makes a broken import or missing dependency fail the PR instead.
+      - name: Build
+        run: npm run build
+
+  # ==============================================================================
+  # BACKEND LINT AND FORMATTING
+  # ==============================================================================
+  # Runs in parallel with the rest of the jobs. Only installs Ruff (requirements-dev.txt),
+  # not the heavy backend dependencies (torch, sentence-transformers...).
+  # Fails the PR if `ruff check` finds errors or if `ruff format` would change
+  # any file. The configuration lives in pyproject.toml.
+  backend-lint:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Install Ruff
+        run: pip install -r backend/requirements-dev.txt
+
+      - name: Lint
+        run: ruff check backend
+
+      - name: Check formatting
+        run: ruff format --check backend
+
+      # Ruff and pytest only look at backend/ and the modules the tests import.
+      # Scripts nothing imports (database/, scripts/) could carry a syntax
+      # error and still pass, as database/load_general_law.py did.
+      - name: Check every Python file compiles
+        run: python -m compileall -q backend database scripts tests
