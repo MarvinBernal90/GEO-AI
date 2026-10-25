@@ -1,33 +1,34 @@
-# Data Sources Catalog
+# Data sources
 
-This document outlines the official data sources ingested by the ETL pipelines (Phase 1) and the Legal RAG engine (Phase 2 & 4). Establishing clear **Data Lineage** is a core requirement for transparency and auditing in this AI-driven architecture.
+Every dataset the system ingests, so each answer can be traced to its origin. The agent never browses the web for answers: it reasons only over the data below (plus two live lookups, geocoding and zoning, listed at the end).
 
-## 1. Geospatial and Socioeconomic Data (Phase 1)
+## Socioeconomic and geospatial data (ETL into PostGIS)
 
-These datasets populate the PostGIS relational database, forming the baseline for the `district_scorecard` metrics.
+Raw files go in `data/raw/` (git-ignored); file names are set in `backend/etl/config.py`.
 
-*   **Open Data BCN (Ajuntament de Barcelona):**
-    *   **Dataset:** *Cens comercial de la ciutat de Barcelona*.
-    *   **Usage:** Geolocation of existing competitors (bars, restaurants, cafes) to calculate market saturation.
-    *   **Format:** CSV / GeoJSON.
-*   **INE (Instituto Nacional de Estadística):**
-    *   **Dataset:** *Atlas de Distribución de Renta de los Hogares (ADRH)*.
-    *   **Usage:** Extraction of the average net income per household (`renta_media`) aggregated at the district level.
-*   **MITMA (Ministerio de Transportes, Movilidad y Agenda Urbana):**
-    *   **Dataset:** *Estudio de Movilidad con Big Data*.
-    *   **Usage:** Mobile phone tracking data used to estimate the daily foot traffic (`daily_foot_traffic`) floating population in each district.
+| Source | Dataset | Used for |
+| --- | --- | --- |
+| Open Data BCN | *Cens comercial de la ciutat de Barcelona* (CSV) | Competitor locations (bars, restaurants, cafes) and market saturation |
+| INE | *Atlas de Distribución de Renta de los Hogares* | Average income per district (`renta_media`) |
+| MITMA | *Estudio de Movilidad con Big Data* (`*_Viajes_distritos.csv.gz`) | Foot traffic and trips per district (`district_mobility`) |
+| Ajuntament de Barcelona | District names, population and the official street register (`nomenclator.csv`) | District dimension and address matching (TF-IDF) |
 
-## 2. Legal and Regulatory Corpus (Phases 2 & 4)
+MITMA data is only available at district level, so the opportunity score is computed deterministically from foot traffic, income and competition (view `district_scorecard`).
 
-These documents populate the Vector Database (`pgvector`) used by the AI Agent to evaluate commercial viability.
+## Legal corpus (embedded into pgvector)
 
-*   **NUMAMB (Normativa Urbanística Metropolitana):**
-    *   **Source:** Àrea Metropolitana de Barcelona (AMB).
-    *   **Usage:** Specific Urban Zoning regulations from the *Pla General Metropolità (PGM)*. Extracted via web browser PDF exports, capturing versions (Original, Modified, Consolidated).
-*   **DOGC (Diari Oficial de la Generalitat de Catalunya):**
-    *   **Usage:** Regional regulations (Orders and Decrees) that apply to the entire city (e.g., General opening hours for musical and recreational activities, like *Ordre INT/358/2011*).
-*   **BOE (Boletín Oficial del Estado):**
-    *   **Usage:** National laws applying to commercial activities across Spain.
+Raw PDFs go in `data/raw/legal/`.
 
-## Data Governance Note
-The AI Agent is strictly sandboxed. It does not browse the live internet for answers. It exclusively reasons over the immutable, verified institutional data listed above.
+| Source | Content |
+| --- | --- |
+| AMB, NUMAMB portal | *Pla General Metropolità* (PGM) zoning articles. Only the current consolidated version of each article is kept |
+| BOE and DOGC | National and Catalan laws and decrees on commerce, hospitality, consumer protection and opening hours (for example Decreto 112/2010, Ley 11/2009, Ley 18/2017, Código de Consumo de Cataluña) |
+
+## Live lookups at request time
+
+| Service | Used for |
+| --- | --- |
+| Nominatim (OpenStreetMap) | Address to coordinates and district |
+| AMB geoportal `identify` (`pla_general_metropolita_1976`) | Coordinates to PGM zone |
+
+Both are public and rate-limited, results are cached, and the system never invents a result when they fail.
