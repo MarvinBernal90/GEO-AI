@@ -1,364 +1,103 @@
-# GEO-YIELD-AI
+# Geo-Yield-AI
 
-**Geo-Yield-AI** es una plataforma SaaS de *Location Intelligence* diseñada para transformar la toma de decisiones en la expansión de cadenas de retail, negocios, franquicias y consultoras inmobiliarias.
+Plataforma de *Location Intelligence* para evaluar en segundos si abrir un bar o restaurante en Barcelona es viable. Combina **datos socioeconómicos por distrito** con la **normativa urbanística (PGM)**, citando siempre el artículo exacto, y devuelve un informe con semáforo (verde / ámbar / rojo).
 
-Utilizamos un enfoque de **Agente de IA** que combina datos sociodemográficos, análisis geoespacial y validación normativa instantánea mediante arquitectura RAG, accesible tanto por una interfaz web (formulario + mapa) como por un chat en lenguaje natural.
+Se usa por formulario con mapa, o escribiendo una frase libre en el chat ("quiero abrir un bar en tal calle, ¿puedo poner terraza?").
 
-> **Estado del proyecto:** en construcción por fases. Ver [`docs/structure.md`](docs/structure.md) para la estructura vigente del repo y [`docs/adr/`](docs/adr/) para las decisiones de arquitectura tomadas.
+## Qué incluye
 
-### Estado por fases
+- **Motor RAG legal:** normativa del PGM, BOE y DOGC troceada por artículo, con embeddings en pgvector y respuestas con cita. Si el corpus no cubre la pregunta, lo dice en vez de inventar.
+- **Agente de viabilidad (LangGraph):** cruza en paralelo datos del distrito y normativa de la zona PGM, y sintetiza el informe en streaming (SSE).
+- **Zona PGM automática:** dirección → Nominatim → servicio Identify del AMB. Si no se puede confirmar, se pide selección manual; nunca se adivina.
+- **Chat:** una frase libre se convierte en dirección/distrito/pregunta. Con sesión iniciada hay un asistente ReAct con memoria persistente por conversación.
+- **Mapa y visor de normativa:** competidores agrupados (distrito o radio de 500 m) y texto completo de cada artículo citado.
+- **Métricas:** panel `/metrics` con trazas por petición y una pestaña de calidad RAG (ver [`evals/`](evals/README.md)).
 
-| Fase | Contenido | Estado |
-| :--- | :--- | :--- |
-| **0** | Auditoría, limpieza de arquitectura y corrección de infraestructura base | ✅ Cerrada |
-| **1** | Capa de datos sociodemográfica y geoespacial (Postgres/PostGIS, ETL, vista `district_scorecard`) | ✅ Cerrada |
-| **2** | Motor RAG legal (pgvector, embeddings locales, generación con LLM citando normativa) | ✅ Cerrada |
-| **3** | Agente orquestador (combina Fase 1 + Fase 2 en un informe de viabilidad único) | ✅ Cerrada |
-| **4** | Frontend Vue + API completa: formulario, mapa con clustering, streaming, visor de normativa, corpus legal ampliado a 10 zonas | ✅ Cerrada |
-| **5** | Zona PGM automática por dirección (geocodificación + servicio Identify del AMB) | ✅ Cerrada |
-| **6** | Chat conversacional en lenguaje natural | ✅ Cerrada |
-
-<!-- La numeración de fases 4-6 es una propuesta -- ajustar si el equipo ya tiene otra convención acordada. -->
-
-## 📖 Tabla de Contenidos
-- [Propuesta de Valor](#-propuesta-de-valor)
-- [Características Principales](#-características-principales)
-- [Stack Tecnológico](#-stack-tecnológico)
-- [Arquitectura del Sistema](#-arquitectura-del-sistema)
-- [Instalación y Uso](#-instalación-y-uso)
-- [Endpoints de la API](#-endpoints-de-la-api)
-- [DevOps y Despliegue](#-devops-y-despliegue)
-- [Limitaciones conocidas](#-limitaciones-conocidas)
-- [Equipo](#-equipo)
-
----
-
-## 💡 Propuesta de Valor
-
-### El Problema
-Abrir un nuevo local comercial conlleva un alto riesgo financiero. Las decisiones suelen basarse en intuiciones o estudios de mercado lentos (semanas) y costosos, que a menudo ignoran las complejas normativas urbanísticas locales (el PGOU o, en el caso de Barcelona, el **PGM — Pla General Metropolità**).
-
-### La Solución
-**Geo-Yield-AI** ayuda a evaluar la viabilidad de abrir un bar o restaurante en Barcelona en segundos, no semanas, combinando dos cosas que normalmente se consultan por separado:
-* **Datos socioeconómicos por distrito:** renta media, afluencia peatonal, densidad de competencia.
-* **Normativa legal aplicable:** qué usos permite la zona urbanística exacta (PGM), citando siempre el artículo concreto.
-
-El usuario puede llegar a esto por dos caminos: un formulario con mapa interactivo, o describiendo lo que quiere hacer en una frase ("quiero abrir un bar en tal calle, ¿me lo recomiendas?").
-
----
-
-## ✨ Características Principales
-
-1. **Motor RAG Legal:** Ingesta de normativa urbanística (PGM de Barcelona, portal NUMAMB del AMB) partida por artículo, con embeddings locales (**sentence-transformers**) indexados en **pgvector**, y generación de respuestas citando el artículo exacto vía LLM (**Gemini** — ver [`backend/rag/`](backend/rag/)). El corpus cubre 10 zonas urbanísticas del PGM, cada una verificada artículo por artículo contra la fuente original.
-2. **Perfilado Sociodemográfico:** Filtros por niveles de renta, afluencia y densidad de competencia, agregados por distrito.
-3. **Agente de Viabilidad:** Orquestador con **LangGraph** (`backend/ia/agent.py`) que combina en paralelo los datos socioeconómicos del distrito y la normativa legal de la zona PGM elegida, sintetizando ambos en un informe con semáforo (verde/ámbar/rojo) y citas normativas, transmitido en tiempo real (streaming) palabra por palabra.
-4. **Mapa interactivo:** Distrito con competidores reales agrupados (clustering), o radio de 500m alrededor de una dirección exacta cuando se conoce.
-5. **Visor de normativa:** Cada cita de artículo en el informe se puede abrir para ver el texto legal completo.
-6. **Zona PGM automática:** Dada una dirección, se geocodifica (Nominatim) y se consulta el servicio geoespacial del AMB para determinar la zona urbanística real del punto, sin que el usuario tenga que conocer el código de zonificación. Si no se puede determinar con confianza, se pide que se seleccione manualmente -- nunca se adivina.
-7. **Chat conversacional:** El usuario puede describir lo que quiere en una frase libre ("quiero abrir un bar en X, ¿puedo poner terraza?"); el sistema extrae la dirección (o el distrito, si no da una calle exacta) y cualquier pregunta específica, y genera el informe reutilizando el mismo pipeline. Si el usuario pregunta algo que la normativa cargada no cubre, el sistema lo dice explícitamente en vez de inventar una respuesta.
-
----
-
-## 🛠️ Stack Tecnológico
+## Stack
 
 | Capa | Tecnología |
 | :--- | :--- |
-| **Lenguaje** | Python 3.12 |
-| **IA / RAG** | sentence-transformers (embeddings locales, coste cero) + pgvector + Gemini 2.5 Flash (generación) — ver [`backend/rag/gemini_adapter.py`](backend/rag/gemini_adapter.py) |
-| **Agente** | LangGraph (`backend/ia/agent.py`) — orquesta datos + normativa en paralelo, síntesis final en streaming |
-| **Geocodificación** | Nominatim (OpenStreetMap) para dirección → coordenadas + distrito; servicio Identify del AMB (`geoportal.amb.cat`) para coordenadas → zona PGM — ver [`backend/geo/`](backend/geo/) |
-| **Backend** | FastAPI, servido con Uvicorn |
-| **Frontend** | Vue 3 + Vite + Tailwind CSS, mapas con Leaflet y clustering de marcadores |
-| **Base de Datos** | PostgreSQL + PostGIS + pgvector, en un único contenedor (`deployment/Dockerfile.postgis`) — ver [ADR 0001](docs/adr/0001-pgvector-vs-qdrant.md) |
-| **Data Science** | Pandas |
-| **DevOps** | Docker, GitHub Actions, CI/CD, Alembic (migraciones) |
+| Backend | Python 3.12, FastAPI + Uvicorn, SQLAlchemy, Alembic |
+| Datos | PostgreSQL 18 + PostGIS + pgvector en un solo contenedor ([ADR 0001](docs/adr/0001-pgvector-vs-qdrant.md)); Redis opcional como caché |
+| IA | AWS Bedrock por defecto: Titan Embeddings V2 (1024 dim), Amazon Rerank 1.0 y Nova 2 Lite. Gemini con `LLM_PROVIDER=gemini` |
+| Agentes | LangGraph (informe de viabilidad y asistente ReAct con `PostgresSaver`) |
+| Frontend | Vue 3, Vite, Tailwind 4, Leaflet, ECharts |
+| DevOps | Docker, GitHub Actions, AWS (EC2, S3, CloudFront, CloudWatch) |
 
----
+## Arranque rápido
 
-## 🏗️ Arquitectura del Sistema
-
-El flujo de datos sigue una estructura **Cloud-Native**:
-1. **Ingesta:** Carga de datasets MITMA, del INE, del censo comercial de Barcelona (Open Data BCN) y PDF normativos del PGM (portal NUMAMB), más la API abierta del AMB (`opendata.amb.cat`) para artículos adicionales de zonificación.
-2. **Procesamiento:** Limpieza y agregación con Pandas (Fase 1); chunking por artículo y generación de embeddings locales (Fase 2).
-3. **Almacenamiento:** Postgres/PostGIS para datos geoespaciales y sociodemográficos, pgvector para los embeddings legales — todo en la misma base de datos.
-4. **Consulta:** `backend/rag/query_engine.py` recupera los artículos más relevantes por similitud semántica (combinando normativa de zona + normativa general) y genera una respuesta citando el artículo y la norma exactos.
-5. **Síntesis:** `backend/ia/agent.py` (LangGraph) combina en paralelo los datos del distrito y la normativa de la zona PGM elegida en un único informe de viabilidad con semáforo, en modo síncrono o streaming.
-6. **Geocodificación:** `backend/geo/geocoding.py` (dirección → distrito) y `backend/geo/amb_identify.py` (coordenadas → zona PGM) resuelven automáticamente lo que antes había que seleccionar a mano, con reintento ante fallos transitorios de los servicios externos.
-7. **Chat:** `backend/ia/chat_intent.py` traduce una frase libre a los mismos parámetros estructurados (dirección, distrito, pregunta específica) que el resto del sistema ya sabe manejar -- no es un agente con herramientas, es una capa de extracción de intención de una sola llamada.
-8. **API:** FastAPI expone todo lo anterior (ver [Endpoints de la API](#-endpoints-de-la-api)).
-9. **Frontend:** Vue consume la API, muestra el informe en tiempo real, el mapa interactivo, y el visor de normativa.
-
-Ver [`docs/diagram.md`](docs/diagram.md) para el diagrama de alto nivel y [`docs/structure.md`](docs/structure.md) para la estructura de carpetas al detalle.
-
----
-
-## 🚀 Instalación y Uso
-
-### Requisitos previos
-* Docker y Docker Compose instalados
-* Python 3.12
-* Node.js (para el frontend) y `npm`
-* `poppler-utils` instalado en el sistema (paquete del SO, no de Python) — necesario para `pdftotext`, usado en la ingesta del corpus legal (Fase 2). En Ubuntu/Debian: `sudo apt install poppler-utils`
-* Una API key de **Gemini** (para la generación de respuestas del motor RAG, la síntesis del agente, y la extracción de intención del chat; consíguela en aistudio.google.com/app/apikey) — ver [`backend/rag/gemini_adapter.py`](backend/rag/gemini_adapter.py)
-
-### Pasos para ejecución local con Docker (recomendado, para la base de datos)
-
-1. **Clonar el repositorio:**
-```bash
-   git clone https://github.com/TU_USUARIO/pj-geo-yield-ai.git
-   cd pj-geo-yield-ai
-```
-
-2. **Configurar el entorno:**
-```bash
-   cp .env.example .env
-   # Edita .env con tus credenciales (POSTGRES_*, GEMINI_API_KEY)
-```
-
-3. **Levantar la base de datos:**
-```bash
-   docker compose -f deployment/docker-compose.yml up -d --build
-```
-   La base de datos se construye desde [`deployment/Dockerfile.postgis`](deployment/Dockerfile.postgis) (Postgres 18 + PostGIS + pgvector, ambos vía el repositorio oficial PGDG) — la imagen oficial de `postgis/postgis` por sí sola **no** trae pgvector.
-
-4. **Aplicar las migraciones de base de datos** (desde la raíz del repo, con la BD ya levantada):
-```bash
-   pip install -r backend/requirements.txt
-   DB_HOST_OVERRIDE=localhost alembic -c database/alembic.ini upgrade head
-```
-   `DB_HOST_OVERRIDE=localhost` sobrescribe el host de `DATABASE_URL` (que
-   por defecto apunta a `postgis`, el nombre del servicio dentro de la red
-   de Docker, no resoluble desde el host) para poder conectar desde fuera
-   del contenedor.
-
-5. **Cargar los datos sociodemográficos** (requiere los CSV de origen en `data/raw/`, ver `backend/etl/config.py` para los nombres esperados):
-```bash
-   DB_HOST_OVERRIDE=localhost python -m database.load_to_db
-```
-
-6. **Cargar el corpus legal** (requiere los PDF de artículos normativos descargados del portal NUMAMB del AMB en un directorio, p. ej. `data/raw/legal/`):
-```bash
-   DB_HOST_OVERRIDE=localhost python -m database.load_legal_corpus data/raw/legal/
-```
-   La primera vez descarga el modelo de embeddings (`sentence-transformers/all-MiniLM-L6-v2`, ~90MB) desde Hugging Face — necesitas conexión a internet para ese paso puntual; luego corre en local sin red (puedes fijar `HF_HUB_OFFLINE=1` para evitar comprobaciones de red innecesarias una vez descargado).
-
-   Para ampliar el corpus con las zonas investigadas más allá de las 3 originales, ver [`scripts/pgm_research/`](scripts/pgm_research/) (incluye el proceso completo y `load_new_articles.py`, listo para volver a correr si la base de datos se reinicia).
-
-7. **Cargar users** (requiere de archivo `data/raw/users/users.csv`):
-```bash
-   DB_HOST_OVERRIDE=localhost python -m database.load_users data/raw/users/users.csv
-```
-
-8. **Inicializar tf-idf del nomenclator de calles** ( requiere de archivo `data/raw/users/users.csv`):
-```bash
-   DB_HOST_OVERRIDE=localhost python -m database.load_users data/raw/nomenclator.csv
-
-```
-8. **Conectar a aws**:
-```bash
-   aws sso login --profile AdministratorAccess-192445490421
-```
-   Se debe tener instalado el `AWS CLI`
-   Los modelos de BedRock requieren de credeciales de AWS. Con este sistema, SSO, se refrescan automáticamente mientras dure la sesión
-
-
-
-### Levantar la API (backend)
+Requisitos: Docker, Python 3.12, Node.js, `poppler-utils` (`pdftotext`, para ingerir PDFs) y credenciales de AWS con acceso a Bedrock (o `GEMINI_API_KEY`).
 
 ```bash
-DB_HOST_OVERRIDE=localhost uvicorn backend.api.api:app --reload --port 8000
+cp .env.example .env            # edita POSTGRES_*, AWS_PROFILE / AWS_REGION
+aws sso login --profile <tu-perfil>
+
+# 1. Base de datos
+docker compose --env-file .env -f deployment/docker-compose.yml up -d --build postgis
+pip install -r backend/requirements.txt
+
+# 2. Esquema y datos (DB_HOST_OVERRIDE=localhost permite conectar desde el host)
+export DB_HOST_OVERRIDE=localhost
+alembic -c database/alembic.ini upgrade head
+python -m database.load_to_db                       # CSV en data/raw/
+python -m database.load_legal_corpus data/raw/legal/  # PDFs del PGM
+python -m database.load_users                       # data/users/users.csv
+python -m backend.etl.tfidf                         # índice de calles (data/raw/nomenclator.csv)
+
+# 3. API (http://localhost:8000, docs en /docs)
+uvicorn backend.api.api:app --reload --port 8000
+
+# 4. Frontend (http://localhost:5173)
+cd frontend && npm install && npm run dev
 ```
 
-Comprueba que responde en `http://localhost:8000/health` y `http://localhost:8000/ready`. La documentación interactiva de todos los endpoints está en `http://localhost:8000/docs` (generada automáticamente por FastAPI).
+`database/load_all.sh` carga además el resto de leyes con `database.load_general_law`. Para ampliar zonas del PGM, ver [`scripts/pgm_research/`](scripts/pgm_research/README.md).
 
-#### Lint y formato del backend
-
-El backend usa [Ruff](https://docs.astral.sh/ruff/) como linter, formateador y ordenador de imports. La configuración está en [`pyproject.toml`](pyproject.toml) y hoy se aplica solo a `backend/`. Desde la raíz del repositorio:
-
-```bash
-pip install -r backend/requirements-dev.txt   # instala Ruff (solo desarrollo, no va a la imagen de producción)
-ruff check backend          # analiza el código
-ruff check backend --fix    # aplica las correcciones automáticas seguras
-ruff format backend         # formatea
-ruff format --check backend # comprueba el formato sin modificar archivos
-```
-
-El job `backend-lint` de `.github/workflows/integrate.yml` ejecuta `ruff check` y `ruff format --check` en cada Pull Request.
-
-### Levantar el frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Por defecto arranca en `http://localhost:5173` y espera la API en `http://localhost:8000`. Si la API corre en otra dirección, crea un `frontend/.env` con:
-
-VITE_API_BASE_URL=http://localhost:8000
-
-
-Con ambos corriendo, abre `http://localhost:5173` en el navegador: ahí están el chat, el formulario, el mapa y el visor de normativa, todo integrado.
-
-#### Lint y formato del frontend
-
-El frontend usa ESLint (con `eslint-plugin-vue`) y Prettier. Desde `frontend/`:
-
-```bash
-npm run lint          # analiza el código con ESLint
-npm run lint:fix      # aplica las correcciones automáticas de ESLint
-npm run format        # formatea con Prettier
-npm run format:check  # comprueba el formato sin modificar archivos
-```
-
-El job `frontend-lint` de `.github/workflows/integrate.yml` ejecuta `lint` y `format:check` en cada Pull Request.
-
-### Uso directo del motor RAG y el agente (sin la API, para depuración o notebooks)
-
-```python
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
-from backend.db.connection import resolve_database_url
-from backend.rag.query_engine import generate_answer
-from backend.ia.agent import generar_informe_viabilidad, zonas_pgm_disponibles
-
-engine = create_engine(resolve_database_url())
-with Session(engine) as session:
-    result = generate_answer(session, "¿Puedo abrir un bar en una zona industrial?")
-    print(result["respuesta"])
-
-    print(zonas_pgm_disponibles(session))  # zonas con normativa cargada
-    informe = generar_informe_viabilidad(session, codi_districte=1, zona_pgm="nucli_antic")
-    print(informe["semaforo"], informe["resumen"])
-```
-Gemini es el proveedor por defecto (no hace falta pasar `llm_client` explícitamente).
-<!-- "Cuota gratuita limitada a 20 peticiones/día" -- verificar si sigue siendo así antes de reafirmarlo aquí; el uso real de esta sesión de desarrollo ha sido considerablemente mayor. -->
-
-La zona PGM se puede pedir explícita, o dejar que se determine automáticamente a partir de una dirección (ver `backend/geo/geocoding.py` y `backend/geo/amb_identify.py`) -- un distrito puede abarcar varias zonas PGM distintas, así que sin una dirección exacta no hay forma honesta de saber cuál aplica.
-
-### Uso de modelos Bedrock
-La aplicación se ha modificado para usar modelos de AWS Bedrock, tanto para el bi-encoder (etl de la basde de datos vectorial y codificación de las queries de usuario), el crossencoder (rernking) y el modelo generativo (razonador del agente ReAct y generación de respuestas)
-
-La instanciación del modelo toma las credenciales del contexto, que puede ser de access keys en .env, un perfil asociado a una sesión SSO activa o un IAM role asociado al EC2 donde se esté ejecutando el código.
-Para las pruebas en local lo mejor es tener activa una sesión AWS SSO. Para ello debe estar instalado AWS CLI. El comando es el siguiente: ´aws sso login --profile AdministratorAccess-192445490421´. Al ejecutarlo da una url en la que identificarse y a partir de entonces las credenciales se refrescan automáticamente mientras la sesión esté activa
-En .env deben estar AWS_PROFILE y AWS_REGION. Es mantener lo que hay en .env_example
-
-Se ha mentenido el código para hacer el fallback a modelo gemini para generación y razonamiento y modelos locales para embeddings. Aun así la latencia con los de Bedrock es claramente mejor y tienen la ventaja de estar incluidos en la cuenta del proyecto
-
-### Asistente
-Se ha creado un asistente disponible solamente param  usuarios registrados. Por simplificar, esos usuarios están predefinidos en la base de datos y son los noombres de usuario github de los componentes del equipo de proyecto
-El chat del asistente es con memoria. Las conversaciones son guardadas en base de datos, de forma que se pueden recuperar y seguir con ellas en otro momento
-El agente, con dos tools, el generador de 'opportunity score' y el RAG, está hecho con langgraph con output en modo stream, de forma que se puede entregar la respuesta por SSE al frontend. Para prevenir un crecimiento desmesurado de la ventana de contexto a medida que avanza la conversación, los mensajes más antiguos son eliminados de él y sustituidos un resumen. La historia de la conversación sí se mantienen íntegra, este tratamiento es específico del contexto
-Usa un directorio 'chat_history en la raíz del proyecto para guardar las conversaciones. Esto puede canviarse a la hora de subirlo a la nube.
-
-### Usuarios
-Existe una base de usuarios predefinida. Son 4 usuarios correspondientes a los nombres de usuarios github de los 4 integrantes del equipo más un usuario llamado 'administrador'
-Se cargan en el etl inicial de del archivo `data/users/users.csv`
-La tabla se carga en la fase de etl ejecutando `database/load_users.py`
-
-### Verificación direcciones contra el nomenclator oficial de la ciudad de Barcelona
-Para poder obtener con garantías las coordenadas de Nominatium y con ello el distrito del geoportal de la AMB es necesario disponer de una dirección real. Para ello existe una matriz rf-idf con el nomenclator oficial con la cual se infiere la dirección real a partir de la cadena corresponodiente identificada en el prompt.
-El archivo con las direcciones oficiales es `data/raw/nomenclator.csv`
-En la fase de etl se deben crear el objeto TfIdfVectorizer y la matriz. Se crea ejecutando `backend/etl/tfidf.py`
-
-### Ejecutar los tests
-
-```bash
-DB_HOST_OVERRIDE=localhost pytest tests/ -v
-```
-
-Los tests que necesitan una base de datos real (recuperación por similitud, carga del corpus legal) se saltan automáticamente (no fallan) si no hay una BD accesible — ver [`tests/conftest.py`](tests/conftest.py). Los tests de servicios externos (geocodificación, AMB) usan mocks, no red real.
-
----
-
-## 🔌 Endpoints de la API
+## API
 
 | Método | Ruta | Descripción |
 | :--- | :--- | :--- |
-| `GET` | `/api/districts` | Lista los 10 distritos de Barcelona |
-| `GET` | `/api/pgm-zones` | Lista las zonas PGM con normativa cargada (dinámico, según lo que haya en la base de datos) |
-| `POST` | `/api/reports` | Genera un informe completo, de una vez |
-| `POST` | `/api/reports/stream` | Igual, pero transmitido en tiempo real (Server-Sent Events) |
-| `GET` | `/api/competitors` | Competidores por distrito, o por radio si se indican `lat`/`lon` |
-| `GET` | `/api/articles` | Texto completo de un artículo legal (fuente + número) |
-| `GET` | `/api/geocode` | Dirección → distrito + zona PGM sugeridos |
-| `POST` | `/api/chat/informe/stream` | Frase libre → informe, vía streaming 
+| `GET` | `/api/districts`, `/api/pgm-zones` | Opciones del formulario |
+| `POST` | `/api/reports` · `/api/reports/stream` | Informe completo, en JSON o por SSE |
+| `POST` | `/api` | Chat unificado: frase libre → informe, o asistente si hay `thread_id` |
+| `POST` | `/api/assistant` | Asistente ReAct con memoria (SSE) |
+| `GET` | `/api/geocode` | Dirección → distrito + zona PGM |
+| `GET` | `/api/competitors` | Competidores por distrito o por radio |
+| `GET` | `/api/articles` | Texto completo de un artículo |
+| `POST` / `GET` | `/api/login` · `/api/gethistory` | Usuario y conversaciones |
+| `GET` | `/api/metrics/*` · `/api/evals/*` | Datos de los paneles de métricas y de calidad RAG |
+| `POST` | `/api/logs` | Logs del navegador |
+| `POST` | `/api/etl/*` | Disparadores de ETL (token de webhook) |
+| `GET` | `/health` · `/ready` · `/metrics` | Sondas y contador de peticiones |
 
----
-
-## 🔄 DevOps y Despliegue
-Este proyecto aplica los conocimientos de ingeniería adquiridos en el Máster:
-
-- **Contenedores:** Imágenes Docker propias para la API (`deployment/Dockerfile`) y para la base de datos (`deployment/Dockerfile.postgis`, Postgres + PostGIS + pgvector), para que el entorno de desarrollo sea idéntico al de producción.
-- **Migraciones:** Alembic, versionadas en `database/alembic/versions/` — cada cambio de esquema es un fichero nuevo, nunca se edita uno ya aplicado.
-- **AWS RDS:** Guía de migración de PostgreSQL con PostGIS y pgvector: [docs/aws-rds-migration.md](docs/aws-rds-migration.md).
-- **CI/CD:** Pipeline en GitHub Actions (`integrate.yml`) que ejecuta los tests en cada pull request, y despliegue manual (`deploy.yml`) a Render.
-- **Observabilidad:** Logging estructurado en JSON compartido por backend y frontend (ver *Structured logging* más abajo), más el contador de peticiones de `/metrics`. Las métricas específicas del agente/RAG (latencia del LLM, tasa de citas verificadas) se añadirán en la Fase 3.
-
-### Structured logging
-
-Backend and frontend emit **the same JSON schema**, so a single CloudWatch Logs Insights query covers both:
-
-```json
-{"timestamp":"...","level":"ERROR","service":"geoyield-api","env":"production","version":"0.1.0",
- "logger":"geoyield_api","message":"...","trace_id":"8f3c1a2b4d5e6f70","duration_ms":1234,
- "error":{"type","message","stack"},"context":{"codi_districte":"01"}}
-```
-
-| | Where | Usage |
-|---|---|---|
-| Backend | `backend/observability/` | `logging.getLogger("geoyield_api")` as before; only the formatter changed. For structured context, `log_event(logger, "INFO", "msg", codi_districte="01")`. |
-| Frontend | `frontend/src/services/logger.js` | `import { createLogger } from './services/logger.js'` → `log.error('msg', { error })`, `log.event('informe.generado', {...})`. |
-
-**Correlation.** The frontend generates a `trace_id` per call and sends it in the `X-Request-ID` header. The backend propagates it to *all* of its log lines for that request (RAG, agent and database included), so a user click can be traced end to end:
-
-fields @timestamp, service, level, message, duration_ms
-| filter trace_id = "8f3c1a2b4d5e6f70"
-| sort @timestamp asc
-
-
-**Local vs production.** Behaviour is derived from `ENV` (and from the Vite build mode on the frontend), so there is nothing to configure for day-to-day work:
-
-| | Local (`ENV=development`, `npm run dev`) | Production (`ENV=production`, `npm run build`) |
-|---|---|---|
-| Format | Readable coloured text | One JSON line per event |
-| Level | DEBUG | INFO |
-| Backend logs | Console / `docker compose logs` | stdout, collected by the host |
-| Frontend logs | Browser console only | Browser console + `POST /api/logs` |
-| CloudWatch | Never | When `LOG_CLOUDWATCH_GROUP` is set |
-
-`LOG_LEVEL`, `LOG_FORMAT`, `LOG_CLOUDWATCH_ENABLED` and `VITE_LOG_REMOTE` override any of this, for example to reproduce the production format locally:
+## Desarrollo
 
 ```bash
-LOG_FORMAT=json python -m backend.api.main
-docker compose -f deployment/docker-compose.yml logs -f api | jq .
+pytest tests/unit_tests -q              # ~450 tests; los de BD se saltan si no hay base de datos
+ruff check backend && ruff format --check backend
+cd frontend && npm run lint && npm run format:check
 ```
 
-**How logs reach CloudWatch.** The browser cannot talk to CloudWatch without exposing AWS credentials, so it posts batches to `POST /api/logs` and the backend re-emits them through its own logger. From there, two routes:
+CI (`integrate.yml`) ejecuta tests, Ruff y ESLint/Prettier en cada PR. `deploy.yml` y `deploy-frontend.yml` despliegan desde `develop` a EC2 (vía SSM) y a S3 + CloudFront. Los cambios de esquema son migraciones nuevas, nunca se edita una ya aplicada.
 
-1. **stdout collected by the host (default, recommended).** On ECS/Fargate/App Runner the host driver (`awslogs`/FireLens) already collects it. On the **EC2 + docker compose** deployment nothing does by default (the `json-file` driver keeps logs on the box), so `deployment/docker-compose.yml` sets `logging: driver: awslogs` on the `api` service (group `/geoyield/api`, override with `LOG_CLOUDWATCH_DOCKER_GROUP`). The Docker daemon authenticates with the instance profile, whose policy is `aws/bedrock/bedrock-policy.json`. Leave `LOG_CLOUDWATCH_GROUP` **unset** here, or every line is ingested twice.
-2. **Direct shipping.** For hosts that do *not* collect stdout and where you cannot change the log driver, such as Render. Set `LOG_CLOUDWATCH_GROUP` and install the optional `boto3` and `watchtower` (commented out in `backend/requirements.txt`). It only activates when `ENV=production`.
+## Documentación
 
-**Production checklist (EC2 `.env`).** `ENV=production` (JSON, INFO), `CORS_ORIGINS=<CloudFront frontend origin>` (otherwise the browser cannot call the API or post to `/api/logs`), `TRUSTED_PROXY_HOPS` matching the proxies in front of the API. `SERVICE_VERSION` and the frontend's `VITE_APP_VERSION` are set to the commit SHA by the deploy workflows. Each model call also emits an `llm.invoke` event (`model`, `duration_ms`, `input_tokens`, `output_tokens`, `outcome`):
+- [`docs/structure.md`](docs/structure.md): estructura del repositorio y comandos habituales
+- [`docs/architecture-and-audit.md`](docs/architecture-and-audit.md) y [`docs/diagram.md`](docs/diagram.md): arquitectura y decisiones de diseño
+- [`docs/observability.md`](docs/observability.md): logging estructurado, CloudWatch y privacidad
+- [`docs/backend/`](docs/backend/api.md) y [`docs/frontend/`](docs/frontend/overview.md): un documento por módulo
+- [`docs/data-sources.md`](docs/data-sources.md): fuentes de datos y linaje
+- AWS: [migración](docs/aws-migration-assessment.md), [RDS](docs/aws-rds-migration.md), [CD](docs/aws-cd-assessment.md), [Cognito](docs/aws-cognito-assessment.md), [IaC](docs/IaC_generator.md)
+- Calidad RAG: [`docs/rag_metrics_assessment.md`](docs/rag_metrics_assessment.md) y [`evals/README.md`](evals/README.md)
 
-```
-fields @timestamp, context.model, duration_ms, context.input_tokens, context.output_tokens
-| filter event = "llm.invoke" and context.outcome = "ok"
-| stats avg(duration_ms), sum(context.output_tokens) by context.model
-```
+## Limitaciones conocidas
 
-**Privacy (GDPR).** The geocoder's free-text address is personal data and is never logged; the resulting district and zone are stored instead. `backend/observability/logging_config.py` also redacts a set of sensitive keys (`direccion`, `email`, `token`, `api_key`...) both in our own logs and in those arriving from the browser.
+- Nominatim y el geoportal del AMB son servicios externos que pueden fallar; se reintenta, pero no se inventa un resultado.
+- El corpus cubre 10 claves urbanísticas del PGM (más de 50 en total); para el resto se pide selección manual.
+- Renta y afluencia son promedios por distrito, sin desagregar por zona ni franja horaria.
+- El chat no recomienda distritos: pide al menos un distrito o dirección.
+- El login es solo por nombre de usuario (usuarios precargados), sin contraseña. Ver la [propuesta con Cognito](docs/aws-cognito-assessment.md).
 
-## ⚠️ Limitaciones conocidas
+## Equipo
 
-- La geocodificación y la determinación de zona PGM dependen de servicios externos (Nominatim, geoportal del AMB) que pueden fallar o tardar -- el sistema reintenta automáticamente, pero nunca inventa un resultado si no puede confirmarlo.
-- El corpus legal cubre 10 de las más de 50 zonas urbanísticas reales del PGM; para el resto, el sistema pide selección manual en vez de adivinar.
-- Los datos de afluencia peatonal y renta son promedios por distrito completo, no desagregados por zona ni por franja horaria.
-- El chat no incluye un recomendador de distrito: si el usuario no menciona ninguna zona de Barcelona, se le pide que indique al menos un distrito o dirección.
-
-## 👥 Equipo
-Proyecto desarrollado por 4 compañeros del Máster en IA, Cloud y DevOps (Pontia):
-- Manuel Yerbes García
-- Marvin Bernal
-- Enmanuel De Oleo
-- Claudi Berenguer Sabaté
+Proyecto del Máster en IA, Cloud y DevOps (Pontia): Manuel Yerbes García, Marvin Bernal, Enmanuel De Oleo y Claudi Berenguer Sabaté.
