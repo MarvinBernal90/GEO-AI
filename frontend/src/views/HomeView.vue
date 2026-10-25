@@ -19,6 +19,7 @@ import ChatBubble from '../components/ChatBubble.vue'
 import DistrictMap from '../components/DistrictMap.vue'
 import RegulationsViewer from '../components/RegulationsViewer.vue'
 import { assistantStream, chatInformeStream, generarInformeStream, getHistory, loginUser } from '../services/api.js'
+import { renderMarkdown } from '../utils/markdown.js'
 import { createLogger } from '../services/logger.js'
 
 defineOptions({ name: 'HomeView' })
@@ -629,9 +630,9 @@ async function onEnviarChat() {
                       GeoYield Asistente
                     </span>
                   </div>
-                  <p class="font-mono text-xs text-paper/90 whitespace-pre-wrap leading-relaxed">
-                    {{ msg.text }}
-                  </p>
+                  <!-- Safe: renderMarkdown escapes the HTML before adding its own tags -->
+                  <!-- eslint-disable-next-line vue/no-v-html -->
+                  <div class="markdown-body" v-html="renderMarkdown(msg.text)" />
                 </div>
               </div>
             </template>

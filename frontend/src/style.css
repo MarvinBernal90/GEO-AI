@@ -53,3 +53,65 @@ body {
     linear-gradient(90deg, rgba(245, 241, 232, 0.045) 1px, transparent 1px);
   background-size: 48px 48px;
 }
+
+/*
+ * Rendered Markdown of the assistant answers (see src/utils/markdown.js).
+ * Only the tags that renderer can output are styled.
+ */
+.markdown-body {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: rgba(245, 241, 232, 0.92);
+}
+.markdown-body > * + * {
+  margin-top: 0.6rem;
+}
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  margin-top: 1rem;
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--color-paper);
+}
+.markdown-body h3 {
+  font-size: 1.05rem;
+}
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  font-size: 0.95rem;
+}
+.markdown-body strong {
+  font-weight: 600;
+  color: var(--color-paper);
+}
+.markdown-body ul,
+.markdown-body ol {
+  padding-left: 1.4rem;
+}
+.markdown-body ul {
+  list-style: disc;
+}
+.markdown-body ol {
+  list-style: decimal;
+}
+.markdown-body li + li {
+  margin-top: 0.3rem;
+}
+.markdown-body li::marker {
+  color: var(--color-brass);
+}
+.markdown-body code {
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.25rem;
+  background: rgba(245, 241, 232, 0.1);
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+}
+.markdown-body hr {
+  border: 0;
+  border-top: 1px solid rgba(245, 241, 232, 0.15);
+  margin: 0.9rem 0;
+}
