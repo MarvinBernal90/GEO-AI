@@ -120,10 +120,9 @@ MANIFEST: tuple[CorpusDoc, ...] = (
     ),
     CorpusDoc(
         "BOE-A-2017-11320 - Ley 222010, de 20 de julio, del Código de Consumo de Cataluña.pdf",
-        "",
+        "Ley 182017, de 1 de agosto, de comercio, servicios y ferias.",
         "general",
-        in_eval=False,
-        note="BOE amendment text of the Código de consumo, not a stand-alone law; not loaded by load_all.sh",
+        note="file name says Ley 22/2010 but the content is Ley 18/2017 (50 pages, 82 chunks); same name as database/load_all.sh",
     ),
     CorpusDoc(
         "OMAIIAA_Barcelona.pdf",
